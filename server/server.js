@@ -2055,178 +2055,30 @@ app.post('/api/disputes', async (req, res) => {
 
 // API ENDPOINT TO GET PRODUCTS
 app.get('/api/products', async (req, res) => {
-  try {
-    console.log('Products endpoint called');
-    
-    // Check if Supabase client is properly initialized
-    if (typeof supabase === 'undefined' || supabase === null) {
-      console.error('Supabase client is not properly initialized');
-      return res.status(500).json({ error: 'Server error: Supabase client not initialized' });
+    // Add console.log here for debugging
+    console.log('GET /api/products endpoint hit on Vercel');
+    try {
+        const { data, error } = await supabase.from('products').select('*');
+        if (error) return res.status(500).json({ error: error.message });
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching products:', error.message);
+        res.status(500).json({ error: 'Server error fetching products: ' + error.message });
     }
-    
-    console.log('Fetching products from Supabase');
-    
-    // Fetch products from Supabase with seller information
-    const { data: products, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        currency_id,
-        seller_id
-      `)
-      .eq('is_active', true)
-      .eq('is_verified', true)
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching products:', error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ error: 'Server error fetching products: ' + error.message });
-    }
-    
-    console.log('Fetched products:', products ? products.length : 0);
-    
-    // If no products found, return empty array instead of error
-    if (!products || products.length === 0) {
-      console.log('No products found, returning empty array');
-      return res.json([]);
-    }
-
-    // Get usernames for all sellers
-    const sellerIds = [...new Set(products.map(product => product.seller_id).filter(id => id))];
-    
-    console.log('Seller IDs:', sellerIds);
-    
-    let sellerUsernames = {};
-    if (sellerIds.length > 0) {
-      console.log('Fetching seller usernames from Supabase');
-      const { data: sellers, error: sellersError } = await supabase
-        .from('users')
-        .select('id, username')
-        .in('id', sellerIds);
-      
-      if (sellersError) {
-        console.error('Error fetching sellers:', sellersError.message);
-        console.error('Error details:', sellersError);
-      } else if (sellers) {
-        console.log('Fetched sellers:', sellers.length);
-        sellerUsernames = sellers.reduce((acc, seller) => {
-          acc[seller.id] = seller.username || 'Unknown';
-          return acc;
-        }, {});
-      }
-    }
-
-    // Format the data for the frontend
-    const formattedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      currency_id: product.currency_id,
-      vendor_code: sellerUsernames[product.seller_id] || 'Unknown'
-    }));
-    
-    console.log('Formatted products:', formattedProducts.length);
-
-    res.json(formattedProducts);
-  } catch (error) {
-    console.error('Error fetching products:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ error: 'Server error fetching products: ' + error.message });
-  }
 });
 
 // API ENDPOINT TO GET CATALOGS (for home page)
 app.get('/api/catalogs', async (req, res) => {
-  try {
-    console.log('Catalogs endpoint called');
-    
-    // Check if Supabase client is properly initialized
-    if (typeof supabase === 'undefined' || supabase === null) {
-      console.error('Supabase client is not properly initialized');
-      return res.status(500).json({ error: 'Server error: Supabase client not initialized' });
+    // Add console.log here for debugging
+    console.log('GET /api/catalogs endpoint hit on Vercel');
+    try {
+        const { data, error } = await supabase.from('products').select('*');
+        if (error) return res.status(500).json({ error: error.message });
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching catalogs:', error.message);
+        res.status(500).json({ error: 'Server error fetching catalogs: ' + error.message });
     }
-    
-    console.log('Fetching products from Supabase');
-    
-    // Fetch products from Supabase with seller information
-    const { data: products, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        currency_id,
-        seller_id
-      `)
-      .eq('is_active', true)
-      .eq('is_verified', true)
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching catalogs:', error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ error: 'Server error fetching catalogs: ' + error.message });
-    }
-    
-    console.log('Fetched products:', products ? products.length : 0);
-    
-    // If no products found, return empty array instead of error
-    if (!products || products.length === 0) {
-      console.log('No products found, returning empty array');
-      return res.json([]);
-    }
-
-    // Get vendor codes for all sellers
-    const sellerIds = [...new Set(products.map(product => product.seller_id).filter(id => id))];
-    
-    console.log('Seller IDs:', sellerIds);
-    
-    let vendorCodes = {};
-    if (sellerIds.length > 0) {
-      console.log('Fetching seller usernames from Supabase');
-      const { data: sellers, error: sellersError } = await supabase
-        .from('users')
-        .select('id, username')
-        .in('id', sellerIds);
-      
-      if (sellersError) {
-        console.error('Error fetching sellers:', sellersError.message);
-        console.error('Error details:', sellersError);
-      } else if (sellers) {
-        console.log('Fetched sellers:', sellers.length);
-        vendorCodes = sellers.reduce((acc, seller) => {
-          acc[seller.id] = seller.username || 'Unknown';
-          return acc;
-        }, {});
-      }
-    }
-
-    // Format the data for the frontend
-    const formattedCatalogs = products.map(product => ({
-      id: product.id,
-      title: product.name,
-      description: product.description,
-      price: product.price,
-      currency_id: product.currency_id,
-      image: 'https://placehold.co/400x300',
-      vendor_code: vendorCodes[product.seller_id] || 'Unknown',
-      status: 'approved'
-    }));
-    
-    console.log('Formatted catalogs:', formattedCatalogs.length);
-
-    res.json(formattedCatalogs);
-  } catch (error) {
-    console.error('Error fetching catalogs:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ error: 'Server error fetching catalogs: ' + error.message });
-  }
 });
 
 // API ENDPOINT TO GET ARBITRATOR CASES
