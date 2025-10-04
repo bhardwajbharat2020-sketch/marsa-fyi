@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Registration</title>
+</head>
+<body>
+    <h1>Test Registration</h1>
+    <button onclick="testRegistration()">Test Transporter Registration</button>
+    <div id="result"></div>
+
+    <script>
+        async function testRegistration() {
+            try {
+                const response = await fetch('http://localhost:5000/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'transporter@test.com',
+                        password: 'TestPass123!',
+                        firstName: 'Test',
+                        lastName: 'Transporter',
+                        phone: '1234567890',
+                        workClass: 'transporter'
+                    }),
+                });
+                
+                const result = await response.json();
+                document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                
+                if (result.vendorCode) {
+                    if (result.vendorCode.startsWith('TRN-')) {
+                        document.getElementById('result').innerHTML += '<p style="color: green;">SUCCESS: Vendor code format is correct!</p>';
+                    } else {
+                        document.getElementById('result').innerHTML += '<p style="color: red;">ERROR: Vendor code format is incorrect!</p>';
+                    }
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Test failed: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

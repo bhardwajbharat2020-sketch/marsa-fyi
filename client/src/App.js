@@ -21,12 +21,13 @@ import TransporterDashboard from './components/TransporterDashboard';
 import LogisticsDashboard from './components/LogisticsDashboard';
 import CHADashboard from './components/CHADashboard';
 import RoleSwitcher from './components/RoleSwitcher';
+import RoleDashboard from './components/RoleDashboard';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <div className="App">
           <Routes>
             <Route path="/" element={<MainDashboard />} />
@@ -36,6 +37,7 @@ function App() {
             <Route path="/product/:productId" element={<ProductDetailPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={<RoleDashboard />} />
             <Route path="/dashboard/seller" element={<SellerDashboard />} />
             <Route path="/dashboard/buyer" element={<BuyerDashboard />} />
             <Route path="/dashboard/captain" element={<CaptainDashboard />} />
@@ -51,8 +53,8 @@ function App() {
             <Route path="/role-switch" element={<RoleSwitcher />} />
           </Routes>
         </div>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

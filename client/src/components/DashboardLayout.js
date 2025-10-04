@@ -7,10 +7,15 @@ const DashboardLayout = ({ children, title, role }) => {
   const { currentUser, userRole, vendorCode, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
   };
 
   const getMenuItems = () => {
@@ -151,47 +156,57 @@ const DashboardLayout = ({ children, title, role }) => {
 
   return (
     <div className="dashboard-container">
-      {/* Top Navigation Bar */}
-      <div className="top-navbar">
-        <div className="top-navbar-left">
-          <h1 className="dashboard-title">{title}</h1>
-          {/* Display vendor code for all roles except buyer */}
-          {role !== 'buyer' && vendorCode && (
-            <div className="vendor-code-display">
-              Vendor Code: <strong>{vendorCode}</strong>
-            </div>
-          )}
-        </div>
-        
-        <div className="top-navbar-center">
-          <nav className="top-navbar-menu">
-            {getMenuItems().map((item, index) => (
-              <div 
-                key={index} 
-                className={`top-menu-item ${location.pathname === item.path ? 'active' : ''}`}
-                onClick={() => navigate(item.path)}
-              >
-                <span className="menu-icon">{item.icon}</span>
-                <span className="menu-text">{item.name}</span>
-              </div>
-            ))}
-          </nav>
-        </div>
-        
-        <div className="top-navbar-right">
-          <div className="user-info">
-            <div className="user-name">{currentUser?.name || 'User'}</div>
-            <div className="user-role">{getRoleName(userRole)}</div>
-          </div>
-          <button className="btn btn-danger" onClick={handleLogout}>
-            Logout
+      {/* Sidebar */}
+      <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <h2 className="sidebar-title">{sidebarCollapsed ? 'M' : 'MarsaFyi'}</h2>
+          <button className="sidebar-toggle" onClick={toggleSidebar}>
+            {sidebarCollapsed ? '»' : '«'}
           </button>
         </div>
+        <nav className="sidebar-menu">
+          {getMenuItems().map((item, index) => (
+            <div 
+              key={index} 
+              className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => navigate(item.path)}
+            >
+              <span className="menu-icon">{item.icon}</span>
+              {!sidebarCollapsed && <span className="menu-text">{item.name}</span>}
+            </div>
+          ))}
+        </nav>
       </div>
       
       {/* Main Content */}
-      <div className="main-content-no-sidebar">
-        {children}
+      <div className="main-content">
+        {/* Top Navigation Bar */}
+        <div className="top-navbar">
+          <div className="top-navbar-left">
+            <h1 className="dashboard-title">{title}</h1>
+            {/* Display role code for all roles except buyer */}
+            {role !== 'buyer' && vendorCode && (
+              <div className="vendor-code-display">
+                Role Code: <strong>{vendorCode}</strong>
+              </div>
+            )}
+          </div>
+          
+          <div className="top-navbar-right">
+            <div className="user-info">
+              <div className="user-name">{currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'User'}</div>
+              <div className="user-role">{getRoleName(userRole)}</div>
+            </div>
+            <button className="btn btn-danger" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        </div>
+        
+        {/* Page Content */}
+        <div className="page-content">
+          {children}
+        </div>
       </div>
     </div>
   );

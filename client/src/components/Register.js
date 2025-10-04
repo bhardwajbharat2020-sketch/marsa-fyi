@@ -7,6 +7,7 @@ const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     whatsapp: '',
     address: '',
     zipCode: '',
@@ -23,8 +24,11 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [vendorCode, setVendorCode] = useState('');
   const [requiresEmailConfirmation, setRequiresEmailConfirmation] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [emailError, setEmailError] = useState('');
   const navigate = useNavigate();
 
+  // Only include roles that users can register for directly
   const workClasses = [
     { id: 'seller', name: 'Seller', icon: '🏪' },
     { id: 'buyer', name: 'Buyer', icon: '🛒' },
@@ -32,9 +36,7 @@ const Register = () => {
     { id: 'insurance', name: 'Insurance Agent', icon: '🛡️' },
     { id: 'transporter', name: 'Transporter', icon: '🚚' },
     { id: 'logistics', name: 'Logistics', icon: '📦' },
-    { id: 'cha', name: 'CHA', icon: '🏛️' },
-    { id: 'hr', name: 'HR', icon: '👥' },
-    { id: 'admin', name: 'Admin', icon: '⚙️' }
+    { id: 'cha', name: 'CHA', icon: '🏛️' }
   ];
 
   const ports = [
@@ -52,6 +54,49 @@ const Register = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Validate password in real-time
+    if (name === 'password') {
+      validatePasswordRequirements(value);
+    }
+    
+    // Validate email format
+    if (name === 'email') {
+      validateEmailFormat(value);
+    }
+  };
+  
+  const validatePasswordRequirements = (password) => {
+    const errors = [];
+    
+    if (password && password.length < 8) {
+      errors.push('At least 8 characters');
+    }
+    
+    if (password && !/[A-Z]/.test(password)) {
+      errors.push('One uppercase letter');
+    }
+    
+    if (password && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      errors.push('One special character');
+    }
+    
+    if (password && !/\d/.test(password)) {
+      errors.push('One digit');
+    }
+    
+    // Update password errors state
+    setPasswordErrors(errors);
+  };
+  
+  const validateEmailFormat = (email) => {
+    // Check if email contains @ and has content after it
+    const emailRegex = /^[^@]+@.+$/;
+    if (email && !emailRegex.test(email)) {
+      setEmailError('Email must contain @ with content after it');
+    } else {
+      setEmailError('');
+    }
   };
 
   const handleDocumentUpload = (e) => {
@@ -115,6 +160,23 @@ const Register = () => {
       return;
     }
     
+    // Check email format
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+    
+    if (!formData.password) {
+      setError('Please enter a password');
+      return;
+    }
+    
+    // Check password requirements using real-time validation
+    if (passwordErrors.length > 0) {
+      setError('Password does not meet requirements: ' + passwordErrors.join(', '));
+      return;
+    }
+    
     if (!emailVerified) {
       setError('Please verify your email');
       return;
@@ -150,6 +212,12 @@ const Register = () => {
       return;
     }
     
+    // Check password requirements using real-time validation
+    if (passwordErrors.length > 0) {
+      setError('Password does not meet requirements: ' + passwordErrors.join(', '));
+      return;
+    }
+    
     setLoading(true);
     setError('');
     
@@ -162,7 +230,7 @@ const Register = () => {
       // Prepare data for the API call
       const registrationData = {
         email: formData.email,
-        password: 'tempPassword123', // In a real app, this would be a proper password
+        password: formData.password,
         firstName: firstName,
         lastName: lastName,
         phone: formData.whatsapp,
@@ -220,6 +288,23 @@ const Register = () => {
       return;
     }
     
+    // Check email format
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+    
+    if (!formData.password) {
+      setError('Please enter a password');
+      return;
+    }
+    
+    // Check password requirements using real-time validation
+    if (passwordErrors.length > 0) {
+      setError('Password does not meet requirements: ' + passwordErrors.join(', '));
+      return;
+    }
+    
     if (!emailVerified) {
       setError('Please verify your email');
       return;
@@ -242,6 +327,12 @@ const Register = () => {
     
     if (!formData.port) {
       setError('Please select your nearest port');
+      return;
+    }
+    
+    // Check password requirements using real-time validation
+    if (passwordErrors.length > 0) {
+      setError('Password does not meet requirements: ' + passwordErrors.join(', '));
       return;
     }
     
@@ -318,6 +409,7 @@ const Register = () => {
                     Send OTP
                   </button>
                 </div>
+                {emailError && <div className="error-message">{emailError}</div>}
                 {formData.email && (
                   <div className="otp-verification">
                     <input
@@ -337,6 +429,37 @@ const Register = () => {
                   </div>
                 )}
                 {emailVerified && <div className="verification-success">✓ Email Verified</div>}
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">Password *</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  className="form-control"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                  minLength="8"
+                />
+                <div className="password-requirements">
+                  <small className="form-text">Password must contain:</small>
+                  <ul className="password-requirements-list">
+                    <li className={passwordErrors.includes('At least 8 characters') ? 'invalid' : 'valid'}>
+                      At least 8 characters
+                    </li>
+                    <li className={passwordErrors.includes('One uppercase letter') ? 'invalid' : 'valid'}>
+                      One uppercase letter
+                    </li>
+                    <li className={passwordErrors.includes('One special character') ? 'invalid' : 'valid'}>
+                      One special character
+                    </li>
+                    <li className={passwordErrors.includes('One digit') ? 'invalid' : 'valid'}>
+                      One digit
+                    </li>
+                  </ul>
+                </div>
               </div>
               
               <div className="form-group">
@@ -543,9 +666,7 @@ const getRoleName = (roleId) => {
     'insurance': 'Insurance Agent',
     'transporter': 'Transporter',
     'logistics': 'Logistics',
-    'cha': 'CHA',
-    'hr': 'HR',
-    'admin': 'Admin'
+    'cha': 'CHA'
   };
   return roles[roleId] || 'User';
 };
@@ -558,9 +679,7 @@ const getDocumentInstructions = (workClass) => {
     'transporter': 'Please upload your national/regional freight carrying permit number and document.',
     'insurance': 'Please upload your agency code and license copy.',
     'logistics': 'Please upload your international freight transport permit and document.',
-    'cha': 'Please upload your license number and registration.',
-    'hr': 'Please upload your HR certification and company authorization document.',
-    'admin': 'Please upload your administrative authorization document.'
+    'cha': 'Please upload your license number and registration.'
   };
   return instructions[workClass] || 'Please upload the required documents for your role.';
 };

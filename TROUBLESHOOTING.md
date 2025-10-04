@@ -11,7 +11,7 @@
 2. Select your project
 3. Go to Settings > Environment Variables
 4. Ensure you have set:
-   - SUPABASE_URL: Your Supabase project URL (e.g., https://your-project.supabase.co)
+   - SUPABASE_URL: Your Supabase project URL (e.g., https://yuphowxgoxienbnwcgra.supabase.co)
    - SUPABASE_KEY: Your Supabase **service role key** (NOT the anon/public key)
 
 **Verification**:
@@ -63,7 +63,7 @@ Visit these endpoints on your deployed app:
 ### Step 3: Test Locally
 1. Create a `.env` file in your project root with:
    ```
-   SUPABASE_URL=your_supabase_url
+   SUPABASE_URL=https://yuphowxgoxienbnwcgra.supabase.co
    SUPABASE_KEY=your_supabase_service_role_key
    ```
 2. Run `npm start` in the root directory

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+</head>
+<body>
+    <h1>Test Login</h1>
+    <button onclick="testLogin()">Test Login with Vendor Code</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            try {
+                // First, let's register a user to get a vendor code
+                const regResponse = await fetch('http://localhost:5000/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'login@test.com',
+                        password: 'TestPass123!',
+                        firstName: 'Test',
+                        lastName: 'Login',
+                        phone: '1234567890',
+                        workClass: 'transporter'
+                    }),
+                });
+                
+                const regResult = await regResponse.json();
+                document.getElementById('result').innerHTML = '<h2>Registration Result:</h2><pre>' + JSON.stringify(regResult, null, 2) + '</pre>';
+                
+                if (regResult.vendorCode) {
+                    // Now test login with the vendor code
+                    const loginResponse = await fetch('http://localhost:5000/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            vendorCode: regResult.vendorCode,
+                            password: 'TestPass123!'
+                        }),
+                    });
+                    
+                    const loginResult = await loginResponse.json();
+                    document.getElementById('result').innerHTML += '<h2>Login Result:</h2><pre>' + JSON.stringify(loginResult, null, 2) + '</pre>';
+                    
+                    if (loginResult.success) {
+                        document.getElementById('result').innerHTML += '<p style="color: green;">SUCCESS: Login worked correctly!</p>';
+                    } else {
+                        document.getElementById('result').innerHTML += '<p style="color: red;">ERROR: Login failed!</p>';
+                    }
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Test failed: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

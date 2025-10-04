@@ -54,7 +54,7 @@ To test the API endpoints locally:
 1. Run `npm install` in both the root directory and the client directory
 2. Ensure your `.env` file in the root directory contains your Supabase credentials:
    ```
-   SUPABASE_URL=your_supabase_url
+   SUPABASE_URL=https://yuphowxgoxienbnwcgra.supabase.co
    SUPABASE_KEY=your_supabase_key
    ```
 3. Run `npm start` in the root directory

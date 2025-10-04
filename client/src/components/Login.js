@@ -15,7 +15,7 @@ const Login = () => {
     e.preventDefault();
     
     if (!vendorCode || !password) {
-      setError('Please enter both Vendor Code and Password');
+      setError('Please enter both Vendor Code/Email and Password');
       return;
     }
     

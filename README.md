@@ -19,7 +19,7 @@ This is a comprehensive B2B trade platform built with React (frontend) and Node.
 - Comprehensive About page with company information
 - Contact page with form and support information
 - User registration with OTP verification for email and WhatsApp
-- Role-based authentication system
+- Role-based authentication system with Supabase integration
 - Multi-role dashboard switching
 - Comprehensive dashboard layouts for all 12 roles
 - In-app camera with geotagging (simulated)
@@ -84,6 +84,29 @@ This is a comprehensive B2B trade platform built with React (frontend) and Node.
 - Multi-stage payment system (advance, LC, etc.)
 - Dispute resolution mechanism
 - Virtual currency earning and spending
+
+## Supabase Integration
+
+This project now uses Supabase for:
+- User authentication
+- Database operations
+- Real-time data synchronization
+
+### Environment Configuration
+
+Both client and server require Supabase credentials in their respective `.env` files:
+
+**Server (.env):**
+```
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_service_role_key
+```
+
+**Client (.env):**
+```
+REACT_APP_SUPABASE_URL=your_supabase_project_url
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
 ## Getting Started
 
@@ -166,9 +189,11 @@ The production app will be available at http://localhost:5000
 
 - **Frontend**: React, React Router
 - **Backend**: Node.js, Express.js
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
 - **Styling**: CSS3 with responsive design and animations
 - **Data Management**: Context API for state management
-- **Security**: JWT-based authentication (framework ready)
+- **Security**: JWT-based authentication with Supabase
 
 ## Future Enhancements
 

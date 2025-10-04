@@ -7,7 +7,7 @@
 ## Environment Variables
 Before deploying to Vercel, you need to set up the following environment variables in your Vercel project settings:
 
-1. `SUPABASE_URL` - Your Supabase project URL (e.g., https://your-project.supabase.co)
+1. `SUPABASE_URL` - Your Supabase project URL (e.g., https://yuphowxgoxienbnwcgra.supabase.co)
 2. `SUPABASE_KEY` - Your Supabase service role key (NOT the anon/public key)
 
 **Important:** You must use the service role key, not the anon/public key. The service role key has full access to your database.
@@ -50,7 +50,7 @@ To test the API endpoints locally:
 1. Run `npm install` in both the root directory and the client directory
 2. Create a `.env` file in the root directory with your Supabase credentials:
    ```
-   SUPABASE_URL=your_supabase_url
+   SUPABASE_URL=https://yuphowxgoxienbnwcgra.supabase.co
    SUPABASE_KEY=your_supabase_service_role_key
    ```
 3. Run `npm start` in the root directory

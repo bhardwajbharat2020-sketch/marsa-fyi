@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const AuthContext = createContext();
 
@@ -12,6 +13,8 @@ export function AuthProvider({ children }) {
   const [authToken, setAuthToken] = useState(null);
   const [vendorCode, setVendorCode] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -42,14 +45,17 @@ export function AuthProvider({ children }) {
   function login(userData, role, token = null) {
     setCurrentUser(userData);
     setUserRole(role);
-    setVendorCode(userData.vendorCode);
+    setVendorCode(userData.vendor_code);
     if (token) {
       setAuthToken(token);
       localStorage.setItem('marsafyi_token', token);
     }
     localStorage.setItem('marsafyi_user', JSON.stringify(userData));
     localStorage.setItem('marsafyi_role', role);
-    localStorage.setItem('marsafyi_vendor_code', userData.vendorCode);
+    localStorage.setItem('marsafyi_vendor_code', userData.vendor_code);
+    
+    // Redirect to role-specific dashboard after login
+    redirectToRoleDashboard(role);
   }
 
   function logout() {
@@ -61,11 +67,61 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('marsafyi_role');
     localStorage.removeItem('marsafyi_token');
     localStorage.removeItem('marsafyi_vendor_code');
+    
+    // Only navigate if we're not already on the login page
+    if (location.pathname !== '/login') {
+      navigate('/login');
+    }
   }
 
   function switchRole(newRole) {
     setUserRole(newRole);
     localStorage.setItem('marsafyi_role', newRole);
+    redirectToRoleDashboard(newRole);
+  }
+  
+  function redirectToRoleDashboard(role) {
+    // Redirect to role-specific dashboard based on user role
+    switch (role) {
+      case 'admin':
+        navigate('/dashboard/admin');
+        break;
+      case 'hr':
+        navigate('/dashboard/hr');
+        break;
+      case 'accountant':
+        navigate('/dashboard/accountant');
+        break;
+      case 'captain':
+        navigate('/dashboard/captain');
+        break;
+      case 'seller':
+        navigate('/dashboard/seller');
+        break;
+      case 'buyer':
+        navigate('/dashboard/buyer');
+        break;
+      case 'surveyor':
+        navigate('/dashboard/surveyor');
+        break;
+      case 'arbitrator':
+        navigate('/dashboard/arbitrator');
+        break;
+      case 'insurance':
+        navigate('/dashboard/insurance');
+        break;
+      case 'transporter':
+        navigate('/dashboard/transporter');
+        break;
+      case 'logistics':
+        navigate('/dashboard/logistics');
+        break;
+      case 'cha':
+        navigate('/dashboard/cha');
+        break;
+      default:
+        navigate('/dashboard');
+    }
   }
 
   const value = {
