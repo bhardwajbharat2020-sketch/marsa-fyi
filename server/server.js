@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/../.env' });
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -16,6 +16,9 @@ app.use(express.static(path.join(__dirname, '../client/build')));
 // Note: In a production environment, these should be stored in environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
+
+console.log('Supabase URL from env:', supabaseUrl);
+console.log('Supabase Key exists:', !!supabaseKey);
 
 // Only create Supabase client if we have valid credentials
 let supabase;
@@ -2028,11 +2031,15 @@ app.post('/api/disputes', async (req, res) => {
 // API ENDPOINT TO GET PRODUCTS
 app.get('/api/products', async (req, res) => {
   try {
+    console.log('Products endpoint called');
+    
     // Check if Supabase client is properly initialized
     if (typeof supabase === 'undefined' || supabase === null) {
       console.error('Supabase client is not properly initialized');
       return res.status(500).json({ error: 'Server error: Supabase client not initialized' });
     }
+    
+    console.log('Fetching products from Supabase');
     
     // Fetch products from Supabase with seller information
     const { data: products, error } = await supabase
@@ -2051,20 +2058,30 @@ app.get('/api/products', async (req, res) => {
 
     if (error) {
       console.error('Error fetching products:', error.message);
+      console.error('Error details:', error);
       return res.status(500).json({ error: 'Server error fetching products: ' + error.message });
     }
+    
+    console.log('Fetched products:', products ? products.length : 0);
 
     // Get usernames for all sellers
     const sellerIds = [...new Set(products.map(product => product.seller_id).filter(id => id))];
     
+    console.log('Seller IDs:', sellerIds);
+    
     let sellerUsernames = {};
     if (sellerIds.length > 0) {
+      console.log('Fetching seller usernames from Supabase');
       const { data: sellers, error: sellersError } = await supabase
         .from('users')
         .select('id, username')
         .in('id', sellerIds);
       
-      if (!sellersError && sellers) {
+      if (sellersError) {
+        console.error('Error fetching sellers:', sellersError.message);
+        console.error('Error details:', sellersError);
+      } else if (sellers) {
+        console.log('Fetched sellers:', sellers.length);
         sellerUsernames = sellers.reduce((acc, seller) => {
           acc[seller.id] = seller.username || 'Unknown';
           return acc;
@@ -2081,10 +2098,13 @@ app.get('/api/products', async (req, res) => {
       currency_id: product.currency_id,
       vendor_code: sellerUsernames[product.seller_id] || 'Unknown'
     }));
+    
+    console.log('Formatted products:', formattedProducts.length);
 
     res.json(formattedProducts);
   } catch (error) {
     console.error('Error fetching products:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Server error fetching products: ' + error.message });
   }
 });
@@ -2092,11 +2112,15 @@ app.get('/api/products', async (req, res) => {
 // API ENDPOINT TO GET CATALOGS (for home page)
 app.get('/api/catalogs', async (req, res) => {
   try {
+    console.log('Catalogs endpoint called');
+    
     // Check if Supabase client is properly initialized
     if (typeof supabase === 'undefined' || supabase === null) {
       console.error('Supabase client is not properly initialized');
       return res.status(500).json({ error: 'Server error: Supabase client not initialized' });
     }
+    
+    console.log('Fetching products from Supabase');
     
     // Fetch products from Supabase with seller information
     const { data: products, error } = await supabase
@@ -2115,20 +2139,30 @@ app.get('/api/catalogs', async (req, res) => {
 
     if (error) {
       console.error('Error fetching catalogs:', error.message);
+      console.error('Error details:', error);
       return res.status(500).json({ error: 'Server error fetching catalogs: ' + error.message });
     }
+    
+    console.log('Fetched products:', products ? products.length : 0);
 
     // Get vendor codes for all sellers
     const sellerIds = [...new Set(products.map(product => product.seller_id).filter(id => id))];
     
+    console.log('Seller IDs:', sellerIds);
+    
     let vendorCodes = {};
     if (sellerIds.length > 0) {
+      console.log('Fetching seller usernames from Supabase');
       const { data: sellers, error: sellersError } = await supabase
         .from('users')
         .select('id, username')
         .in('id', sellerIds);
       
-      if (!sellersError && sellers) {
+      if (sellersError) {
+        console.error('Error fetching sellers:', sellersError.message);
+        console.error('Error details:', sellersError);
+      } else if (sellers) {
+        console.log('Fetched sellers:', sellers.length);
         vendorCodes = sellers.reduce((acc, seller) => {
           acc[seller.id] = seller.username || 'Unknown';
           return acc;
@@ -2147,10 +2181,13 @@ app.get('/api/catalogs', async (req, res) => {
       vendor_code: vendorCodes[product.seller_id] || 'Unknown',
       status: 'approved'
     }));
+    
+    console.log('Formatted catalogs:', formattedCatalogs.length);
 
     res.json(formattedCatalogs);
   } catch (error) {
     console.error('Error fetching catalogs:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Server error fetching catalogs: ' + error.message });
   }
 });
@@ -2837,6 +2874,17 @@ app.get('/api/cha/orders', async (req, res) => {
     console.error('Error fetching CHA orders:', error.message);
     res.status(500).json({ error: 'Server error fetching orders' });
   }
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    supabaseConnected: !!supabase,
+    supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Catch all handler: send back React's index.html file for any non-API routes
