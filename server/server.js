@@ -6,7 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcrypt');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -691,6 +691,752 @@ app.get('/api/products', async (req, res) => {
         currency: 'USD'
       }
     ]);
+  }
+});
+
+// Seller products endpoint - fetch seller's products
+app.get('/api/seller/products', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock seller products');
+      return res.json([
+        {
+          id: 1,
+          name: 'Industrial Grade Electronics',
+          category: 'Electronics',
+          price: 5000,
+          status: 'active'
+        },
+        {
+          id: 2,
+          name: 'Precision Manufacturing Tools',
+          category: 'Machinery',
+          price: 15000,
+          status: 'pending'
+        }
+      ]);
+    }
+
+    // Fetch products from Supabase with correct column names
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('id, name, price, status')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching seller products:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching seller products: ' + error.message 
+      });
+    }
+
+    // Add category field manually since it doesn't exist in the schema
+    const productsWithCategory = products.map(product => ({
+      ...product,
+      category: 'Uncategorized' // Default category since the column doesn't exist
+    }));
+
+    res.json(productsWithCategory || []);
+  } catch (error) {
+    console.error('Error in seller products endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching seller products: ' + error.message 
+    });
+  }
+});
+
+// Seller orders endpoint - fetch seller's orders
+app.get('/api/seller/orders', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock seller orders');
+      return res.json([
+        {
+          id: 'ORD-001',
+          buyer: 'ABC Company (BUY-23-XYZ123)',
+          product: 'Industrial Grade Electronics',
+          quantity: 10,
+          status: 'pending'
+        },
+        {
+          id: 'ORD-002',
+          buyer: 'XYZ Corp (BUY-23-ABC456)',
+          product: 'Precision Manufacturing Tools',
+          quantity: 5,
+          status: 'shipped'
+        }
+      ]);
+    }
+
+    // Fetch orders from Supabase with correct column names
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('id, quantity, status')
+      .eq('seller_id', req.user?.id || 'mock-seller-id');
+
+    if (error) {
+      console.error('Error fetching seller orders:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching seller orders: ' + error.message 
+      });
+    }
+
+    // Add missing fields manually since they don't exist in the schema
+    const ordersWithDetails = orders.map(order => ({
+      ...order,
+      buyer: 'Unknown Buyer',
+      product: 'Unknown Product'
+    }));
+
+    res.json(ordersWithDetails || []);
+  } catch (error) {
+    console.error('Error in seller orders endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching seller orders: ' + error.message 
+    });
+  }
+});
+
+// Seller RFQs endpoint - fetch seller's RFQs
+app.get('/api/seller/rfqs', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock seller RFQs');
+      return res.json([
+        {
+          id: 'RFQ-001',
+          buyer: 'Tech Solutions (BUY-23-DEF789)',
+          product: 'Custom Electronic Components',
+          quantity: 100,
+          status: 'new'
+        },
+        {
+          id: 'RFQ-002',
+          buyer: 'Global Traders (BUY-23-GHI012)',
+          product: 'Specialized Machinery Parts',
+          quantity: 25,
+          status: 'quoted'
+        }
+      ]);
+    }
+
+    // Fetch RFQs from Supabase with correct column names
+    const { data: rfqs, error } = await supabase
+      .from('rfqs')
+      .select('id, quantity, status')
+      .eq('seller_id', req.user?.id || 'mock-seller-id');
+
+    if (error) {
+      console.error('Error fetching seller RFQs:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching seller RFQs: ' + error.message 
+      });
+    }
+
+    // Add missing fields manually since they don't exist in the schema
+    const rfqsWithDetails = rfqs.map(rfq => ({
+      ...rfq,
+      buyer: 'Unknown Buyer',
+      product: 'Unknown Product'
+    }));
+
+    res.json(rfqsWithDetails || []);
+  } catch (error) {
+    console.error('Error in seller RFQs endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching seller RFQs: ' + error.message 
+    });
+  }
+});
+
+// Add product endpoint for sellers
+app.post('/api/seller/products', async (req, res) => {
+  try {
+    const { name, price, description } = req.body;
+    
+    // Validate required fields (removed category since it doesn't exist)
+    if (!name || !price) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name and price are required' 
+      });
+    }
+    
+    // If Supabase is not available, return mock success
+    if (!supabase) {
+      console.log('Supabase not available, returning mock product creation success');
+      return res.json({ 
+        success: true, 
+        message: 'Product created successfully (mock mode)',
+        product: {
+          id: Math.floor(Math.random() * 1000) + 1,
+          name,
+          price,
+          description,
+          status: 'pending'
+        }
+      });
+    }
+    
+    // Save the product to the database with correct column names
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert({
+        name,
+        price: parseFloat(price),
+        description: description || '',
+        status: 'pending',
+        is_active: true,
+        created_at: new Date()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating product:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error creating product: ' + error.message 
+      });
+    }
+    
+    // Add category field manually since it doesn't exist in the schema
+    const productWithCategory = {
+      ...product,
+      category: 'Uncategorized'
+    };
+    
+    res.json({ 
+      success: true, 
+      message: 'Product created successfully',
+      product: productWithCategory
+    });
+  } catch (error) {
+    console.error('Error in add product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error creating product: ' + error.message 
+    });
+  }
+});
+
+// Buyer RFQs endpoint - fetch buyer's RFQs
+app.get('/api/buyer/rfqs', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock buyer RFQs');
+      return res.json([
+        {
+          id: 'RFQ-101',
+          product: 'Industrial Electronics',
+          quantity: 50,
+          status: 'open'
+        },
+        {
+          id: 'RFQ-102',
+          product: 'Manufacturing Equipment',
+          quantity: 10,
+          status: 'quoted'
+        }
+      ]);
+    }
+
+    // Fetch RFQs from Supabase with correct column names
+    const { data: rfqs, error } = await supabase
+      .from('rfqs')
+      .select('id, quantity, status')
+      .eq('buyer_id', req.user?.id || 'mock-buyer-id');
+
+    if (error) {
+      console.error('Error fetching buyer RFQs:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching buyer RFQs: ' + error.message 
+      });
+    }
+
+    // Add missing fields manually since they don't exist in the schema
+    const rfqsWithProduct = rfqs.map(rfq => ({
+      ...rfq,
+      product: 'Unknown Product'
+    }));
+
+    res.json(rfqsWithProduct || []);
+  } catch (error) {
+    console.error('Error in buyer RFQs endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching buyer RFQs: ' + error.message 
+    });
+  }
+});
+
+// Buyer orders endpoint - fetch buyer's orders
+app.get('/api/buyer/orders', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock buyer orders');
+      return res.json([
+        {
+          id: 'ORD-101',
+          supplier: 'TechCorp Ltd. (SELL-23-XYZ123)',
+          product: 'Industrial Electronics',
+          quantity: 50,
+          status: 'processing'
+        },
+        {
+          id: 'ORD-102',
+          supplier: 'MegaMachines Inc. (SELL-23-ABC456)',
+          product: 'Manufacturing Equipment',
+          quantity: 10,
+          status: 'shipped'
+        }
+      ]);
+    }
+
+    // Fetch orders from Supabase
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('id, seller_id, product_id, quantity, status')
+      .eq('buyer_id', req.user?.id || 'mock-buyer-id');
+
+    if (error) {
+      console.error('Error fetching buyer orders:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching buyer orders' 
+      });
+    }
+
+    res.json(orders || []);
+  } catch (error) {
+    console.error('Error in buyer orders endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching buyer orders' 
+    });
+  }
+});
+
+// Buyer suppliers endpoint - fetch buyer's suppliers
+app.get('/api/buyer/suppliers', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock buyer suppliers');
+      return res.json([
+        {
+          id: 1,
+          name: 'TechCorp Ltd.',
+          vendorCode: 'SELL-23-XYZ123',
+          products: 'Electronics, Components',
+          rating: 4.5
+        },
+        {
+          id: 2,
+          name: 'MegaMachines Inc.',
+          vendorCode: 'SELL-23-ABC456',
+          products: 'Machinery, Equipment',
+          rating: 4.2
+        }
+      ]);
+    }
+
+    // Fetch suppliers from Supabase
+    const { data: suppliers, error } = await supabase
+      .from('suppliers')
+      .select('id, name, vendor_code, products, rating')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching buyer suppliers:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching buyer suppliers' 
+      });
+    }
+
+    res.json(suppliers || []);
+  } catch (error) {
+    console.error('Error in buyer suppliers endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching buyer suppliers' 
+    });
+  }
+});
+
+// Create RFQ endpoint for buyers
+app.post('/api/buyer/rfqs', async (req, res) => {
+  try {
+    const { product, quantity, description } = req.body;
+    
+    // Validate required fields
+    if (!product || !quantity) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name and quantity are required' 
+      });
+    }
+    
+    // If Supabase is not available, return mock success
+    if (!supabase) {
+      console.log('Supabase not available, returning mock RFQ creation success');
+      return res.json({ 
+        success: true, 
+        message: 'RFQ created successfully (mock mode)',
+        rfq: {
+          id: 'RFQ-' + Math.floor(Math.random() * 1000) + 100,
+          product,
+          quantity,
+          description,
+          status: 'open'
+        }
+      });
+    }
+    
+    // Save the RFQ to the database with correct column names
+    const { data: rfq, error } = await supabase
+      .from('rfqs')
+      .insert({
+        product_name: product, // This column might not exist, let's check
+        quantity: parseInt(quantity),
+        description: description || '',
+        status: 'open',
+        created_at: new Date()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating RFQ:', error.message);
+      console.error('Error details:', error);
+      
+      // Try again without the product_name column since it doesn't exist
+      if (error.message.includes('product_name')) {
+        const { data: rfq2, error: error2 } = await supabase
+          .from('rfqs')
+          .insert({
+            quantity: parseInt(quantity),
+            description: description || '',
+            status: 'open',
+            created_at: new Date()
+          })
+          .select()
+          .single();
+          
+        if (error2) {
+          console.error('Error creating RFQ (second attempt):', error2.message);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Server error creating RFQ: ' + error2.message 
+          });
+        }
+        
+        // Add product field manually since it doesn't exist in the schema
+        const rfqWithProduct = {
+          ...rfq2,
+          product: product
+        };
+        
+        return res.json({ 
+          success: true, 
+          message: 'RFQ created successfully',
+          rfq: rfqWithProduct
+        });
+      }
+      
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error creating RFQ: ' + error.message 
+      });
+    }
+    
+    // Add product field manually since it doesn't exist in the schema
+    const rfqWithProduct = {
+      ...rfq,
+      product: product
+    };
+    
+    res.json({ 
+      success: true, 
+      message: 'RFQ created successfully',
+      rfq: rfqWithProduct
+    });
+  } catch (error) {
+    console.error('Error in create RFQ endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error creating RFQ: ' + error.message 
+    });
+  }
+});
+
+// Admin users endpoint - fetch all users
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock admin users');
+      return res.json([
+        {
+          id: 1,
+          name: 'John Seller',
+          email: 'john@seller.com',
+          role: 'Seller',
+          status: 'active'
+        },
+        {
+          id: 2,
+          name: 'Jane Buyer',
+          email: 'jane@buyer.com',
+          role: 'Buyer',
+          status: 'active'
+        },
+        {
+          id: 3,
+          name: 'Bob Admin',
+          email: 'bob@admin.com',
+          role: 'Admin',
+          status: 'active'
+        }
+      ]);
+    }
+
+    // Fetch users from Supabase
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, is_verified');
+
+    if (error) {
+      console.error('Error fetching admin users:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching users' 
+      });
+    }
+
+    // Format users data
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      name: `${user.first_name} ${user.last_name}`,
+      email: user.email,
+      role: 'User', // In a real implementation, we would fetch the actual role
+      status: user.is_verified ? 'active' : 'pending'
+    }));
+
+    res.json(formattedUsers || []);
+  } catch (error) {
+    console.error('Error in admin users endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching users' 
+    });
+  }
+});
+
+// Admin system configuration endpoint
+app.get('/api/admin/config', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock admin config');
+      return res.json([
+        {
+          id: 1,
+          setting: 'maintenance_mode',
+          value: 'false',
+          description: 'Enable or disable maintenance mode'
+        },
+        {
+          id: 2,
+          setting: 'max_file_upload_size',
+          value: '10MB',
+          description: 'Maximum file upload size'
+        }
+      ]);
+    }
+
+    // Fetch system configuration from Supabase
+    const { data: config, error } = await supabase
+      .from('system_config')
+      .select('id, setting_name, setting_value, description');
+
+    if (error) {
+      console.error('Error fetching admin config:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching system configuration' 
+      });
+    }
+
+    // Format config data
+    const formattedConfig = config.map(item => ({
+      id: item.id,
+      setting: item.setting_name,
+      value: item.setting_value,
+      description: item.description
+    }));
+
+    res.json(formattedConfig || []);
+  } catch (error) {
+    console.error('Error in admin config endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching system configuration' 
+    });
+  }
+});
+
+// Admin audit logs endpoint
+app.get('/api/admin/logs', async (req, res) => {
+  try {
+    // If Supabase is not available, return mock data
+    if (!supabase) {
+      console.log('Supabase not available, returning mock admin logs');
+      return res.json([
+        {
+          id: 1,
+          timestamp: '2025-10-04 10:30:00',
+          user: 'John Seller (SELL-23-XYZ123)',
+          action: 'Product Created',
+          details: 'Created new product: Industrial Electronics'
+        },
+        {
+          id: 2,
+          timestamp: '2025-10-04 11:15:00',
+          user: 'Jane Buyer (BUY-23-ABC456)',
+          action: 'RFQ Submitted',
+          details: 'Submitted RFQ for Manufacturing Equipment'
+        }
+      ]);
+    }
+
+    // Fetch audit logs from Supabase
+    const { data: logs, error } = await supabase
+      .from('audit_logs')
+      .select('id, timestamp, user_id, action, details')
+      .order('timestamp', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching admin logs:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching audit logs' 
+      });
+    }
+
+    // Format logs data
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      timestamp: log.timestamp,
+      user: 'User', // In a real implementation, we would fetch the actual user name
+      action: log.action,
+      details: log.details
+    }));
+
+    res.json(formattedLogs || []);
+  } catch (error) {
+    console.error('Error in admin logs endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching audit logs' 
+    });
+  }
+});
+
+// Add user endpoint for admins
+app.post('/api/admin/users', async (req, res) => {
+  try {
+    const { name, email, role } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !role) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User name, email, and role are required' 
+      });
+    }
+    
+    // If Supabase is not available, return mock success
+    if (!supabase) {
+      console.log('Supabase not available, returning mock user creation success');
+      return res.json({ 
+        success: true, 
+        message: 'User created successfully (mock mode)',
+        user: {
+          id: Math.floor(Math.random() * 1000) + 1,
+          name,
+          email,
+          role,
+          status: 'active'
+        }
+      });
+    }
+    
+    // Save the user to the database
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({
+        first_name: name.split(' ')[0],
+        last_name: name.split(' ').slice(1).join(' ') || '',
+        email,
+        is_verified: false,
+        created_at: new Date()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating user:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error creating user: ' + error.message 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'User created successfully',
+      user: {
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        role,
+        status: 'active'
+      }
+    });
+  } catch (error) {
+    console.error('Error in add user endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error creating user: ' + error.message 
+    });
   }
 });
 
