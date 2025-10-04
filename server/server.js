@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../client/build')));
 
 // Initialize Supabase client
 // Note: In a production environment, these should be stored in environment variables
@@ -2991,6 +2990,9 @@ app.get('/api/test-env', (req, res) => {
     PORT: process.env.PORT || 'NOT SET'
   });
 });
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../client/build')));
 
 // Catch all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
