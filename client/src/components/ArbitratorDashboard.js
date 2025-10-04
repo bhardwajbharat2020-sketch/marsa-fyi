@@ -1,37 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const ArbitratorDashboard = () => {
   const [activeTab, setActiveTab] = useState('cases');
+  const [arbitrationCases, setArbitrationCases] = useState([]);
+  const [evidenceRequests, setEvidenceRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data
-  const arbitrationCases = [
-    {
-      id: 1,
-      case: 'Rejected Survey Report',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'in_progress'
-    },
-    {
-      id: 2,
-      case: 'Delivery Dispute',
-      buyer: 'BUY-23-ABC123',
-      seller: 'VEND-23-DEF456',
-      status: 'pending'
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch arbitration cases
+        const casesResponse = await fetch('/api/arbitrator/cases');
+        const casesData = await casesResponse.json();
+        
+        if (casesResponse.ok) {
+          setArbitrationCases(casesData);
+        } else {
+          console.error('Error fetching cases:', casesData.error);
+        }
+        
+        // Fetch evidence requests
+        const evidenceResponse = await fetch('/api/arbitrator/evidence');
+        const evidenceData = await evidenceResponse.json();
+        
+        if (evidenceResponse.ok) {
+          setEvidenceRequests(evidenceData);
+        } else {
+          console.error('Error fetching evidence:', evidenceData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const evidenceRequests = [
-    {
-      id: 1,
-      case: 'Rejected Survey Report',
-      party: 'Buyer',
-      document: 'Rejection Reason',
-      status: 'submitted'
-    }
-  ];
+    fetchData();
+  }, []);
 
   return (
     <DashboardLayout title="Arbitrator Dashboard" role="arbitrator">
@@ -55,6 +67,9 @@ const ArbitratorDashboard = () => {
           Secure Messaging
         </button>
       </div>
+
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
 
       {activeTab === 'cases' && (
         <div>

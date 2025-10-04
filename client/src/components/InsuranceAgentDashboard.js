@@ -1,30 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const InsuranceAgentDashboard = () => {
   const [activeTab, setActiveTab] = useState('policies');
+  const [policyRequests, setPolicyRequests] = useState([]);
+  const [policyDocuments, setPolicyDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data
-  const policyRequests = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'pending'
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch policy requests
+        const requestsResponse = await fetch('/api/insurance/policies');
+        const requestsData = await requestsResponse.json();
+        
+        if (requestsResponse.ok) {
+          setPolicyRequests(requestsData);
+        } else {
+          console.error('Error fetching policy requests:', requestsData.error);
+        }
+        
+        // Fetch policy documents
+        const documentsResponse = await fetch('/api/insurance/documents');
+        const documentsData = await documentsResponse.json();
+        
+        if (documentsResponse.ok) {
+          setPolicyDocuments(documentsData);
+        } else {
+          console.error('Error fetching policy documents:', documentsData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const policyDocuments = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'finalized'
-    }
-  ];
+    fetchData();
+  }, []);
 
   return (
     <DashboardLayout title="Insurance Agent Dashboard" role="insurance">
@@ -42,6 +61,9 @@ const InsuranceAgentDashboard = () => {
           Policy Documents
         </button>
       </div>
+
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
 
       {activeTab === 'policies' && (
         <div>

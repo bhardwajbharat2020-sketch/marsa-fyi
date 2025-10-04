@@ -10,6 +10,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [authToken, setAuthToken] = useState(null);
+  const [vendorCode, setVendorCode] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Initialize auth state from localStorage
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
     const storedUser = localStorage.getItem('marsafyi_user');
     const storedRole = localStorage.getItem('marsafyi_role');
     const storedToken = localStorage.getItem('marsafyi_token');
+    const storedVendorCode = localStorage.getItem('marsafyi_vendor_code');
     
     if (storedUser) {
       setCurrentUser(JSON.parse(storedUser));
@@ -30,27 +32,35 @@ export function AuthProvider({ children }) {
       setAuthToken(storedToken);
     }
     
+    if (storedVendorCode) {
+      setVendorCode(storedVendorCode);
+    }
+    
     setLoading(false);
   }, []);
 
   function login(userData, role, token = null) {
     setCurrentUser(userData);
     setUserRole(role);
+    setVendorCode(userData.vendorCode);
     if (token) {
       setAuthToken(token);
       localStorage.setItem('marsafyi_token', token);
     }
     localStorage.setItem('marsafyi_user', JSON.stringify(userData));
     localStorage.setItem('marsafyi_role', role);
+    localStorage.setItem('marsafyi_vendor_code', userData.vendorCode);
   }
 
   function logout() {
     setCurrentUser(null);
     setUserRole(null);
     setAuthToken(null);
+    setVendorCode(null);
     localStorage.removeItem('marsafyi_user');
     localStorage.removeItem('marsafyi_role');
     localStorage.removeItem('marsafyi_token');
+    localStorage.removeItem('marsafyi_vendor_code');
   }
 
   function switchRole(newRole) {
@@ -62,6 +72,7 @@ export function AuthProvider({ children }) {
     currentUser,
     userRole,
     authToken,
+    vendorCode,
     login,
     logout,
     switchRole

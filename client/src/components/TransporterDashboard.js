@@ -1,36 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
+import WorkflowTracker from './WorkflowTracker';
 import '../App.css';
 
 const TransporterDashboard = () => {
   const [activeTab, setActiveTab] = useState('orders');
+  const [workOrders, setWorkOrders] = useState([]);
+  const [trackingInfo, setTrackingInfo] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showWorkflowTracker, setShowWorkflowTracker] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
-  // Mock data
-  const workOrders = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      catalog: 'Industrial Machinery Parts',
-      buyer: 'BUY-23-ABC123',
-      seller: 'VEND-23-DEF456',
-      status: 'in_transit'
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch work orders
+        const ordersResponse = await fetch('/api/transporter/orders');
+        const ordersData = await ordersResponse.json();
+        
+        if (ordersResponse.ok) {
+          setWorkOrders(ordersData);
+        } else {
+          console.error('Error fetching work orders:', ordersData.error);
+        }
+        
+        // Fetch tracking information
+        const trackingResponse = await fetch('/api/transporter/tracking');
+        const trackingData = await trackingResponse.json();
+        
+        if (trackingResponse.ok) {
+          setTrackingInfo(trackingData);
+        } else {
+          console.error('Error fetching tracking info:', trackingData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const trackingInfo = [
-    {
-      id: 1,
-      order: 'Premium Electronics Components',
-      trackingId: 'TRK-2025-789456',
-      status: 'in_transit'
-    }
-  ];
+    fetchData();
+  }, []);
 
   return (
     <DashboardLayout title="Transporter Dashboard" role="transporter">
@@ -49,6 +65,16 @@ const TransporterDashboard = () => {
         </button>
       </div>
 
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
+
+      {showWorkflowTracker && (
+        <WorkflowTracker 
+          orderId={selectedOrderId} 
+          onClose={() => setShowWorkflowTracker(false)} 
+        />
+      )}
+      
       {activeTab === 'orders' && (
         <div>
           <div className="card">
@@ -89,6 +115,15 @@ const TransporterDashboard = () => {
                         {order.status === 'accepted' && (
                           <button className="btn btn-primary btn-small">Start Transport</button>
                         )}
+                        <button 
+                          className="btn btn-info btn-small"
+                          onClick={() => {
+                            setSelectedOrderId(order.id);
+                            setShowWorkflowTracker(true);
+                          }}
+                        >
+                          Workflow
+                        </button>
                       </td>
                     </tr>
                   ))}

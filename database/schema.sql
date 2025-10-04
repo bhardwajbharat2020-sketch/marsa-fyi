@@ -328,6 +328,189 @@ CREATE TABLE notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 21. Payouts table (for seller payment history)
+CREATE TABLE payouts (
+    id SERIAL PRIMARY KEY,
+    seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    payment_id INTEGER REFERENCES payments(id) ON DELETE CASCADE,
+    amount DECIMAL(12, 2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
+    status VARCHAR(20) DEFAULT 'pending', -- pending, completed, failed
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add new tables for the additional functionality
+
+-- 22. Contact Requests table
+CREATE TABLE contact_requests (
+    id SERIAL PRIMARY KEY,
+    requester_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
+    approved_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 23. User Issues table
+CREATE TABLE user_issues (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    issue TEXT NOT NULL,
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'open', -- open, in_progress, resolved
+    resolved_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 24. Survey Requests table
+CREATE TABLE survey_requests (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    buyer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, rejected, completed
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 25. Survey Reports table
+CREATE TABLE survey_reports (
+    id SERIAL PRIMARY KEY,
+    survey_request_id INTEGER REFERENCES survey_requests(id) ON DELETE CASCADE,
+    report_data JSONB,
+    status VARCHAR(20) DEFAULT 'draft', -- draft, submitted, accepted, rejected
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 26. Insurance Requests table
+CREATE TABLE insurance_requests (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    buyer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, rejected, finalized
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 27. Insurance Documents table
+CREATE TABLE insurance_documents (
+    id SERIAL PRIMARY KEY,
+    insurance_request_id INTEGER REFERENCES insurance_requests(id) ON DELETE CASCADE,
+    document_data JSONB,
+    status VARCHAR(20) DEFAULT 'draft', -- draft, finalized, issued
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 28. Transport Orders table
+CREATE TABLE transport_orders (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, in_transit, delivered
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 29. Logistics Orders table
+CREATE TABLE logistics_orders (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, in_progress, completed
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 30. Tracking Information table
+CREATE TABLE tracking_info (
+    id SERIAL PRIMARY KEY,
+    transport_order_id INTEGER REFERENCES transport_orders(id) ON DELETE CASCADE,
+    logistics_order_id INTEGER REFERENCES logistics_orders(id) ON DELETE CASCADE,
+    tracking_id VARCHAR(50) UNIQUE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, in_transit, delivered
+    location TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 31. CHA Service Requests table
+CREATE TABLE cha_service_requests (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    buyer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    service_type VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, rejected, completed
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 32. CHA Fee Offers table
+CREATE TABLE cha_fee_offers (
+    id SERIAL PRIMARY KEY,
+    service_request_id INTEGER REFERENCES cha_service_requests(id) ON DELETE CASCADE,
+    fee_amount DECIMAL(12, 2),
+    currency VARCHAR(3) DEFAULT 'USD',
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, rejected, finalized
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 33. CHA Work Orders table
+CREATE TABLE cha_work_orders (
+    id SERIAL PRIMARY KEY,
+    service_request_id INTEGER REFERENCES cha_service_requests(id) ON DELETE CASCADE,
+    order_details JSONB,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, in_progress, completed
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 34. Evidence Requests table
+CREATE TABLE evidence_requests (
+    id SERIAL PRIMARY KEY,
+    dispute_id INTEGER REFERENCES disputes(id) ON DELETE CASCADE,
+    party_type VARCHAR(20), -- buyer, seller
+    document_name VARCHAR(200),
+    status VARCHAR(20) DEFAULT 'pending', -- pending, submitted, accepted, rejected
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add vendor_code column to users table if it doesn't exist
+ALTER TABLE users ADD COLUMN IF NOT EXISTS vendor_code VARCHAR(50) UNIQUE;
+
+-- Create additional indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_contact_requests_requester_id ON contact_requests(requester_id);
+CREATE INDEX IF NOT EXISTS idx_contact_requests_status ON contact_requests(status);
+CREATE INDEX IF NOT EXISTS idx_user_issues_user_id ON user_issues(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_issues_status ON user_issues(status);
+CREATE INDEX IF NOT EXISTS idx_survey_requests_product_id ON survey_requests(product_id);
+CREATE INDEX IF NOT EXISTS idx_survey_requests_status ON survey_requests(status);
+CREATE INDEX IF NOT EXISTS idx_survey_reports_survey_request_id ON survey_reports(survey_request_id);
+CREATE INDEX IF NOT EXISTS idx_survey_reports_status ON survey_reports(status);
+CREATE INDEX IF NOT EXISTS idx_insurance_requests_product_id ON insurance_requests(product_id);
+CREATE INDEX IF NOT EXISTS idx_insurance_requests_status ON insurance_requests(status);
+CREATE INDEX IF NOT EXISTS idx_insurance_documents_insurance_request_id ON insurance_documents(insurance_request_id);
+CREATE INDEX IF NOT EXISTS idx_insurance_documents_status ON insurance_documents(status);
+CREATE INDEX IF NOT EXISTS idx_transport_orders_order_id ON transport_orders(order_id);
+CREATE INDEX IF NOT EXISTS idx_transport_orders_status ON transport_orders(status);
+CREATE INDEX IF NOT EXISTS idx_logistics_orders_order_id ON logistics_orders(order_id);
+CREATE INDEX IF NOT EXISTS idx_logistics_orders_status ON logistics_orders(status);
+CREATE INDEX IF NOT EXISTS idx_tracking_info_transport_order_id ON tracking_info(transport_order_id);
+CREATE INDEX IF NOT EXISTS idx_tracking_info_logistics_order_id ON tracking_info(logistics_order_id);
+CREATE INDEX IF NOT EXISTS idx_tracking_info_status ON tracking_info(status);
+CREATE INDEX IF NOT EXISTS idx_cha_service_requests_product_id ON cha_service_requests(product_id);
+CREATE INDEX IF NOT EXISTS idx_cha_service_requests_status ON cha_service_requests(status);
+CREATE INDEX IF NOT EXISTS idx_cha_fee_offers_service_request_id ON cha_fee_offers(service_request_id);
+CREATE INDEX IF NOT EXISTS idx_cha_fee_offers_status ON cha_fee_offers(status);
+CREATE INDEX IF NOT EXISTS idx_cha_work_orders_service_request_id ON cha_work_orders(service_request_id);
+CREATE INDEX IF NOT EXISTS idx_cha_work_orders_status ON cha_work_orders(status);
+CREATE INDEX IF NOT EXISTS idx_evidence_requests_dispute_id ON evidence_requests(dispute_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_requests_status ON evidence_requests(status);
+CREATE INDEX IF NOT EXISTS idx_users_vendor_code ON users(vendor_code);
+
 -- Insert sample data
 
 -- Insert currencies

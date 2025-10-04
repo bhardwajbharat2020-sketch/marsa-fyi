@@ -1,37 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
+import WorkflowTracker from './WorkflowTracker';
 import '../App.css';
 
 const SurveyorDashboard = () => {
   const [activeTab, setActiveTab] = useState('requests');
+  const [surveyRequests, setSurveyRequests] = useState([]);
+  const [surveyReports, setSurveyReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showWorkflowTracker, setShowWorkflowTracker] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
 
-  // Mock data
-  const surveyRequests = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      catalog: 'Industrial Machinery Parts',
-      buyer: 'BUY-23-ABC123',
-      seller: 'VEND-23-DEF456',
-      status: 'accepted'
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch survey requests
+        const requestsResponse = await fetch('/api/surveyor/requests');
+        const requestsData = await requestsResponse.json();
+        
+        if (requestsResponse.ok) {
+          setSurveyRequests(requestsData);
+        } else {
+          console.error('Error fetching requests:', requestsData.error);
+        }
+        
+        // Fetch survey reports
+        const reportsResponse = await fetch('/api/surveyor/reports');
+        const reportsData = await reportsResponse.json();
+        
+        if (reportsResponse.ok) {
+          setSurveyReports(reportsData);
+        } else {
+          console.error('Error fetching reports:', reportsData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const surveyReports = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'submitted'
-    }
-  ];
+    fetchData();
+  }, []);
 
   return (
     <DashboardLayout title="Surveyor Dashboard" role="surveyor">
@@ -50,6 +65,16 @@ const SurveyorDashboard = () => {
         </button>
       </div>
 
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
+
+      {showWorkflowTracker && (
+        <WorkflowTracker 
+          orderId={selectedRequestId} 
+          onClose={() => setShowWorkflowTracker(false)} 
+        />
+      )}
+      
       {activeTab === 'requests' && (
         <div>
           <div className="card">
@@ -90,6 +115,15 @@ const SurveyorDashboard = () => {
                         {request.status === 'accepted' && (
                           <button className="btn btn-primary btn-small">Fill Survey</button>
                         )}
+                        <button 
+                          className="btn btn-info btn-small"
+                          onClick={() => {
+                            setSelectedRequestId(request.id);
+                            setShowWorkflowTracker(true);
+                          }}
+                        >
+                          Workflow
+                        </button>
                       </td>
                     </tr>
                   ))}

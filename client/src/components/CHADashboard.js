@@ -1,41 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const CHADashboard = () => {
   const [activeTab, setActiveTab] = useState('requests');
+  const [serviceRequests, setServiceRequests] = useState([]);
+  const [feeOffers, setFeeOffers] = useState([]);
+  const [workOrders, setWorkOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data
-  const serviceRequests = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'pending'
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch service requests
+        const requestsResponse = await fetch('/api/cha/requests');
+        const requestsData = await requestsResponse.json();
+        
+        if (requestsResponse.ok) {
+          setServiceRequests(requestsData);
+        } else {
+          console.error('Error fetching service requests:', requestsData.error);
+        }
+        
+        // Fetch fee offers
+        const feesResponse = await fetch('/api/cha/fees');
+        const feesData = await feesResponse.json();
+        
+        if (feesResponse.ok) {
+          setFeeOffers(feesData);
+        } else {
+          console.error('Error fetching fee offers:', feesData.error);
+        }
+        
+        // Fetch work orders
+        const ordersResponse = await fetch('/api/cha/orders');
+        const ordersData = await ordersResponse.json();
+        
+        if (ordersResponse.ok) {
+          setWorkOrders(ordersData);
+        } else {
+          console.error('Error fetching work orders:', ordersData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const feeOffers = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      fee: '$300',
-      status: 'submitted'
-    }
-  ];
-
-  const workOrders = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'finalized'
-    }
-  ];
+    fetchData();
+  }, []);
 
   return (
     <DashboardLayout title="CHA Dashboard" role="cha">
@@ -59,6 +78,9 @@ const CHADashboard = () => {
           Work Orders
         </button>
       </div>
+
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
 
       {activeTab === 'requests' && (
         <div>

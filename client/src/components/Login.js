@@ -36,9 +36,9 @@ const Login = () => {
       
       if (response.ok && data.success) {
         // Login successful
-        login(data.user, data.user.role);
+        login(data.user, data.user.role, data.token);
         
-        // Redirect based on role
+        // Redirect to role-specific dashboard
         switch(data.user.role) {
           case 'seller':
             navigate('/dashboard/seller');
@@ -89,22 +89,6 @@ const Login = () => {
     }
     
     setLoading(false);
-  };
-  
-  const getRoleFromVendorCode = (code) => {
-    if (code.startsWith('S-')) return 'seller';
-    if (code.startsWith('B-')) return 'buyer';
-    if (code.startsWith('C-')) return 'captain';
-    if (code.startsWith('A-')) return 'admin';
-    if (code.startsWith('H-')) return 'hr';
-    if (code.startsWith('ACC-')) return 'accountant';
-    if (code.startsWith('ARB-')) return 'arbitrator';
-    if (code.startsWith('SUR-')) return 'surveyor';
-    if (code.startsWith('INS-')) return 'insurance';
-    if (code.startsWith('TRN-')) return 'transporter';
-    if (code.startsWith('LOG-')) return 'logistics';
-    if (code.startsWith('CHA-')) return 'cha';
-    return 'buyer';
   };
 
   return (

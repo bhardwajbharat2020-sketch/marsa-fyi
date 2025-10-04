@@ -1,36 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const LogisticsDashboard = () => {
   const [activeTab, setActiveTab] = useState('orders');
+  const [workOrders, setWorkOrders] = useState([]);
+  const [trackingInfo, setTrackingInfo] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data
-  const workOrders = [
-    {
-      id: 1,
-      catalog: 'Premium Electronics Components',
-      buyer: 'BUY-23-XYZ789',
-      seller: 'VEND-23-ABC123',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      catalog: 'Industrial Machinery Parts',
-      buyer: 'BUY-23-ABC123',
-      seller: 'VEND-23-DEF456',
-      status: 'in_transit'
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch work orders
+        const ordersResponse = await fetch('/api/logistics/orders');
+        const ordersData = await ordersResponse.json();
+        
+        if (ordersResponse.ok) {
+          setWorkOrders(ordersData);
+        } else {
+          console.error('Error fetching work orders:', ordersData.error);
+        }
+        
+        // Fetch tracking information
+        const trackingResponse = await fetch('/api/logistics/tracking');
+        const trackingData = await trackingResponse.json();
+        
+        if (trackingResponse.ok) {
+          setTrackingInfo(trackingData);
+        } else {
+          console.error('Error fetching tracking info:', trackingData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const trackingInfo = [
-    {
-      id: 1,
-      order: 'Premium Electronics Components',
-      trackingId: 'TRK-2025-123789',
-      status: 'in_transit'
-    }
-  ];
+    fetchData();
+  }, []);
 
   return (
     <DashboardLayout title="Logistics Dashboard" role="logistics">
@@ -48,6 +61,9 @@ const LogisticsDashboard = () => {
           Tracking
         </button>
       </div>
+
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
 
       {activeTab === 'orders' && (
         <div>

@@ -1,63 +1,112 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const SellerDashboard = () => {
   const [activeTab, setActiveTab] = useState('catalogs');
-  const [showCreateCatalog, setShowCreateCatalog] = useState(false);
+  const [catalogs, setCatalogs] = useState([]);
+  const [dpos, setDpos] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data
-  const catalogs = [
-    {
-      id: 1,
-      title: 'Premium Electronics Components',
-      status: 'approved',
-      category: 'Electronics',
-      price: '$5000',
-      validity: '2025-12-31',
-      views: 1240,
-      rfqs: 24
-    },
-    {
-      id: 2,
-      title: 'Industrial Machinery Parts',
-      status: 'pending',
-      category: 'Machinery',
-      price: '$12000',
-      validity: '2025-11-15',
-      views: 890,
-      rfqs: 17
-    },
-    {
-      id: 3,
-      title: 'Organic Textiles',
-      status: 'approved',
-      category: 'Textiles',
-      price: '$3500',
-      validity: '2025-10-30',
-      views: 2100,
-      rfqs: 42
-    }
-  ];
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch seller's catalogs
+        const catalogsResponse = await fetch('/api/seller/catalogs');
+        const catalogsData = await catalogsResponse.json();
+        
+        if (catalogsResponse.ok) {
+          setCatalogs(catalogsData);
+        } else {
+          console.error('Error fetching catalogs:', catalogsData.error);
+        }
+        
+        // Fetch seller's DPOs
+        const dposResponse = await fetch('/api/seller/dpos');
+        const dposData = await dposResponse.json();
+        
+        if (dposResponse.ok) {
+          setDpos(dposData);
+        } else {
+          console.error('Error fetching DPOs:', dposData.error);
+        }
+        
+        // Fetch seller's payments
+        const paymentsResponse = await fetch('/api/seller/payments');
+        const paymentsData = await paymentsResponse.json();
+        
+        if (paymentsResponse.ok) {
+          setPayments(paymentsData);
+        } else {
+          console.error('Error fetching payments:', paymentsData.error);
+        }
+        
+        // Fetch seller's payout history
+        const payoutsResponse = await fetch('/api/seller/payouts');
+        const payoutsData = await payoutsResponse.json();
+        
+        if (payoutsResponse.ok) {
+          setPayouts(payoutsData);
+        } else {
+          console.error('Error fetching payouts:', payoutsData.error);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const dpos = [
-    {
-      id: 1,
-      buyer: 'BUY-23-XYZ789',
-      product: 'Premium Electronics Components',
-      price: '$5200',
-      status: 'pending',
-      validity: '2025-12-31'
-    },
-    {
-      id: 2,
-      buyer: 'BUY-23-ABC123',
-      product: 'Industrial Machinery Parts',
-      price: '$12500',
-      status: 'accepted',
-      validity: '2025-11-15'
+    fetchData();
+  }, []);
+
+  // Function to approve a payment
+  const approvePayment = async (paymentId) => {
+    try {
+      const response = await fetch('/api/payments/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          paymentId: paymentId,
+          approvedBy: 'seller' // In a real app, this would be the current user
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the payments state to reflect the approval
+        setPayments(prevPayments => 
+          prevPayments.map(payment => 
+            payment.id === paymentId 
+              ? { ...payment, status: 'approved' } 
+              : payment
+          )
+        );
+        
+        // Add the new payout to the payouts state
+        if (result.payout) {
+          setPayouts(prevPayouts => [...prevPayouts, result.payout]);
+        }
+        
+        alert('Payment approved successfully!');
+      } else {
+        alert('Failed to approve payment: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error approving payment:', err);
+      alert('Failed to approve payment. Please try again.');
     }
-  ];
+  };
 
   return (
     <DashboardLayout title="Seller Dashboard" role="seller">
@@ -69,16 +118,10 @@ const SellerDashboard = () => {
           My Catalogs
         </button>
         <button 
-          className={`tab ${activeTab === 'dpo' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dpo')}
+          className={`tab ${activeTab === 'dpos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dpos')}
         >
           DPO Management
-        </button>
-        <button 
-          className={`tab ${activeTab === 'orders' ? 'active' : ''}`}
-          onClick={() => setActiveTab('orders')}
-        >
-          Orders
         </button>
         <button 
           className={`tab ${activeTab === 'payments' ? 'active' : ''}`}
@@ -86,380 +129,198 @@ const SellerDashboard = () => {
         >
           Payments
         </button>
+        <button 
+          className={`tab ${activeTab === 'payouts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('payouts')}
+        >
+          Payout History
+        </button>
       </div>
 
-      {activeTab === 'catalogs' && (
-        <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">My Catalogs</h2>
-              <button 
-                className="btn btn-primary"
-                onClick={() => setShowCreateCatalog(true)}
-              >
-                Create New Catalog
-              </button>
-            </div>
-            
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Price</th>
-                    <th>Validity</th>
-                    <th>Status</th>
-                    <th>Views/RFQs</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catalogs.map(catalog => (
-                    <tr key={catalog.id}>
-                      <td>{catalog.title}</td>
-                      <td>{catalog.category}</td>
-                      <td>{catalog.price}</td>
-                      <td>{catalog.validity}</td>
-                      <td>
-                        <span className={`status-badge status-${catalog.status}`}>
-                          {catalog.status}
-                        </span>
-                      </td>
-                      <td>{catalog.views}/{catalog.rfqs}</td>
-                      <td>
-                        <button className="btn btn-outline btn-small">View</button>
-                        <button className="btn btn-primary btn-small">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
 
-      {activeTab === 'dpo' && (
-        <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Draft Purchase Orders (DPO)</h2>
+      {!loading && !error && (
+        <>
+          {activeTab === 'catalogs' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">My Product Catalogs</h2>
+                  <button className="btn btn-primary">Add New Product</button>
+                </div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {catalogs.map(catalog => (
+                        <tr key={catalog.id}>
+                          <td>{catalog.title}</td>
+                          <td>{catalog.category}</td>
+                          <td>${catalog.price}</td>
+                          <td>
+                            <span className={`status-badge status-${catalog.status}`}>
+                              {catalog.status}
+                            </span>
+                          </td>
+                          <td>
+                            <button className="btn btn-outline btn-small">Edit</button>
+                            <button className="btn btn-danger btn-small">Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Buyer Code</th>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Validity</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dpos.map(dpo => (
-                    <tr key={dpo.id}>
-                      <td>{dpo.buyer}</td>
-                      <td>{dpo.product}</td>
-                      <td>{dpo.price}</td>
-                      <td>{dpo.validity}</td>
-                      <td>
-                        <span className={`status-badge status-${dpo.status}`}>
-                          {dpo.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="btn btn-outline btn-small">View</button>
-                        <button className="btn btn-success btn-small">Accept</button>
-                        <button className="btn btn-warning btn-small">Negotiate</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {activeTab === 'orders' && (
-        <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">My Orders</h2>
+          {activeTab === 'dpos' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">DPO Management</h2>
+                </div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Buyer</th>
+                        <th>Quantity</th>
+                        <th>Total Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dpos.map(dpo => (
+                        <tr key={dpo.id}>
+                          <td>{dpo.productName}</td>
+                          <td>{dpo.buyerName}</td>
+                          <td>{dpo.quantity}</td>
+                          <td>${dpo.totalPrice}</td>
+                          <td>
+                            <span className={`status-badge status-${dpo.status}`}>
+                              {dpo.status}
+                            </span>
+                          </td>
+                          <td>
+                            <button className="btn btn-outline btn-small">View</button>
+                            <button className="btn btn-primary btn-small">Process</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <p>Order management features will be implemented here.</p>
-          </div>
-        </div>
-      )}
+          )}
 
-      {activeTab === 'payments' && (
-        <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Payment Management</h2>
+          {activeTab === 'payments' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">Payment Management</h2>
+                </div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Amount</th>
+                        <th>Currency</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map(payment => (
+                        <tr key={payment.id}>
+                          <td>{payment.id}</td>
+                          <td>${payment.amount}</td>
+                          <td>{payment.currency}</td>
+                          <td>
+                            <span className={`status-badge status-${payment.status}`}>
+                              {payment.status}
+                            </span>
+                          </td>
+                          <td>{new Date(payment.created_at).toLocaleDateString()}</td>
+                          <td>
+                            {payment.status === 'pending' && (
+                              <button 
+                                className="btn btn-success btn-small"
+                                onClick={() => approvePayment(payment.id)}
+                              >
+                                Approve
+                              </button>
+                            )}
+                            <button className="btn btn-outline btn-small">View</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <p>Payment management features will be implemented here.</p>
-          </div>
-        </div>
-      )}
+          )}
 
-      {showCreateCatalog && (
-        <CreateCatalogModal onClose={() => setShowCreateCatalog(false)} />
+          {activeTab === 'payouts' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">Payout History</h2>
+                </div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Payment ID</th>
+                        <th>Amount</th>
+                        <th>Currency</th>
+                        <th>Status</th>
+                        <th>Processed At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payouts.map(payout => (
+                        <tr key={payout.id}>
+                          <td>{payout.payment_id}</td>
+                          <td>${payout.amount}</td>
+                          <td>{payout.currency}</td>
+                          <td>
+                            <span className={`status-badge status-${payout.status}`}>
+                              {payout.status}
+                            </span>
+                          </td>
+                          <td>{payout.processed_at ? new Date(payout.processed_at).toLocaleDateString() : 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </DashboardLayout>
-  );
-};
-
-const CreateCatalogModal = ({ onClose }) => {
-  const [formData, setFormData] = useState({
-    category: '',
-    branded: 'branded',
-    productName: '',
-    description: '',
-    moq: '',
-    uom: '',
-    quantity: '',
-    price: '',
-    currency: 'USD',
-    priceType: 'EXW',
-    reLabel: 'no',
-    validity: '',
-    surveyTerms: false
-  });
-
-  const categories = [
-    'Electronics', 'Machinery', 'Textiles', 'Chemicals', 'Food & Beverages',
-    'Automotive', 'Construction', 'Healthcare', 'Agriculture', 'Other'
-  ];
-
-  const uoms = ['Pieces', 'Kilograms', 'Meters', 'Liters', 'Boxes', 'Pallets'];
-
-  const priceTypes = [
-    { value: 'EXW', label: 'EXW (Ex Works)' },
-    { value: 'FOB', label: 'FOB (Free On Board)' },
-    { value: 'CIF', label: 'CIF (Cost, Insurance & Freight)' },
-    { value: 'DDP', label: 'DDP (Delivered Duty Paid)' }
-  ];
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // In a real app, this would submit the catalog data
-    alert('Catalog submitted for approval!');
-    onClose();
-  };
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>Create New Catalog</h2>
-          <button className="close-button" onClick={onClose}>×</button>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Product Category</label>
-              <select
-                name="category"
-                className="form-control"
-                value={formData.category}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Select Category</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Branded/Unbranded</label>
-              <select
-                name="branded"
-                className="form-control"
-                value={formData.branded}
-                onChange={handleInputChange}
-              >
-                <option value="branded">Branded</option>
-                <option value="unbranded">Unbranded</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="form-group">
-            <label className="form-label">Product Name/Version</label>
-            <input
-              type="text"
-              name="productName"
-              className="form-control"
-              value={formData.productName}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea
-              name="description"
-              className="form-control"
-              value={formData.description}
-              onChange={handleInputChange}
-              rows="3"
-              required
-            ></textarea>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">MOQ</label>
-              <input
-                type="number"
-                name="moq"
-                className="form-control"
-                value={formData.moq}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">UOM</label>
-              <select
-                name="uom"
-                className="form-control"
-                value={formData.uom}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Select UOM</option>
-                {uoms.map(uom => (
-                  <option key={uom} value={uom}>{uom}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Available Quantity</label>
-              <input
-                type="number"
-                name="quantity"
-                className="form-control"
-                value={formData.quantity}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Offer Price</label>
-              <input
-                type="number"
-                name="price"
-                className="form-control"
-                value={formData.price}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Currency</label>
-              <select
-                name="currency"
-                className="form-control"
-                value={formData.currency}
-                onChange={handleInputChange}
-              >
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="INR">INR</option>
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Price Type</label>
-              <select
-                name="priceType"
-                className="form-control"
-                value={formData.priceType}
-                onChange={handleInputChange}
-              >
-                {priceTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Re-labeling Option</label>
-              <select
-                name="reLabel"
-                className="form-control"
-                value={formData.reLabel}
-                onChange={handleInputChange}
-              >
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Offer Validity</label>
-              <input
-                type="date"
-                name="validity"
-                className="form-control"
-                value={formData.validity}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="surveyTerms"
-                checked={formData.surveyTerms}
-                onChange={handleInputChange}
-                required
-              />
-              I accept the survey terms & conditions
-            </label>
-          </div>
-          
-          <div className="form-navigation">
-            <button type="button" className="btn btn-outline" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Submit for Approval
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 };
 
