@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
-import WorkflowTracker from './WorkflowTracker';
+import WorkflowTracker from './WorkflowTracker.js';
 import '../App.css';
 
 const BuyerDashboard = () => {
