@@ -61,10 +61,12 @@ const generateVendorCode = (role, userId) => {
 // Registration endpoint
 app.post('/api/register', async (req, res) => {
   try {
+    console.log('Registration endpoint called with data:', req.body);
     const { email, password, firstName, lastName, phone, workClass } = req.body;
     
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !phone || !workClass) {
+      console.log('Registration validation failed: missing required fields');
       return res.status(400).json({ 
         success: false, 
         error: 'All fields are required' 
@@ -73,6 +75,7 @@ app.post('/api/register', async (req, res) => {
     
     // If Supabase is not available, return mock success
     if (!supabase) {
+      console.log('Supabase not available, returning mock success');
       const vendorCode = generateVendorCode(workClass, 'mock-user-id');
       return res.json({ 
         success: true, 
@@ -82,6 +85,7 @@ app.post('/api/register', async (req, res) => {
       });
     }
     
+    console.log('Checking if user already exists');
     // Check if user already exists
     const { data: existingUser, error: existingUserError } = await supabase
       .from('users')
@@ -89,13 +93,23 @@ app.post('/api/register', async (req, res) => {
       .eq('email', email)
       .single();
     
+    if (existingUserError && existingUserError.code !== 'PGRST116') {
+      console.error('Error checking existing user:', existingUserError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Database error checking user' 
+      });
+    }
+    
     if (existingUser) {
+      console.log('User already exists with email:', email);
       return res.status(400).json({ 
         success: false, 
         error: 'User with this email already exists' 
       });
     }
     
+    console.log('Creating user in Supabase Auth');
     // Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -103,6 +117,7 @@ app.post('/api/register', async (req, res) => {
     });
     
     if (authError) {
+      console.error('Error creating user in Supabase Auth:', authError.message);
       return res.status(400).json({ 
         success: false, 
         error: authError.message 
@@ -111,10 +126,13 @@ app.post('/api/register', async (req, res) => {
     
     // Get the user ID from auth
     const userId = authData.user.id;
+    console.log('User created with ID:', userId);
     
     // Generate vendor code
     const vendorCode = generateVendorCode(workClass, userId);
+    console.log('Generated vendor code:', vendorCode);
     
+    console.log('Creating user profile in users table');
     // Create user profile in users table
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -132,12 +150,14 @@ app.post('/api/register', async (req, res) => {
       .single();
     
     if (userError) {
+      console.error('Error creating user profile:', userError.message);
       return res.status(400).json({ 
         success: false, 
         error: userError.message 
       });
     }
     
+    console.log('Getting role ID for workClass:', workClass);
     // Get role ID
     const { data: roleData, error: roleError } = await supabase
       .from('roles')
@@ -146,12 +166,14 @@ app.post('/api/register', async (req, res) => {
       .single();
     
     if (roleError) {
+      console.error('Error getting role ID:', roleError.message);
       return res.status(400).json({ 
         success: false, 
         error: 'Invalid role specified' 
       });
     }
     
+    console.log('Assigning role to user');
     // Assign role to user
     const { error: userRoleError } = await supabase
       .from('user_roles')
@@ -162,12 +184,14 @@ app.post('/api/register', async (req, res) => {
       });
     
     if (userRoleError) {
+      console.error('Error assigning role to user:', userRoleError.message);
       return res.status(400).json({ 
         success: false, 
         error: userRoleError.message 
       });
     }
     
+    console.log('Updating user with vendor code');
     // Update user with vendor code
     const { error: updateError } = await supabase
       .from('users')
@@ -175,12 +199,14 @@ app.post('/api/register', async (req, res) => {
       .eq('id', userId);
     
     if (updateError) {
+      console.error('Error updating user with vendor code:', updateError.message);
       return res.status(400).json({ 
         success: false, 
         error: updateError.message 
       });
     }
     
+    console.log('Registration successful for user:', email);
     res.json({ 
       success: true, 
       message: 'Registration successful',
@@ -2063,6 +2089,12 @@ app.get('/api/products', async (req, res) => {
     }
     
     console.log('Fetched products:', products ? products.length : 0);
+    
+    // If no products found, return empty array instead of error
+    if (!products || products.length === 0) {
+      console.log('No products found, returning empty array');
+      return res.json([]);
+    }
 
     // Get usernames for all sellers
     const sellerIds = [...new Set(products.map(product => product.seller_id).filter(id => id))];
@@ -2144,6 +2176,12 @@ app.get('/api/catalogs', async (req, res) => {
     }
     
     console.log('Fetched products:', products ? products.length : 0);
+    
+    // If no products found, return empty array instead of error
+    if (!products || products.length === 0) {
+      console.log('No products found, returning empty array');
+      return res.json([]);
+    }
 
     // Get vendor codes for all sellers
     const sellerIds = [...new Set(products.map(product => product.seller_id).filter(id => id))];
@@ -2883,7 +2921,74 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     supabaseConnected: !!supabase,
     supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
-    environment: process.env.NODE_ENV || 'development'
+    supabaseKeyExists: !!supabaseKey,
+    supabaseKeyLength: supabaseKey ? supabaseKey.length : 0,
+    environment: process.env.NODE_ENV || 'development',
+    vercelEnv: process.env.VERCEL_ENV || 'NOT SET',
+    port: process.env.PORT || 5000
+  });
+});
+
+// Enhanced Health check endpoint with Supabase test
+app.get('/api/health/db', async (req, res) => {
+  try {
+    // Check if Supabase client is properly initialized
+    if (!supabase) {
+      return res.status(500).json({
+        status: 'ERROR',
+        message: 'Supabase client not initialized',
+        supabaseConnected: false,
+        supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
+        supabaseKeyExists: !!supabaseKey
+      });
+    }
+    
+    // Test Supabase connection by fetching a small amount of data
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      return res.status(500).json({
+        status: 'ERROR',
+        message: 'Supabase connection test failed',
+        error: error.message,
+        supabaseConnected: true,
+        supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
+        supabaseKeyExists: !!supabaseKey
+      });
+    }
+    
+    res.json({
+      status: 'OK',
+      message: 'Supabase connection successful',
+      supabaseConnected: true,
+      supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
+      supabaseKeyExists: !!supabaseKey,
+      testData: data
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Health check failed',
+      error: error.message,
+      supabaseConnected: !!supabase,
+      supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
+      supabaseKeyExists: !!supabaseKey
+    });
+  }
+});
+
+// Environment variables test endpoint
+app.get('/api/test-env', (req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV || 'NOT SET',
+    VERCEL_ENV: process.env.VERCEL_ENV || 'NOT SET',
+    SUPABASE_URL: process.env.SUPABASE_URL ? 'SET' : 'NOT SET',
+    SUPABASE_KEY: process.env.SUPABASE_KEY ? 'SET' : 'NOT SET',
+    SUPABASE_KEY_LENGTH: process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.length : 0,
+    PORT: process.env.PORT || 'NOT SET'
   });
 });
 
