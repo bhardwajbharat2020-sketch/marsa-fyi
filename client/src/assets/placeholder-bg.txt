@@ -1,0 +1,2 @@
+This is a placeholder for background images in the MarsaFyi application.
+In a real application, this would be replaced with actual background images.
