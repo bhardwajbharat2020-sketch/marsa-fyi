@@ -23,6 +23,7 @@ import CHADashboard from './components/CHADashboard';
 import CategoriesPage from './components/CategoriesPage';
 import RoleSwitcher from './components/RoleSwitcher';
 import RoleDashboard from './components/RoleDashboard';
+import AccessDenied from './components/AccessDenied';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -42,6 +43,7 @@ function App() {
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/dashboard" element={<RoleDashboard />} />
             <Route path="/role-switch" element={<RoleSwitcher />} />
+            <Route path="/access-denied" element={<AccessDenied />} />
             
             {/* Protected Dashboard Routes */}
             <Route 

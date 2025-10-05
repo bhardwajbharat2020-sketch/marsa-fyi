@@ -4,13 +4,44 @@ const path = require('path');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+// Configure multer for handling multipart form data
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
+
+// Enhanced CORS configuration
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true, // Allow credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With']
+}));
+
+// Middleware to handle preflight requests
+app.options('*', cors());
+
+// Middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`=== REQUEST: ${req.method} ${req.url} ===`);
+  console.log('Headers:', req.headers);
+  next();
+});
+
+// Middleware for parsing JSON and URL-encoded data
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// JWT secret (in production, this should be in environment variables)
+const JWT_SECRET = process.env.JWT_SECRET || 'marsafyi_jwt_secret';
 
 // Initialize Supabase client
 // Note: In a production environment, these should be stored in environment variables
@@ -33,6 +64,33 @@ if (supabaseUrl && supabaseKey) {
 } else {
   console.log('Supabase credentials not provided. Running in mock mode.');
 }
+
+// Authentication middleware
+const authenticateToken = async (req, res, next) => {
+  // Get token from Authorization header
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  
+  if (!token) {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Access token required' 
+    });
+  }
+  
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    return res.status(403).json({ 
+      success: false, 
+      error: 'Invalid or expired token' 
+    });
+  }
+};
 
 // Password validation function
 function validatePassword(password) {
@@ -326,6 +384,18 @@ app.post('/api/auth/login', async (req, res) => {
     
     console.log('User login successful for:', user.email, 'with role:', userRole);
     
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        vendor_code: user.vendor_code,
+        role: userRole
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
     // Return user data and role
     const userData = {
       id: user.id,
@@ -342,7 +412,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({ 
       success: true,
       user: userData,
-      token: 'dummy-token' // In a real app, you would generate a proper JWT token
+      token: token
     });
   } catch (error) {
     console.error('Error in login endpoint:', error.message);
@@ -412,6 +482,63 @@ app.get('/api/catalogs', async (req, res) => {
   }
 });
 
+// Admin users endpoint - fetch all users
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    // Always fetch from Supabase - no mock data fallback
+    console.log('Fetching users from Supabase');
+    
+    // Fetch users from Supabase with related data
+    // Only fetch approved and active users
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('active', true);
+
+    if (error) {
+      console.error('Error fetching users:', error);
+      return res.status(500).json({
+        error: 'Server error fetching users: ' + error.message 
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({
+      error: 'Server error fetching users: ' + error.message 
+    });
+  }
+});
+
+// RFQ endpoint - create a new RFQ
+app.post('/api/rfq', async (req, res) => {
+  try {
+    // Always fetch from Supabase - no mock data fallback
+    console.log('Creating RFQ in Supabase');
+    
+    // Create RFQ in Supabase with related data
+    const { data, error } = await supabase
+      .from('rfq')
+      .insert([req.body]);
+
+    if (error) {
+      console.error('Error creating RFQ:', error);
+      return res.status(500).json({
+        error: 'Server error creating RFQ: ' + error.message 
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error creating RFQ:', error);
+    return res.status(500).json({
+      error: 'Server error creating RFQ: ' + error.message 
+    });
+  }
+});
+
 // Products endpoint - fetch all products
 app.get('/api/products', async (req, res) => {
   try {
@@ -419,6 +546,7 @@ app.get('/api/products', async (req, res) => {
     console.log('Fetching products from Supabase');
     
     // Fetch products from Supabase with related data
+    // Only fetch approved and active products
     const { data: products, error } = await supabase
       .from('products')
       .select(`
@@ -432,7 +560,8 @@ app.get('/api/products', async (req, res) => {
         categories (name),
         users (first_name, last_name, vendor_code)
       `)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .eq('status', 'approved'); // Only approved products
 
     if (error) {
       console.error('Error fetching products from Supabase:', error.message);
@@ -474,29 +603,14 @@ app.get('/api/products', async (req, res) => {
 
 // Get specific product by ID
 app.get('/api/products/:id', async (req, res) => {
-  console.log('Product detail endpoint hit');
-  console.log('Request URL:', req.url);
-  console.log('Request params:', req.params);
-  
   try {
     const productId = req.params.id;
     
     // Always fetch from Supabase - no mock data fallback
     console.log(`Fetching product ${productId} from Supabase`);
-    console.log(`Request params:`, JSON.stringify(req.params, null, 2));
-    console.log(`Product ID type:`, typeof productId);
-    
-    // Validate that productId is a number
-    const productIdNum = parseInt(productId);
-    if (isNaN(productIdNum)) {
-      console.error(`Invalid product ID: ${productId}`);
-      return res.status(400).json({ 
-        success: false,
-        error: 'Invalid product ID' 
-      });
-    }
     
     // Fetch product from Supabase with related data
+    // Only fetch approved and active products
     const { data: product, error } = await supabase
       .from('products')
       .select(`
@@ -510,7 +624,9 @@ app.get('/api/products/:id', async (req, res) => {
         categories (name),
         users (first_name, last_name, vendor_code)
       `)
-      .eq('id', productIdNum)
+      .eq('id', productId)
+      .eq('is_active', true)
+      .eq('status', 'approved') // Only approved products
       .single();
 
     if (error) {
@@ -523,10 +639,9 @@ app.get('/api/products/:id', async (req, res) => {
     }
 
     if (!product) {
-      console.log(`Product ${productId} not found`);
       return res.status(404).json({ 
         success: false,
-        error: 'Product not found' 
+        error: 'Product not found or not approved' 
       });
     }
 
@@ -560,14 +675,13 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 // Seller products endpoint - fetch seller's products
-app.get('/api/seller/products', async (req, res) => {
+app.get('/api/seller/products', authenticateToken, async (req, res) => {
   try {
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching seller products from Supabase');
     
     // Get the seller ID from the authenticated user
-    // Using a default value for testing, but in production this should come from authentication
-    const sellerId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+    const sellerId = req.user.id;
     
     // Fetch products from Supabase with all new columns
     const { data: products, error } = await supabase
@@ -719,76 +833,6 @@ app.get('/api/seller/rfqs', async (req, res) => {
   }
 });
 
-// Get specific product by ID
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const productId = req.params.id;
-    
-    // Always fetch from Supabase - no mock data fallback
-    console.log(`Fetching product ${productId} from Supabase`);
-    
-    // Fetch product from Supabase with related data
-    const { data: product, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        currency_id,
-        is_verified,
-        is_active,
-        categories (name),
-        users (first_name, last_name, vendor_code)
-      `)
-      .eq('id', productId)
-      .single();
-
-    if (error) {
-      console.error(`Error fetching product ${productId} from Supabase:`, error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching product: ' + error.message 
-      });
-    }
-
-    if (!product) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Product not found' 
-      });
-    }
-
-    // Debug: Log the product data to see what we're getting
-    console.log(`Product ${productId} data:`, JSON.stringify(product, null, 2));
-    
-    // Transform the data to match the expected format
-    const formattedProduct = {
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      short_description: product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : '',
-      company_name: product.users?.vendor_code || 'Unknown Vendor',
-      origin_port_name: 'Unknown Port', // Ports are not directly related to products in the schema
-      category_name: product.categories?.name || 'Uncategorized',
-      is_verified: product.is_verified,
-      price: product.price,
-      currency: 'USD' // In a real app, this would come from the currencies table
-    };
-
-    console.log(`Successfully fetched product ${productId} from Supabase`);
-    res.json(formattedProduct);
-  } catch (error) {
-    console.error('Error in product endpoint:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error fetching product: ' + error.message 
-    });
-  }
-});
-
 // Get products by category (for related products)
 app.get('/api/products/category/:categoryName', async (req, res) => {
   try {
@@ -798,6 +842,7 @@ app.get('/api/products/category/:categoryName', async (req, res) => {
     console.log(`Fetching products for category ${categoryName} from Supabase`);
     
     // Fetch products from Supabase with related data
+    // Only fetch approved and active products
     const { data: products, error } = await supabase
       .from('products')
       .select(`
@@ -812,6 +857,7 @@ app.get('/api/products/category/:categoryName', async (req, res) => {
         users (first_name, last_name, vendor_code)
       `)
       .eq('is_active', true)
+      .eq('status', 'approved') // Only approved products
       .limit(4); // Limit to 4 related products
 
     if (error) {
@@ -850,9 +896,20 @@ app.get('/api/products/category/:categoryName', async (req, res) => {
 });
 
 // Add product endpoint for sellers
-app.post('/api/seller/products', async (req, res) => {
+app.post('/api/seller/products', authenticateToken, upload.any(), async (req, res) => {
   try {
-    // For multipart form data, we need to handle both req.body and req.file
+    console.log('=== PRODUCT SUBMISSION DEBUG INFO ===');
+    console.log('Raw request body:', req.body);
+    console.log('Files received:', req.files);
+    console.log('Request headers:', req.headers);
+    console.log('Authenticated user:', req.user);
+    
+    // If using upload.any(), files are in req.files array
+    if (req.files && req.files.length > 0) {
+      console.log('File fields:', req.files.map(f => f.fieldname));
+    }
+    
+    // For multipart form data, we need to handle both req.body and req.files
     const { 
       name, 
       category, 
@@ -870,13 +927,159 @@ app.post('/api/seller/products', async (req, res) => {
       validityTime 
     } = req.body;
     
-    // Validate required fields
-    if (!name || !category || !price || !description) {
+    console.log('=== EXTRACTED FIELDS ===');
+    console.log('name:', name, '| type:', typeof name, '| length:', name ? name.length : 'null');
+    console.log('category:', category, '| type:', typeof category, '| length:', category ? category.length : 'null');
+    console.log('price:', price, '| type:', typeof price);
+    console.log('description:', description, '| type:', typeof description, '| length:', description ? description.length : 'null');
+    
+    // Check if fields exist at all
+    console.log('=== FIELD EXISTENCE CHECK ===');
+    console.log('name exists:', 'name' in req.body);
+    console.log('category exists:', 'category' in req.body);
+    console.log('price exists:', 'price' in req.body);
+    console.log('description exists:', 'description' in req.body);
+    
+    // Validate required fields - improved validation with detailed debugging
+    console.log('=== VALIDATION START ===');
+    
+    if (!('name' in req.body)) {
+      console.log('NAME FIELD MISSING FROM REQUEST');
       return res.status(400).json({ 
         success: false, 
-        error: 'Product name, category, price, and description are required' 
+        error: 'Product name field is missing from request' 
       });
     }
+    
+    if (!name) {
+      console.log('NAME IS FALSY:', name);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name is required (received: ' + name + ')' 
+      });
+    }
+    
+    if (typeof name !== 'string') {
+      console.log('NAME IS NOT STRING:', typeof name);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name must be a string (received: ' + typeof name + ')' 
+      });
+    }
+    
+    if (name.trim() === '') {
+      console.log('NAME IS EMPTY AFTER TRIM');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name cannot be empty or whitespace only' 
+      });
+    }
+    
+    if (!('category' in req.body)) {
+      console.log('CATEGORY FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category field is missing from request' 
+      });
+    }
+    
+    if (!category) {
+      console.log('CATEGORY IS FALSY:', category);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category is required (received: ' + category + ')' 
+      });
+    }
+    
+    if (typeof category !== 'string') {
+      console.log('CATEGORY IS NOT STRING:', typeof category);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category must be a string (received: ' + typeof category + ')' 
+      });
+    }
+    
+    if (category.trim() === '') {
+      console.log('CATEGORY IS EMPTY AFTER TRIM');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category cannot be empty or whitespace only' 
+      });
+    }
+    
+    if (!('price' in req.body)) {
+      console.log('PRICE FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price field is missing from request' 
+      });
+    }
+    
+    if (!price) {
+      console.log('PRICE IS FALSY:', price);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price is required (received: ' + price + ')' 
+      });
+    }
+    
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum)) {
+      console.log('PRICE IS NOT A NUMBER:', price);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price must be a valid number (received: ' + price + ')' 
+      });
+    }
+    
+    if (priceNum <= 0) {
+      console.log('PRICE IS NOT POSITIVE:', priceNum);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price must be a positive number (received: ' + priceNum + ')' 
+      });
+    }
+    
+    if (!('description' in req.body)) {
+      console.log('DESCRIPTION FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description field is missing from request' 
+      });
+    }
+    
+    if (!description) {
+      console.log('DESCRIPTION IS FALSY:', description);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description is required (received: ' + description + ')' 
+      });
+    }
+    
+    if (typeof description !== 'string') {
+      console.log('DESCRIPTION IS NOT STRING:', typeof description);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description must be a string (received: ' + typeof description + ')' 
+      });
+    }
+    
+    if (description.trim() === '') {
+      console.log('DESCRIPTION IS EMPTY AFTER TRIM');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description cannot be empty or whitespace only' 
+      });
+    }
+    
+    // Trim whitespace from required fields
+    const trimmedName = name.trim();
+    const trimmedCategory = category.trim();
+    const trimmedDescription = description.trim();
+    const priceValue = priceNum;
+    
+    console.log('=== VALIDATION PASSED ===');
+    console.log('Trimmed values:', { trimmedName, trimmedCategory, priceValue, trimmedDescription });
     
     // Always use Supabase - no mock data fallback
     if (!supabase) {
@@ -888,36 +1091,42 @@ app.post('/api/seller/products', async (req, res) => {
     }
     
     // Get the seller ID from the authenticated user
-    // Using a default value for testing, but in production this should come from authentication
-    const sellerId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+    const sellerId = req.user.id;
     
-    // Get category ID from name (create if doesn't exist)
+    // Validate seller ID
+    if (!sellerId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Seller ID is required. Please log in to submit products.' 
+      });
+    }
+    
+    // Get category ID from name (should exist in our predefined list)
     let categoryId = null;
-    if (category) {
+    if (trimmedCategory) {
       const { data: existingCategory, error: categoryError } = await supabase
         .from('categories')
         .select('id')
-        .eq('name', category)
+        .eq('name', trimmedCategory)
         .single();
+      
+      if (categoryError) {
+        console.error('Error fetching category:', categoryError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching category: ' + categoryError.message 
+        });
+      }
       
       if (existingCategory) {
         categoryId = existingCategory.id;
       } else {
-        // Create new category
-        const { data: newCategory, error: newCategoryError } = await supabase
-          .from('categories')
-          .insert({
-            name: category,
-            description: `${category} category`,
-            is_active: true,
-            created_at: new Date()
-          })
-          .select()
-          .single();
-          
-        if (newCategory) {
-          categoryId = newCategory.id;
-        }
+        // If category doesn't exist, log an error (should not happen with predefined categories)
+        console.error('Category not found in database:', trimmedCategory);
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid category selected' 
+        });
       }
     }
     
@@ -929,6 +1138,14 @@ app.post('/api/seller/products', async (req, res) => {
         .select('id')
         .eq('code', currency)
         .single();
+      
+      if (currencyError) {
+        console.error('Error fetching currency:', currencyError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching currency: ' + currencyError.message 
+        });
+      }
       
       if (currencyData) {
         currencyId = currencyData.id;
@@ -947,10 +1164,10 @@ app.post('/api/seller/products', async (req, res) => {
       .from('products')
       .insert({
         seller_id: sellerId, // Associate the product with the seller
-        name,
+        name: trimmedName,
         category_id: categoryId,
-        description: description || '',
-        price: parseFloat(price),
+        description: trimmedDescription,
+        price: priceValue,
         currency_id: currencyId,
         moq: moq ? parseInt(moq) : null,
         moq_uom: moqUom || null,
@@ -961,15 +1178,35 @@ app.post('/api/seller/products', async (req, res) => {
         offer_validity_date: offerValidityDate,
         is_active: true,
         is_verified: false, // New products need approval
-        status: 'submitted', // Status for tracking
-        created_at: new Date()
+        status: 'submitted', // Status for tracking - submitted for approval
+        created_at: new Date(),
+        updated_at: new Date()  // Added updated_at field
       })
       .select()
       .single();
 
     if (error) {
       console.error('Error creating product in Supabase:', error.message);
-      console.error('Error details:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Product data:', {
+        seller_id: sellerId,
+        name: name,
+        category_id: categoryId,
+        description: description || '',
+        price: priceValue,
+        currency_id: currencyId,
+        moq: moq ? parseInt(moq) : null,
+        moq_uom: moqUom || null,
+        available_quantity: quantity ? parseInt(quantity) : null,
+        quantity_uom: quantityUom || null,
+        price_type: priceType || 'EXW',
+        is_relabeling_allowed: reLabeling === 'yes',
+        offer_validity_date: offerValidityDate,
+        is_active: true,
+        is_verified: false,
+        status: 'submitted'
+      });
+      
       return res.status(500).json({ 
         success: false, 
         error: 'Server error creating product: ' + error.message 
@@ -997,7 +1234,15 @@ app.post('/api/seller/products', async (req, res) => {
       thumbnailUrl: product.thumbnail_url
     };
     
-    console.log('Successfully created product in Supabase');
+    // Log product history
+    await logProductHistory(product.id, sellerId, 'created', {
+      name: product.name,
+      category: category || 'Uncategorized',
+      price: product.price,
+      currency: currency || 'USD'
+    });
+    
+    console.log('Successfully created product in Supabase:', productWithDetails);
     res.json({ 
       success: true, 
       message: 'Product submitted successfully for approval',
@@ -1220,6 +1465,61 @@ app.post('/api/buyer/rfqs', async (req, res) => {
     });
   }
 });
+
+// Admin users endpoint - fetch all users
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) {
+      console.error('Error fetching users:', error.message);
+      res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching users: ' + error.message 
+      });
+    } else {
+      res.status(200).json({ 
+        success: true,
+        users: data
+      });
+    }
+  } catch (error) {
+    console.error('Error in fetch users endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching users: ' + error.message 
+    });
+  }
+});
+
+// Function to log product history
+const logProductHistory = async (productId, userId, action, details = null, reason = null) => {
+  try {
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return;
+    }
+    
+    const { error } = await supabase
+      .from('product_history')
+      .insert({
+        id: uuidv4(), // Generate UUID for the history record
+        product_id: productId,
+        user_id: userId,
+        action: action,
+        details: details,
+        reason: reason,
+        created_at: new Date()
+      });
+    
+    if (error) {
+      console.error('Error logging product history:', error.message);
+    } else {
+      console.log(`Product history logged: ${action} for product ${productId}`);
+    }
+  } catch (err) {
+    console.error('Error in logProductHistory function:', err.message);
+  }
+};
 
 // Admin users endpoint - fetch all users
 app.get('/api/admin/users', async (req, res) => {
@@ -1507,6 +1807,11 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'API routes are working' });
 });
 
+// Simple test endpoint for connectivity
+app.get('/api/ping', (req, res) => {
+  res.json({ message: 'pong', timestamp: new Date().toISOString() });
+});
+
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -1526,11 +1831,16 @@ app.post('/api/auth/login', async (req, res) => {
     if (!supabase) {
       console.error('Supabase not initialized');
       return res.status(500).json({ 
-        success: false, 
+        success: false,
         error: 'Database not available' 
       });
     }
-    
+
+    // Fetch users from Supabase
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, is_verified');
+
     console.log('Checking user credentials');
     // Check user credentials by email or vendor code
     let userQuery = supabase
@@ -1633,72 +1943,1012 @@ app.get('/api/products/test/:id', (req, res) => {
   res.json({ message: 'Product ID route is working', id: req.params.id });
 });
 
-// Get specific product by ID
-app.get('/api/products/:id', async (req, res) => {
+
+
+// Captain products endpoint - fetch products pending approval
+app.get('/api/captain/products', async (req, res) => {
   try {
-    const productId = req.params.id;
-    
     // Always fetch from Supabase - no mock data fallback
-    console.log(`Fetching product ${productId} from Supabase`);
+    console.log('Fetching products pending approval from Supabase');
     
-    // Fetch product from Supabase with related data
-    const { data: product, error } = await supabase
+    // Fetch products from Supabase with all details
+    const { data: products, error } = await supabase
       .from('products')
       .select(`
         id,
+        seller_id,
         name,
         description,
         price,
         currency_id,
-        is_verified,
+        category_id,
         is_active,
+        is_verified,
+        status,
+        moq,
+        moq_uom,
+        available_quantity,
+        quantity_uom,
+        price_type,
+        is_relabeling_allowed,
+        offer_validity_date,
+        image_url,
+        thumbnail_url,
         categories (name),
+        currencies (code),
         users (first_name, last_name, vendor_code)
       `)
-      .eq('id', productId)
-      .single();
+      .eq('status', 'submitted');
 
     if (error) {
-      console.error(`Error fetching product ${productId} from Supabase:`, error.message);
+      console.error('Error fetching products from Supabase:', error.message);
       console.error('Error details:', error);
       return res.status(500).json({ 
         success: false,
-        error: 'Server error fetching product: ' + error.message 
+        error: 'Server error fetching products: ' + error.message 
       });
     }
 
-    if (!product) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Product not found' 
-      });
-    }
-
-    // Debug: Log the product data to see what we're getting
-    console.log(`Product ${productId} data:`, JSON.stringify(product, null, 2));
-    
-    // Transform the data to match the expected format
-    const formattedProduct = {
+    // Transform products to match frontend expectations
+    const formattedProducts = products.map(product => ({
       id: product.id,
+      sellerId: product.seller_id,
+      sellerName: product.users?.vendor_code || 'Unknown Seller',
       name: product.name,
       description: product.description,
-      short_description: product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : '',
-      company_name: product.users?.vendor_code || 'Unknown Vendor',
-      origin_port_name: 'Unknown Port', // Ports are not directly related to products in the schema
-      category_name: product.categories?.name || 'Uncategorized',
-      is_verified: product.is_verified,
+      category: product.categories?.name || 'Uncategorized',
       price: product.price,
-      currency: 'USD' // In a real app, this would come from the currencies table
-    };
+      currency: product.currencies?.code || 'USD',
+      status: product.status || 'pending',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      quantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      priceType: product.price_type,
+      reLabeling: product.is_relabeling_allowed ? 'yes' : 'no',
+      validityDate: product.offer_validity_date ? product.offer_validity_date.split('T')[0] : null,
+      validityTime: product.offer_validity_date ? product.offer_validity_date.split('T')[1]?.split('.')[0] : null,
+      imageUrl: product.image_url,
+      thumbnailUrl: product.thumbnail_url
+    }));
 
-    console.log(`Successfully fetched product ${productId} from Supabase`);
-    res.json(formattedProduct);
+    console.log(`Successfully fetched ${formattedProducts.length} products pending approval from Supabase`);
+    res.json(formattedProducts || []);
   } catch (error) {
-    console.error('Error in product endpoint:', error.message);
+    console.error('Error in captain products endpoint:', error.message);
     console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false,
-      error: 'Server error fetching product: ' + error.message 
+      error: 'Server error fetching products: ' + error.message 
+    });
+  }
+});
+
+// Captain approve product endpoint
+app.post('/api/captain/products/approve', async (req, res) => {
+  try {
+    const { productId } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Update product status to approved
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'approved',
+        is_verified: true,
+        is_active: true,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select('id, name, seller_id')
+      .single();
+
+    if (error) {
+      console.error('Error approving product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error approving product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    // Send notification to seller
+    if (product && product.seller_id) {
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: product.seller_id,
+            title: 'Product Approved',
+            message: `Your product "${product.name}" has been approved by the captain and is now live.`,
+            is_read: false,
+            created_at: new Date()
+          });
+        
+        if (notificationError) {
+          console.error('Error sending approval notification to seller:', notificationError.message);
+        } else {
+          console.log('Approval notification sent to seller');
+        }
+      } catch (notificationErr) {
+        console.error('Error sending approval notification to seller:', notificationErr.message);
+      }
+    }
+    
+    console.log('Successfully approved product in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Product approved successfully',
+      product
+    });
+  } catch (error) {
+    console.error('Error in approve product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error approving product: ' + error.message 
+    });
+  }
+});
+
+// Captain reject product endpoint
+app.post('/api/captain/products/reject', async (req, res) => {
+  try {
+    const { productId, reason } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Update product status to rejected
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'rejected',
+        is_verified: false,
+        is_active: false,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select('id, name, seller_id')
+      .single();
+
+    if (error) {
+      console.error('Error rejecting product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error rejecting product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    // Send notification to seller with rejection reason
+    if (product && product.seller_id) {
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: product.seller_id,
+            title: 'Product Rejected',
+            message: `Your product "${product.name}" has been rejected by the captain. Reason: ${reason || 'No reason provided'}`,
+            is_read: false,
+            created_at: new Date()
+          });
+        
+        if (notificationError) {
+          console.error('Error sending rejection notification to seller:', notificationError.message);
+        } else {
+          console.log('Rejection notification sent to seller');
+        }
+      } catch (notificationErr) {
+        console.error('Error sending rejection notification to seller:', notificationErr.message);
+      }
+    }
+    
+    console.log('Successfully rejected product in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Product rejected successfully',
+      product
+    });
+  } catch (error) {
+    console.error('Error in reject product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error rejecting product: ' + error.message 
+    });
+  }
+});
+
+// Captain update product endpoint
+app.put('/api/captain/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const {
+      name,
+      category,
+      description,
+      price,
+      currency,
+      moq,
+      moqUom,
+      quantity,
+      quantityUom,
+      priceType,
+      reLabeling,
+      validityDate,
+      validityTime
+    } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Get category ID from name
+    let categoryId = null;
+    if (category) {
+      const { data: existingCategory, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', category)
+        .single();
+      
+      if (categoryError) {
+        console.error('Error fetching category:', categoryError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching category: ' + categoryError.message 
+        });
+      }
+      
+      if (existingCategory) {
+        categoryId = existingCategory.id;
+      }
+    }
+    
+    // Get currency ID from code
+    let currencyId = 1; // Default to USD
+    if (currency) {
+      const { data: currencyData, error: currencyError } = await supabase
+        .from('currencies')
+        .select('id')
+        .eq('code', currency)
+        .single();
+      
+      if (currencyError) {
+        console.error('Error fetching currency:', currencyError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching currency: ' + currencyError.message 
+        });
+      }
+      
+      if (currencyData) {
+        currencyId = currencyData.id;
+      }
+    }
+    
+    // Parse validity date and time
+    let offerValidityDate = null;
+    if (validityDate) {
+      const timePart = validityTime || '00:00';
+      offerValidityDate = new Date(`${validityDate}T${timePart}`);
+    }
+    
+    // Update product
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        name: name,
+        category_id: categoryId,
+        description: description,
+        price: price,
+        currency_id: currencyId,
+        moq: moq ? parseInt(moq) : null,
+        moq_uom: moqUom || null,
+        available_quantity: quantity ? parseInt(quantity) : null,
+        quantity_uom: quantityUom || null,
+        price_type: priceType || 'EXW',
+        is_relabeling_allowed: reLabeling === 'yes',
+        offer_validity_date: offerValidityDate,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error updating product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    console.log('Successfully updated product in Supabase');
+    
+    // Send notification to seller
+    if (product && product.seller_id) {
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: product.seller_id,
+            title: 'Product Updated',
+            message: `Captain has updated your product "${product.name}". Please check the changes.`,
+            is_read: false,
+            created_at: new Date()
+          });
+        
+        if (notificationError) {
+          console.error('Error sending notification to seller:', notificationError.message);
+        } else {
+          console.log('Notification sent to seller for product update');
+        }
+      } catch (notificationErr) {
+        console.error('Error sending notification to seller:', notificationErr.message);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Product updated successfully',
+      product
+    });
+  } catch (error) {
+    console.error('Error in captain update product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error updating product: ' + error.message 
+    });
+  }
+});
+
+// Seller update product endpoint
+app.put('/api/seller/products/:id', authenticateToken, upload.any(), async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const sellerId = req.user.id;
+    
+    console.log('=== PRODUCT UPDATE DEBUG INFO ===');
+    console.log('Product ID:', productId);
+    console.log('Seller ID:', sellerId);
+    console.log('Raw request body:', req.body);
+    console.log('Files received:', req.files);
+    console.log('Request headers:', req.headers);
+    
+    // If using upload.any(), files are in req.files array
+    if (req.files && req.files.length > 0) {
+      console.log('File fields:', req.files.map(f => f.fieldname));
+    }
+    
+    // For multipart form data, we need to handle both req.body and req.files
+    const { 
+      name, 
+      category, 
+      branded, 
+      description, 
+      moq, 
+      moqUom, 
+      quantity, 
+      quantityUom, 
+      price, 
+      currency, 
+      priceType, 
+      reLabeling, 
+      validityDate, 
+      validityTime 
+    } = req.body;
+    
+    console.log('=== EXTRACTED FIELDS ===');
+    console.log('name:', name, '| type:', typeof name, '| length:', name ? name.length : 'null');
+    console.log('category:', category, '| type:', typeof category, '| length:', category ? category.length : 'null');
+    console.log('price:', price, '| type:', typeof price);
+    console.log('description:', description, '| type:', typeof description, '| length:', description ? description.length : 'null');
+    
+    // Check if fields exist at all
+    console.log('=== FIELD EXISTENCE CHECK ===');
+    console.log('name exists:', 'name' in req.body);
+    console.log('category exists:', 'category' in req.body);
+    console.log('price exists:', 'price' in req.body);
+    console.log('description exists:', 'description' in req.body);
+    
+    // Validate required fields - improved validation with detailed debugging
+    console.log('=== VALIDATION START ===');
+    
+    if (!('name' in req.body)) {
+      console.log('NAME FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name field is missing from request' 
+      });
+    }
+    
+    if (!name) {
+      console.log('NAME IS FALSY:', name);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name is required (received: ' + name + ')' 
+      });
+    }
+    
+    if (typeof name !== 'string') {
+      console.log('NAME IS NOT STRING:', typeof name);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name must be a string (received: ' + typeof name + ')' 
+      });
+    }
+    
+    if (name.trim() === '') {
+      console.log('NAME IS EMPTY AFTER TRIM');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product name cannot be empty or whitespace only' 
+      });
+    }
+    
+    if (!('category' in req.body)) {
+      console.log('CATEGORY FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category field is missing from request' 
+      });
+    }
+    
+    if (!category) {
+      console.log('CATEGORY IS FALSY:', category);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category is required (received: ' + category + ')' 
+      });
+    }
+    
+    if (typeof category !== 'string') {
+      console.log('CATEGORY IS NOT STRING:', typeof category);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category must be a string (received: ' + typeof category + ')' 
+      });
+    }
+    
+    if (category.trim() === '') {
+      console.log('CATEGORY IS EMPTY AFTER TRIM');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product category cannot be empty or whitespace only' 
+      });
+    }
+    
+    if (!('price' in req.body)) {
+      console.log('PRICE FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price field is missing from request' 
+      });
+    }
+    
+    if (!price) {
+      console.log('PRICE IS FALSY:', price);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price is required (received: ' + price + ')' 
+      });
+    }
+    
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum)) {
+      console.log('PRICE IS NOT A NUMBER:', price);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price must be a valid number (received: ' + price + ')' 
+      });
+    }
+    
+    if (priceNum <= 0) {
+      console.log('PRICE IS NOT POSITIVE:', priceNum);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product price must be a positive number (received: ' + priceNum + ')' 
+      });
+    }
+    
+    if (!('description' in req.body)) {
+      console.log('DESCRIPTION FIELD MISSING FROM REQUEST');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description field is missing from request' 
+      });
+    }
+    
+    if (!description) {
+      console.log('DESCRIPTION IS FALSY:', description);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description is required (received: ' + description + ')' 
+      });
+    }
+    
+    if (typeof description !== 'string') {
+      console.log('DESCRIPTION IS NOT STRING:', typeof description);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description must be a string (received: ' + typeof description + ')' 
+      });
+    }
+    
+    if (description.trim() === '') {
+      console.log('DESCRIPTION IS EMPTY AFTER TRIM');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product description cannot be empty or whitespace only' 
+      });
+    }
+    
+    // Trim whitespace from required fields
+    const trimmedName = name.trim();
+    const trimmedCategory = category.trim();
+    const trimmedDescription = description.trim();
+    const priceValue = priceNum;
+    
+    console.log('=== VALIDATION PASSED ===');
+    console.log('Trimmed values:', { trimmedName, trimmedCategory, priceValue, trimmedDescription });
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Verify that the product belongs to the seller
+    const { data: existingProduct, error: productError } = await supabase
+      .from('products')
+      .select('id, seller_id')
+      .eq('id', productId)
+      .eq('seller_id', sellerId)
+      .single();
+    
+    if (productError) {
+      console.error('Error fetching product:', productError.message);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found or you do not have permission to edit it' 
+      });
+    }
+    
+    if (!existingProduct) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found or you do not have permission to edit it' 
+      });
+    }
+    
+    // Get category ID from name (should exist in our predefined list)
+    let categoryId = null;
+    if (trimmedCategory) {
+      const { data: existingCategory, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', trimmedCategory)
+        .single();
+      
+      if (categoryError) {
+        console.error('Error fetching category:', categoryError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching category: ' + categoryError.message 
+        });
+      }
+      
+      if (existingCategory) {
+        categoryId = existingCategory.id;
+      } else {
+        // If category doesn't exist, log an error (should not happen with predefined categories)
+        console.error('Category not found in database:', trimmedCategory);
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid category selected' 
+        });
+      }
+    }
+    
+    // Get currency ID from code (default to USD if not found)
+    let currencyId = 1; // Default to USD
+    if (currency) {
+      const { data: currencyData, error: currencyError } = await supabase
+        .from('currencies')
+        .select('id')
+        .eq('code', currency)
+        .single();
+      
+      if (currencyError) {
+        console.error('Error fetching currency:', currencyError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching currency: ' + currencyError.message 
+        });
+      }
+      
+      if (currencyData) {
+        currencyId = currencyData.id;
+      }
+    }
+    
+    // Parse validity date and time
+    let offerValidityDate = null;
+    if (validityDate) {
+      const timePart = validityTime || '00:00';
+      offerValidityDate = new Date(`${validityDate}T${timePart}`);
+    }
+    
+    // Update the product in the database with all new fields
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({
+        name: trimmedName,
+        category_id: categoryId,
+        description: trimmedDescription,
+        price: priceValue,
+        currency_id: currencyId,
+        moq: moq ? parseInt(moq) : null,
+        moq_uom: moqUom || null,
+        available_quantity: quantity ? parseInt(quantity) : null,
+        quantity_uom: quantityUom || null,
+        price_type: priceType || 'EXW',
+        is_relabeling_allowed: reLabeling === 'yes',
+        offer_validity_date: offerValidityDate,
+        // Reset status to submitted when seller updates their product
+        status: 'submitted',
+        is_verified: false,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .eq('seller_id', sellerId) // Ensure seller can only update their own products
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating product in Supabase:', error.message);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Product data:', {
+        name: trimmedName,
+        category_id: categoryId,
+        description: trimmedDescription,
+        price: priceValue,
+        currency_id: currencyId,
+        moq: moq ? parseInt(moq) : null,
+        moq_uom: moqUom || null,
+        available_quantity: quantity ? parseInt(quantity) : null,
+        quantity_uom: quantityUom || null,
+        price_type: priceType || 'EXW',
+        is_relabeling_allowed: reLabeling === 'yes',
+        offer_validity_date: offerValidityDate,
+        status: 'submitted',
+        is_verified: false
+      });
+      
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error updating product: ' + error.message 
+      });
+    }
+    
+    // Transform product for response
+    const productWithDetails = {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      category: category || 'Uncategorized',
+      price: product.price,
+      currency: currency || 'USD',
+      status: 'submitted',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      quantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      priceType: product.price_type,
+      reLabeling: product.is_relabeling_allowed ? 'yes' : 'no',
+      validityDate: product.offer_validity_date ? product.offer_validity_date.split('T')[0] : null,
+      validityTime: product.offer_validity_date ? product.offer_validity_date.split('T')[1]?.split('.')[0] : null,
+      imageUrl: product.image_url,
+      thumbnailUrl: product.thumbnail_url
+    };
+    
+    console.log('Successfully created product in Supabase:', productWithDetails);
+    res.json({ 
+      success: true, 
+      message: 'Product submitted successfully for approval',
+      product: productWithDetails
+    });
+  } catch (error) {
+    console.error('Error in create product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error creating product: ' + error.message 
+    });
+  }
+});
+
+// Update product endpoint
+app.put('/api/seller/products/:productId', authenticateToken, async (req, res) => {
+  try {
+    // Always fetch from Supabase - no mock data fallback
+    console.log('Updating product in Supabase');
+    
+    // Get the seller ID from the authenticated user
+    const sellerId = req.user.id;
+    const productId = req.params.productId;
+    const { name, description, category, price, currency, moq, moqUom, available_quantity, quantity_uom, price_type, is_relabeling_allowed, offer_validity_date, image_url, thumbnail_url } = req.body;
+
+    // Update product in Supabase
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({
+        name,
+        description,
+        category,
+        price,
+        currency,
+        moq,
+        moq_uom,
+        available_quantity,
+        quantity_uom,
+        price_type,
+        is_relabeling_allowed,
+        offer_validity_date,
+        image_url,
+        thumbnail_url,
+        status: 'submitted',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', productId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    // Transform product for response
+    const productWithDetails = {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      category: category || 'Uncategorized',
+      price: product.price,
+      currency: currency || 'USD',
+      status: 'submitted',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      quantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      priceType: product.price_type,
+      reLabeling: product.is_relabeling_allowed ? 'yes' : 'no',
+      validityDate: product.offer_validity_date ? product.offer_validity_date.split('T')[0] : null,
+      validityTime: product.offer_validity_date ? product.offer_validity_date.split('T')[1]?.split('.')[0] : null,
+      imageUrl: product.image_url,
+      thumbnailUrl: product.thumbnail_url
+    };
+    
+    console.log('Successfully updated product in Supabase:', productWithDetails);
+    res.json({ 
+      success: true, 
+      message: 'Product updated successfully and submitted for approval',
+      product: productWithDetails
+    });
+  } catch (error) {
+    console.error('Error in update product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error updating product: ' + error.message 
+    });
+  }
+});
+
+// Seller notifications endpoint - fetch seller's notifications
+app.get('/api/seller/notifications', authenticateToken, async (req, res) => {
+  try {
+    // Always fetch from Supabase - no mock data fallback
+    console.log('Fetching seller notifications from Supabase');
+    
+    // Get the seller ID from the authenticated user
+    const sellerId = req.user.id;
+    
+    // Fetch notifications from Supabase
+    const { data: notifications, error } = await supabase
+      .from('notifications')
+      .select('id, title, message, is_read, created_at')
+      .eq('user_id', sellerId)
+      .order('created_at', { ascending: false })
+      .limit(10); // Limit to last 10 notifications
+
+    if (error) {
+      console.error('Error fetching seller notifications from Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching notifications: ' + error.message 
+      });
+    }
+
+    console.log(`Successfully fetched ${notifications.length} notifications from Supabase`);
+    res.json(notifications || []);
+  } catch (error) {
+    console.error('Error in seller notifications endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching notifications: ' + error.message 
+    });
+  }
+});
+
+// Mark notification as read endpoint
+app.put('/api/seller/notifications/:id/read', authenticateToken, async (req, res) => {
+  try {
+    console.log('Mark notification as read endpoint called');
+    console.log('Notification ID from params:', req.params.id);
+    console.log('User ID from token:', req.user.id);
+    
+    const notificationId = parseInt(req.params.id); // Ensure it's an integer
+    const userId = req.user.id;
+    
+    // Validate notification ID
+    if (isNaN(notificationId)) {
+      console.log('Invalid notification ID provided:', req.params.id);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid notification ID' 
+      });
+    }
+    
+    console.log('Attempting to update notification with ID:', notificationId, 'for user:', userId);
+    
+    // Update notification as read
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true
+      })
+      .eq('id', notificationId)
+      .eq('user_id', userId) // Ensure user can only mark their own notifications as read
+      .select(); // Add select to return the updated data
+
+    if (error) {
+      console.error('Error marking notification as read:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating notification: ' + error.message 
+      });
+    }
+
+    console.log('Successfully marked notification as read');
+    res.json({ 
+      success: true,
+      message: 'Notification marked as read',
+      data: data
+    });
+  } catch (error) {
+    console.error('Error in mark notification read endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating notification: ' + error.message 
+    });
+  }
+});
+
+// Mark all notifications as read endpoint
+app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res) => {
+  try {
+    console.log('Mark all notifications as read endpoint called');
+    console.log('User ID from token:', req.user.id);
+    
+    const userId = req.user.id;
+    
+    // Update all notifications for this user as read
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true
+      })
+      .eq('user_id', userId)
+      .eq('is_read', false) // Only update unread notifications
+      .select(); // Add select to return the updated data
+
+    if (error) {
+      console.error('Error marking all notifications as read:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating notifications: ' + error.message 
+      });
+    }
+
+    console.log('Successfully marked all notifications as read');
+    res.json({ 
+      success: true,
+      message: 'All notifications marked as read',
+      count: data ? data.length : 0
+    });
+  } catch (error) {
+    console.error('Error in mark all notifications read endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating notifications: ' + error.message 
     });
   }
 });

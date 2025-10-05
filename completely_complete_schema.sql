@@ -92,16 +92,47 @@ CREATE TABLE categories (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert default categories
+-- Insert default categories (39 categories from ShopPage)
 INSERT INTO categories (name, description) VALUES
-('Electronics', 'Electronic components and devices'),
-('Machinery', 'Industrial and manufacturing equipment'),
-('Textiles', 'Clothing, fabrics, and textile products'),
-('Chemicals', 'Chemical products and compounds'),
-('Food & Beverages', 'Food products and beverages'),
-('Automotive', 'Automotive parts and accessories'),
-('Construction', 'Construction materials and equipment'),
-('Healthcare', 'Medical devices and healthcare products');
+('Industrial Plants, Machinery & Equipment', 'Industrial plants, machinery and equipment for various industries'),
+('Consumer Electronics & Household Appliances', 'Consumer electronics and household appliances'),
+('Industrial & Engineering Products, Spares and Supplies', 'Industrial and engineering products, spares and supplies'),
+('Building Construction Material & Equipment', 'Building construction materials and equipment'),
+('Apparel, Clothing & Garments', 'Apparel, clothing and garments'),
+('Vegetables, Fruits, Grains, Dairy Products & FMCG', 'Vegetables, fruits, grains, dairy products and fast moving consumer goods'),
+('Medical, Pharma, Surgical & Healthcare', 'Medical, pharmaceutical, surgical and healthcare products'),
+('Packaging Material, Supplies & Machines', 'Packaging materials, supplies and machines'),
+('Chemicals, Dyes & Allied Products', 'Chemicals, dyes and allied products'),
+('Kitchen Containers, Utensils & Cookware', 'Kitchen containers, utensils and cookware'),
+('Textiles, Yarn, Fabrics & Allied Industries', 'Textiles, yarn, fabrics and allied industries'),
+('Books, Notebooks, Stationery & Publications', 'Books, notebooks, stationery and publications'),
+('Cosmetics, Toiletries & Personal Care Products', 'Cosmetics, toiletries and personal care products'),
+('Home Furnishings and Home Textiles', 'Home furnishings and home textiles'),
+('Gems, Jewellery & Precious Stones', 'Gems, jewellery and precious stones'),
+('Computers, Software, IT Support & Solutions', 'Computers, software, IT support and solutions'),
+('Fashion & Garment Accessories', 'Fashion and garment accessories'),
+('Ayurvedic & Herbal Products', 'Ayurvedic and herbal products'),
+('Security Devices, Safety Systems & Services', 'Security devices, safety systems and services'),
+('Sports Goods, Games, Toys & Accessories', 'Sports goods, games, toys and accessories'),
+('Telecom Products, Equipment & Supplies', 'Telecom products, equipment and supplies'),
+('Stationery and Paper Products', 'Stationery and paper products'),
+('Bags, Handbags, Luggage & Accessories', 'Bags, handbags, luggage and accessories'),
+('Stones, Marble & Granite Supplies', 'Stones, marble and granite supplies'),
+('Railway, Shipping & Aviation Products', 'Railway, shipping and aviation products'),
+('Leather and Leather Products & Accessories', 'Leather and leather products and accessories'),
+('Electronics Components and Supplies', 'Electronics components and supplies'),
+('Electrical Equipment and Supplies', 'Electrical equipment and supplies'),
+('Pharmaceutical Drugs & Medicines', 'Pharmaceutical drugs and medicines'),
+('Mechanical Components & Parts', 'Mechanical components and parts'),
+('Scientific, Measuring & Laboratory Instruments', 'Scientific, measuring and laboratory instruments'),
+('Furniture, Furniture Supplies & Hardware', 'Furniture, furniture supplies and hardware'),
+('Fertilizers, Seeds, Plants & Animal Husbandry', 'Fertilizers, seeds, plants and animal husbandry'),
+('Automobiles, Spare Parts and Accessories', 'Automobiles, spare parts and accessories'),
+('Housewares, Home Appliances & Decorations', 'Housewares, home appliances and decorations'),
+('Metals, Minerals, Ores & Alloys', 'Metals, minerals, ores and alloys'),
+('Tools, Machine Tools & Power Tools', 'Tools, machine tools and power tools'),
+('Gifts, Crafts, Antiques & Handmade Decoratives', 'Gifts, crafts, antiques and handmade decoratives'),
+('Bicycles, Rickshaws, Spares and Accessories', 'Bicycles, rickshaws, spares and accessories');
 
 -- 7. CURRENCIES TABLE
 -- Supported currencies in the system
@@ -118,7 +149,8 @@ CREATE TABLE currencies (
 INSERT INTO currencies (code, name, symbol) VALUES
 ('USD', 'US Dollar', '$'),
 ('EUR', 'Euro', '€'),
-('GBP', 'British Pound', '£');
+('GBP', 'British Pound', '£'),
+('INR', 'Indian Rupee', '₹');
 
 -- 8. PRODUCTS TABLE
 -- Stores product information
@@ -667,14 +699,45 @@ CREATE TRIGGER update_user_issues_updated_at BEFORE UPDATE ON user_issues
 -- Sample data for testing
 -- Sample categories (already inserted above)
 -- INSERT INTO categories (name, description) VALUES
--- ('Electronics', 'Electronic components and devices'),
--- ('Machinery', 'Industrial and manufacturing equipment'),
--- ('Textiles', 'Clothing, fabrics, and textile products'),
--- ('Chemicals', 'Chemical products and compounds'),
--- ('Food & Beverages', 'Food products and beverages'),
--- ('Automotive', 'Automotive parts and accessories'),
--- ('Construction', 'Construction materials and equipment'),
--- ('Healthcare', 'Medical devices and healthcare products');
+-- ('Industrial Plants, Machinery & Equipment', 'Industrial plants, machinery and equipment for various industries'),
+-- ('Consumer Electronics & Household Appliances', 'Consumer electronics and household appliances'),
+-- ('Industrial & Engineering Products, Spares and Supplies', 'Industrial and engineering products, spares and supplies'),
+-- ('Building Construction Material & Equipment', 'Building construction materials and equipment'),
+-- ('Apparel, Clothing & Garments', 'Apparel, clothing and garments'),
+-- ('Vegetables, Fruits, Grains, Dairy Products & FMCG', 'Vegetables, fruits, grains, dairy products and fast moving consumer goods'),
+-- ('Medical, Pharma, Surgical & Healthcare', 'Medical, pharmaceutical, surgical and healthcare products'),
+-- ('Packaging Material, Supplies & Machines', 'Packaging materials, supplies and machines'),
+-- ('Chemicals, Dyes & Allied Products', 'Chemicals, dyes and allied products'),
+-- ('Kitchen Containers, Utensils & Cookware', 'Kitchen containers, utensils and cookware'),
+-- ('Textiles, Yarn, Fabrics & Allied Industries', 'Textiles, yarn, fabrics and allied industries'),
+-- ('Books, Notebooks, Stationery & Publications', 'Books, notebooks, stationery and publications'),
+-- ('Cosmetics, Toiletries & Personal Care Products', 'Cosmetics, toiletries and personal care products'),
+-- ('Home Furnishings and Home Textiles', 'Home furnishings and home textiles'),
+-- ('Gems, Jewellery & Precious Stones', 'Gems, jewellery and precious stones'),
+-- ('Computers, Software, IT Support & Solutions', 'Computers, software, IT support and solutions'),
+-- ('Fashion & Garment Accessories', 'Fashion and garment accessories'),
+-- ('Ayurvedic & Herbal Products', 'Ayurvedic and herbal products'),
+-- ('Security Devices, Safety Systems & Services', 'Security devices, safety systems and services'),
+-- ('Sports Goods, Games, Toys & Accessories', 'Sports goods, games, toys and accessories'),
+-- ('Telecom Products, Equipment & Supplies', 'Telecom products, equipment and supplies'),
+-- ('Stationery and Paper Products', 'Stationery and paper products'),
+-- ('Bags, Handbags, Luggage & Accessories', 'Bags, handbags, luggage and accessories'),
+-- ('Stones, Marble & Granite Supplies', 'Stones, marble and granite supplies'),
+-- ('Railway, Shipping & Aviation Products', 'Railway, shipping and aviation products'),
+-- ('Leather and Leather Products & Accessories', 'Leather and leather products and accessories'),
+-- ('Electronics Components and Supplies', 'Electronics components and supplies'),
+-- ('Electrical Equipment and Supplies', 'Electrical equipment and supplies'),
+-- ('Pharmaceutical Drugs & Medicines', 'Pharmaceutical drugs and medicines'),
+-- ('Mechanical Components & Parts', 'Mechanical components and parts'),
+-- ('Scientific, Measuring & Laboratory Instruments', 'Scientific, measuring and laboratory instruments'),
+-- ('Furniture, Furniture Supplies & Hardware', 'Furniture, furniture supplies and hardware'),
+-- ('Fertilizers, Seeds, Plants & Animal Husbandry', 'Fertilizers, seeds, plants and animal husbandry'),
+-- ('Automobiles, Spare Parts and Accessories', 'Automobiles, spare parts and accessories'),
+-- ('Housewares, Home Appliances & Decorations', 'Housewares, home appliances and decorations'),
+-- ('Metals, Minerals, Ores & Alloys', 'Metals, minerals, ores and alloys'),
+-- ('Tools, Machine Tools & Power Tools', 'Tools, machine tools and power tools'),
+-- ('Gifts, Crafts, Antiques & Handmade Decoratives', 'Gifts, crafts, antiques and handmade decoratives'),
+-- ('Bicycles, Rickshaws, Spares and Accessories', 'Bicycles, rickshaws, spares and accessories');
 
 -- Sample ports (already inserted above)
 -- INSERT INTO ports (name, country, code) VALUES
@@ -697,9 +760,11 @@ CREATE TRIGGER update_user_issues_updated_at BEFORE UPDATE ON user_issues
 -- ('sarah_buyer', 'sarah@example.com', '+1234567891', 'Sarah', 'Buyer', 'hashed_password_here', 'BUY-23-DEF456');
 
 -- Sample products (for testing only)
+-- When inserting sample products, use the new category IDs
+-- For example, if 'Industrial Plants, Machinery & Equipment' gets ID 1:
 -- INSERT INTO products (seller_id, name, description, category_id, price, currency_id, is_active, is_verified, moq, moq_uom, available_quantity, quantity_uom, price_type, is_relabeling_allowed, offer_validity_date, status, image_url, thumbnail_url) VALUES
--- (1, 'Premium Electronics Components', 'High-quality electronic components for industrial use', 1, 5000.00, 1, TRUE, TRUE, 100, 'pcs', 1000, 'pcs', 'EXW', TRUE, '2025-12-31 23:59:59', 'approved', '/images/product1.jpg', '/images/thumb1.jpg'),
--- (1, 'Advanced Circuit Boards', 'Multi-layer PCBs with advanced features', 1, 12000.00, 1, TRUE, TRUE, 50, 'pcs', 500, 'pcs', 'FOB', FALSE, '2025-12-31 23:59:59', 'approved', '/images/product2.jpg', '/images/thumb2.jpg');
+-- (1, 'Premium Industrial Equipment', 'High-quality industrial equipment for manufacturing', 1, 5000.00, 1, TRUE, TRUE, 100, 'pcs', 1000, 'pcs', 'EXW', TRUE, '2025-12-31 23:59:59', 'approved', '/images/product1.jpg', '/images/thumb1.jpg'),
+-- (1, 'Advanced Circuit Boards', 'Multi-layer PCBs with advanced features', 2, 12000.00, 1, TRUE, TRUE, 50, 'pcs', 500, 'pcs', 'FOB', FALSE, '2025-12-31 23:59:59', 'approved', '/images/product2.jpg', '/images/thumb2.jpg');
 
 -- Sample roles (already inserted above)
 -- INSERT INTO roles (name, code, description) VALUES

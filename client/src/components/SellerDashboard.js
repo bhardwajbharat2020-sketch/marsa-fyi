@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
-import { Plus, X, Edit, Trash2, Eye, Camera, Upload } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Plus, X, Edit, Trash2, Eye, Camera, Upload, Bell } from 'lucide-react';
 import '../App.css';
 
 const SellerDashboard = () => {
+  const { authToken } = useAuth();
   const [activeTab, setActiveTab] = useState('products');
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [rfqs, setRfqs] = useState([]);
+  const [notifications, setNotifications] = useState([]); // New state for notifications
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0); // For notification badge
   
   // State for add product modal
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -28,7 +32,34 @@ const SellerDashboard = () => {
     reLabeling: 'no',
     validityDate: '',
     validityTime: '',
-    termsAccepted: false,
+    surveyTermsAccepted: false,
+    sellerAgreementAccepted: false,
+    relabelingTermsAccepted: false,
+    image: null,
+    imageUrl: ''
+  });
+
+  // State for edit product modal
+  const [showEditProductModal, setShowEditProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editProductData, setEditProductData] = useState({
+    name: '',
+    category: '',
+    branded: 'branded',
+    description: '',
+    moq: '',
+    moqUom: 'pcs',
+    quantity: '',
+    quantityUom: 'pcs',
+    price: '',
+    currency: 'USD',
+    priceType: 'EXW',
+    reLabeling: 'no',
+    validityDate: '',
+    validityTime: '',
+    surveyTermsAccepted: false,
+    sellerAgreementAccepted: false,
+    relabelingTermsAccepted: false,
     image: null,
     imageUrl: ''
   });
@@ -42,6 +73,50 @@ const SellerDashboard = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
 
+  // Define categories list (from ShopPage)
+  const categories = [
+    'All Categories',
+    'Industrial Plants, Machinery & Equipment',
+    'Consumer Electronics & Household Appliances',
+    'Industrial & Engineering Products, Spares and Supplies',
+    'Building Construction Material & Equipment',
+    'Apparel, Clothing & Garments',
+    'Vegetables, Fruits, Grains, Dairy Products & FMCG',
+    'Medical, Pharma, Surgical & Healthcare',
+    'Packaging Material, Supplies & Machines',
+    'Chemicals, Dyes & Allied Products',
+    'Kitchen Containers, Utensils & Cookware',
+    'Textiles, Yarn, Fabrics & Allied Industries',
+    'Books, Notebooks, Stationery & Publications',
+    'Cosmetics, Toiletries & Personal Care Products',
+    'Home Furnishings and Home Textiles',
+    'Gems, Jewellery & Precious Stones',
+    'Computers, Software, IT Support & Solutions',
+    'Fashion & Garment Accessories',
+    'Ayurvedic & Herbal Products',
+    'Security Devices, Safety Systems & Services',
+    'Sports Goods, Games, Toys & Accessories',
+    'Telecom Products, Equipment & Supplies',
+    'Stationery and Paper Products',
+    'Bags, Handbags, Luggage & Accessories',
+    'Stones, Marble & Granite Supplies',
+    'Railway, Shipping & Aviation Products',
+    'Leather and Leather Products & Accessories',
+    'Electronics Components and Supplies',
+    'Electrical Equipment and Supplies',
+    'Pharmaceutical Drugs & Medicines',
+    'Mechanical Components & Parts',
+    'Scientific, Measuring & Laboratory Instruments',
+    'Furniture, Furniture Supplies & Hardware',
+    'Fertilizers, Seeds, Plants & Animal Husbandry',
+    'Automobiles, Spare Parts and Accessories',
+    'Housewares, Home Appliances & Decorations',
+    'Metals, Minerals, Ores & Alloys',
+    'Tools, Machine Tools & Power Tools',
+    'Gifts, Crafts, Antiques & Handmade Decoratives',
+    'Bicycles, Rickshaws, Spares and Accessories'
+  ];
+
   // Theme colors to match homepage
   const bhagwa = "#f77f00";
   const cream = "#f6efe6";
@@ -54,15 +129,28 @@ const SellerDashboard = () => {
       try {
         setLoading(true);
         
+        // Test server connectivity first
+        console.log('Testing server connectivity...');
+        try {
+          const testResponse = await fetch('/api/health');
+          console.log('Server connectivity test:', testResponse.ok ? 'OK' : 'FAILED', testResponse.status);
+        } catch (testErr) {
+          console.error('Server connectivity test failed:', testErr);
+        }
+        
         // Fetch products
-        const productsResponse = await fetch('/api/seller/products');
+        const productsResponse = await fetch('/api/seller/products', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
         const productsData = await productsResponse.json();
         
         if (productsResponse.ok) {
           // Categorize products based on status
           const approved = productsData.filter(p => p.status === 'approved');
-          const submitted = productsData.filter(p => p.status === 'submitted' || p.status === 'pending');
-          const ineffective = productsData.filter(p => p.status === 'rejected' || p.status === 'expired');
+          const submitted = productsData.filter(p => p.status === 'submitted');
+          const ineffective = productsData.filter(p => p.status === 'rejected');
           
           setApprovedProducts(approved);
           setSubmittedProducts(submitted);
@@ -72,7 +160,11 @@ const SellerDashboard = () => {
         }
         
         // Fetch orders
-        const ordersResponse = await fetch('/api/seller/orders');
+        const ordersResponse = await fetch('/api/seller/orders', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
         const ordersData = await ordersResponse.json();
         
         if (ordersResponse.ok) {
@@ -82,13 +174,34 @@ const SellerDashboard = () => {
         }
         
         // Fetch RFQs
-        const rfqsResponse = await fetch('/api/seller/rfqs');
+        const rfqsResponse = await fetch('/api/seller/rfqs', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
         const rfqsData = await rfqsResponse.json();
         
         if (rfqsResponse.ok) {
           setRfqs(rfqsData);
         } else {
           console.error('Error fetching RFQs:', rfqsData.error);
+        }
+        
+        // Fetch notifications
+        const notificationsResponse = await fetch('/api/seller/notifications', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const notificationsData = await notificationsResponse.json();
+        
+        if (notificationsResponse.ok) {
+          setNotifications(notificationsData);
+          // Count unread notifications
+          const unreadCount = notificationsData.filter(n => !n.is_read).length;
+          setUnreadNotificationsCount(unreadCount);
+        } else {
+          console.error('Error fetching notifications:', notificationsData.error);
         }
       } catch (err) {
         setError('Failed to fetch dashboard data');
@@ -100,6 +213,102 @@ const SellerDashboard = () => {
 
     fetchData();
   }, []);
+
+  // Fetch notifications when notifications tab is activated
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (activeTab === 'notifications' && authToken) {
+        try {
+          const notificationsResponse = await fetch('/api/seller/notifications', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+          const notificationsData = await notificationsResponse.json();
+          
+          if (notificationsResponse.ok) {
+            setNotifications(notificationsData);
+            // Count unread notifications
+            const unreadCount = notificationsData.filter(n => !n.is_read).length;
+            setUnreadNotificationsCount(unreadCount);
+          } else {
+            console.error('Error fetching notifications:', notificationsData.error);
+          }
+        } catch (err) {
+          console.error('Error fetching notifications:', err);
+        }
+      }
+    };
+
+    fetchNotifications();
+  }, [activeTab, authToken]);
+
+  // Mark all unread notifications as read
+  const markAllNotificationsAsRead = async () => {
+    try {
+      // Use the batch endpoint to mark all notifications as read
+      const response = await fetch('/api/seller/notifications/read-all', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the UI
+        const updatedNotifications = notifications.map(notification => ({
+          ...notification,
+          is_read: true
+        }));
+        setNotifications(updatedNotifications);
+        setUnreadNotificationsCount(0);
+        
+        console.log('All notifications marked as read');
+      } else {
+        console.error('Error marking all notifications as read:', result.error);
+        alert('Failed to mark notifications as read. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error marking notifications as read:', err);
+      alert('Failed to mark notifications as read. Please try again.');
+    }
+  };
+
+  // Mark a single notification as read
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      const response = await fetch(`/api/seller/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the notification in the state
+        const updatedNotifications = notifications.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, is_read: true } 
+            : notification
+        );
+        setNotifications(updatedNotifications);
+        
+        // Update unread count
+        const unreadCount = updatedNotifications.filter(n => !n.is_read).length;
+        setUnreadNotificationsCount(unreadCount);
+      } else {
+        console.error('Error marking notification as read:', result.error);
+      }
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
 
   // Handle input changes for new product form
   const handleProductInputChange = (e) => {
@@ -123,6 +332,19 @@ const SellerDashboard = () => {
     }
   };
 
+  // Handle edit image upload
+  const handleEditImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditProductData(prev => ({
+        ...prev,
+        image: file,
+        imageUrl: URL.createObjectURL(file)
+      }));
+      // We don't need a separate preview state for edit, we can use the imageUrl directly
+    }
+  };
+
   // Handle camera capture (simulated)
   const handleCameraCapture = () => {
     // In a real app, this would access the device camera
@@ -130,49 +352,145 @@ const SellerDashboard = () => {
     document.getElementById('imageUpload').click();
   };
 
+  // Handle edit camera capture (simulated)
+  const handleEditCameraCapture = () => {
+    // In a real app, this would access the device camera
+    // For now, we'll simulate by allowing file upload
+    document.getElementById('editImageUpload').click();
+  };
+
+  // Function to open edit product modal
+  const openEditProductModal = (product) => {
+    setEditingProduct(product);
+    setEditProductData({
+      name: product.name || '',
+      category: product.category || '',
+      branded: 'branded', // Default value
+      description: product.description || '',
+      moq: product.moq || '',
+      moqUom: product.moqUom || 'pcs',
+      quantity: product.quantity || '',
+      quantityUom: product.quantityUom || 'pcs',
+      price: product.price || '',
+      currency: product.currency || 'USD',
+      priceType: product.priceType || 'EXW',
+      reLabeling: product.reLabeling || 'no',
+      validityDate: product.validityDate || '',
+      validityTime: product.validityTime || '',
+      surveyTermsAccepted: false, // Reset terms for edit
+      sellerAgreementAccepted: false,
+      relabelingTermsAccepted: false,
+      image: null,
+      imageUrl: product.imageUrl || ''
+    });
+    setShowEditProductModal(true);
+  };
+
+  // Handle input changes for edit product form
+  const handleEditProductInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditProductData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
   // Handle add product form submission
   const handleAddProduct = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
-    if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.description) {
-      alert('Please fill in all required fields');
-      return;
-    }
-    
-    // Validate terms acceptance
-    if (!newProduct.termsAccepted) {
-      alert('Please accept the terms and conditions');
-      return;
-    }
-    
     try {
-      // Prepare form data
+      // Debug logging
+      console.log('=== PRODUCT SUBMISSION DEBUG INFO ===');
+      console.log('newProduct state:', newProduct);
+      
+      // Check if required fields are present and valid
+      const requiredFields = ['name', 'category', 'price', 'description'];
+      for (const field of requiredFields) {
+        if (!(field in newProduct)) {
+          alert(`Required field '${field}' is missing from form data`);
+          return;
+        }
+        
+        const value = newProduct[field];
+        console.log(`Field '${field}':`, value, '| Type:', typeof value, '| Length:', value ? value.length : 'N/A');
+        
+        if (value === null || value === undefined) {
+          alert(`Field '${field}' is null or undefined`);
+          return;
+        }
+        
+        if (typeof value === 'string' && value.trim() === '') {
+          alert(`Field '${field}' cannot be empty or whitespace only`);
+          return;
+        }
+      }
+      
+      // Validate price specifically
+      const priceValue = parseFloat(newProduct.price);
+      if (isNaN(priceValue) || priceValue <= 0) {
+        alert(`Price must be a valid positive number (received: ${newProduct.price})`);
+        return;
+      }
+      
+      // Prepare form data with correct field names
       const formData = new FormData();
-      formData.append('name', newProduct.name);
-      formData.append('category', newProduct.category);
+      formData.append('name', newProduct.name.trim());
+      formData.append('category', newProduct.category.trim());
       formData.append('branded', newProduct.branded);
-      formData.append('description', newProduct.description);
-      formData.append('moq', newProduct.moq);
-      formData.append('moqUom', newProduct.moqUom);
-      formData.append('quantity', newProduct.quantity);
-      formData.append('quantityUom', newProduct.quantityUom);
-      formData.append('price', newProduct.price);
-      formData.append('currency', newProduct.currency);
-      formData.append('priceType', newProduct.priceType);
-      formData.append('reLabeling', newProduct.reLabeling);
-      formData.append('validityDate', newProduct.validityDate);
-      formData.append('validityTime', newProduct.validityTime);
+      formData.append('description', newProduct.description.trim());
+      formData.append('moq', newProduct.moq || '');
+      formData.append('moqUom', newProduct.moqUom || '');
+      formData.append('quantity', newProduct.quantity || '');
+      formData.append('quantityUom', newProduct.quantityUom || '');
+      formData.append('price', priceValue);
+      formData.append('currency', newProduct.currency || 'USD');
+      formData.append('priceType', newProduct.priceType || 'EXW');
+      formData.append('reLabeling', newProduct.reLabeling || 'no');
+      formData.append('validityDate', newProduct.validityDate || '');
+      formData.append('validityTime', newProduct.validityTime || '');
       if (newProduct.image) {
         formData.append('image', newProduct.image);
       }
       
+      // Debug logging
+      console.log('=== FORM DATA ENTRIES ===');
+      const formDataEntries = {};
+      for (let [key, value] of formData.entries()) {
+        formDataEntries[key] = value;
+        console.log(key, ':', value, '(' + typeof value + ')');
+      }
+      console.log('=== END FORM DATA ===');
+      
+      // Show loading message
+      console.log('Sending request to server...');
+      
+      // Add timeout to fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch('/api/seller/products', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
         body: formData,
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
+      console.log('Received response from server:', response);
+      
+      // Check if response is OK
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Server error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
       const result = await response.json();
+      console.log('Parsed response:', result);
       
       if (response.ok && result.success) {
         // Add the new product to the submitted products list
@@ -194,7 +512,9 @@ const SellerDashboard = () => {
           reLabeling: 'no',
           validityDate: '',
           validityTime: '',
-          termsAccepted: false,
+          surveyTermsAccepted: false,
+          sellerAgreementAccepted: false,
+          relabelingTermsAccepted: false,
           image: null,
           imageUrl: ''
         });
@@ -203,11 +523,191 @@ const SellerDashboard = () => {
         
         alert('Product submitted successfully for approval!');
       } else {
-        alert('Failed to submit product: ' + (result.error || 'Unknown error'));
+        // More detailed error handling
+        const errorMessage = result.error || 'Unknown error';
+        console.error('Failed to submit product:', errorMessage);
+        alert(`Failed to submit product: ${errorMessage}\nPlease check all fields and try again.`);
       }
     } catch (err) {
       console.error('Error submitting product:', err);
-      alert('Failed to submit product. Please try again.');
+      
+      if (err.name === 'AbortError') {
+        alert('Request timeout. The server is taking too long to respond. Please try again.');
+      } else if (err instanceof TypeError) {
+        alert(`Network error: ${err.message}
+
+This could be due to:
+- Server not running
+- Network connectivity issues
+- CORS policy blocking the request
+- Server timeout
+
+Please check that the server is running and you have network connectivity.`);
+      } else {
+        alert(`Error: ${err.message}\nPlease check your connection and try again.\n\nCheck the browser console for more details.`);
+      }
+    }
+  };
+
+  // Handle edit product form submission
+  const handleEditProduct = async (e) => {
+    e.preventDefault();
+    
+    try {
+      // Debug logging
+      console.log('=== PRODUCT UPDATE DEBUG INFO ===');
+      console.log('editingProduct state:', editingProduct);
+      console.log('editProductData state:', editProductData);
+      
+      // Check if required fields are present and valid
+      const requiredFields = ['name', 'category', 'price', 'description'];
+      for (const field of requiredFields) {
+        if (!(field in editProductData)) {
+          alert(`Required field '${field}' is missing from form data`);
+          return;
+        }
+        
+        const value = editProductData[field];
+        console.log(`Field '${field}':`, value, '| Type:', typeof value, '| Length:', value ? value.length : 'N/A');
+        
+        if (value === null || value === undefined) {
+          alert(`Field '${field}' is null or undefined`);
+          return;
+        }
+        
+        if (typeof value === 'string' && value.trim() === '') {
+          alert(`Field '${field}' cannot be empty or whitespace only`);
+          return;
+        }
+      }
+      
+      // Validate price specifically
+      const priceValue = parseFloat(editProductData.price);
+      if (isNaN(priceValue) || priceValue <= 0) {
+        alert(`Price must be a valid positive number (received: ${editProductData.price})`);
+        return;
+      }
+      
+      // Prepare form data with correct field names
+      const formData = new FormData();
+      formData.append('name', editProductData.name.trim());
+      formData.append('category', editProductData.category.trim());
+      formData.append('branded', editProductData.branded);
+      formData.append('description', editProductData.description.trim());
+      formData.append('moq', editProductData.moq || '');
+      formData.append('moqUom', editProductData.moqUom || '');
+      formData.append('quantity', editProductData.quantity || '');
+      formData.append('quantityUom', editProductData.quantityUom || '');
+      formData.append('price', priceValue);
+      formData.append('currency', editProductData.currency || 'USD');
+      formData.append('priceType', editProductData.priceType || 'EXW');
+      formData.append('reLabeling', editProductData.reLabeling || 'no');
+      formData.append('validityDate', editProductData.validityDate || '');
+      formData.append('validityTime', editProductData.validityTime || '');
+      if (editProductData.image) {
+        formData.append('image', editProductData.image);
+      }
+      
+      // Debug logging
+      console.log('=== FORM DATA ENTRIES ===');
+      const formDataEntries = {};
+      for (let [key, value] of formData.entries()) {
+        formDataEntries[key] = value;
+        console.log(key, ':', value, '(' + typeof value + ')');
+      }
+      console.log('=== END FORM DATA ===');
+      
+      // Show loading message
+      console.log('Sending request to server...');
+      
+      // Add timeout to fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(`/api/seller/products/${editingProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: formData,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('Received response from server:', response);
+      
+      // Check if response is OK
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Server error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Parsed response:', result);
+      
+      if (response.ok && result.success) {
+        // Update the product in all product lists
+        const updateProductInList = (productsList) => 
+          productsList.map(product => 
+            product.id === editingProduct.id ? { ...product, ...result.product } : product
+          );
+        
+        setApprovedProducts(prev => updateProductInList(prev));
+        setSubmittedProducts(prev => updateProductInList(prev));
+        setIneffectiveProducts(prev => updateProductInList(prev));
+        
+        // Reset form and close modal
+        setEditProductData({
+          name: '',
+          category: '',
+          branded: 'branded',
+          description: '',
+          moq: '',
+          moqUom: 'pcs',
+          quantity: '',
+          quantityUom: 'pcs',
+          price: '',
+          currency: 'USD',
+          priceType: 'EXW',
+          reLabeling: 'no',
+          validityDate: '',
+          validityTime: '',
+          surveyTermsAccepted: false,
+          sellerAgreementAccepted: false,
+          relabelingTermsAccepted: false,
+          image: null,
+          imageUrl: ''
+        });
+        setShowEditProductModal(false);
+        setEditingProduct(null);
+        
+        alert('Product updated successfully and submitted for approval!');
+      } else {
+        // More detailed error handling
+        const errorMessage = result.error || 'Unknown error';
+        console.error('Failed to update product:', errorMessage);
+        alert(`Failed to update product: ${errorMessage}\nPlease check all fields and try again.`);
+      }
+    } catch (err) {
+      console.error('Error updating product:', err);
+      
+      if (err.name === 'AbortError') {
+        alert('Request timeout. The server is taking too long to respond. Please try again.');
+      } else if (err instanceof TypeError) {
+        alert(`Network error: ${err.message}
+
+This could be due to:
+- Server not running
+- Network connectivity issues
+- CORS policy blocking the request
+- Server timeout
+
+Please check that the server is running and you have network connectivity.`);
+      } else {
+        alert(`Error: ${err.message}\nPlease check your connection and try again.\n\nCheck the browser console for more details.`);
+      }
     }
   };
 
@@ -253,7 +753,7 @@ const SellerDashboard = () => {
       
       <div className="mt-3 flex justify-between items-center">
         <span className="font-semibold" style={{ color: darkText }}>
-          ${product.price} {product.currency || 'USD'}
+          ${product.price} {product.currency}
         </span>
         {showActions && (
           <div className="flex gap-2">
@@ -266,6 +766,7 @@ const SellerDashboard = () => {
             <button 
               className="p-2 rounded-full"
               style={{ backgroundColor: creamCard }}
+              onClick={() => openEditProductModal(product)}
             >
               <Edit size={16} style={{ color: darkText }} />
             </button>
@@ -319,6 +820,31 @@ const SellerDashboard = () => {
           }}
         >
           RFQs
+        </button>
+        <button 
+          className={`px-4 py-2 rounded-t-lg font-medium relative ${
+            activeTab === 'notifications' ? 'border-b-2' : ''
+          }`}
+          onClick={() => setActiveTab('notifications')}
+          style={{ 
+            color: activeTab === 'notifications' ? bhagwa : darkText,
+            borderColor: activeTab === 'notifications' ? bhagwa : 'transparent'
+          }}
+        >
+          Notifications
+          {unreadNotificationsCount > 0 && (
+            <span 
+              className="absolute -top-1 -right-1 flex items-center justify-center rounded-full text-xs font-bold"
+              style={{ 
+                backgroundColor: '#e74c3c', 
+                color: '#fff',
+                width: '18px',
+                height: '18px'
+              }}
+            >
+              {unreadNotificationsCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -516,6 +1042,79 @@ const SellerDashboard = () => {
         </div>
       )}
 
+      {activeTab === 'notifications' && (
+        <div>
+          <div 
+            className="rounded-xl shadow-sm p-6 mb-6"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 className="text-2xl font-bold" style={{ color: darkText }}>Notifications</h2>
+              {unreadNotificationsCount > 0 && (
+                <button 
+                  className="px-4 py-2 rounded-lg font-semibold text-sm"
+                  onClick={markAllNotificationsAsRead}
+                  style={{ backgroundColor: bhagwa, color: "#fff" }}
+                >
+                  Mark all as read
+                </button>
+              )}
+            </div>
+            
+            <div className="overflow-x-auto">
+              {notifications.length > 0 ? (
+                <div className="space-y-4">
+                  {notifications.map(notification => (
+                    <div 
+                      key={notification.id}
+                      className="p-4 rounded-lg border"
+                      style={{ 
+                        backgroundColor: notification.is_read ? '#f8f9fa' : '#e3f2fd',
+                        borderColor: "#d9cfc1"
+                      }}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          {notification.title && (
+                            <h3 className="font-bold" style={{ color: darkText }}>
+                              {notification.title}
+                            </h3>
+                          )}
+                          <p className="mt-2" style={{ color: darkText }}>
+                            {notification.message}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span 
+                            className="text-sm whitespace-nowrap"
+                            style={{ color: "#7a614a" }}
+                          >
+                            {new Date(notification.created_at).toLocaleDateString()}
+                          </span>
+                          {!notification.is_read && (
+                            <button 
+                              className="px-2 py-1 rounded text-xs"
+                              onClick={() => markNotificationAsRead(notification.id)}
+                              style={{ backgroundColor: "#2ecc71", color: "#fff" }}
+                            >
+                              Mark as read
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10" style={{ color: darkText }}>
+                  No notifications found.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Product Modal */}
       {showAddProductModal && (
         <div 
@@ -561,8 +1160,7 @@ const SellerDashboard = () => {
                     <label htmlFor="category" className="block mb-2 font-medium" style={{ color: darkText }}>
                       Product Category *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id="category"
                       name="category"
                       className="w-full p-3 rounded-lg border"
@@ -570,7 +1168,12 @@ const SellerDashboard = () => {
                       value={newProduct.category}
                       onChange={handleProductInputChange}
                       required
-                    />
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((category, index) => (
+                        <option key={index} value={category}>{category}</option>
+                      ))}
+                    </select>
                   </div>
                   
                   {/* Branded/Unbranded */}
@@ -694,6 +1297,7 @@ const SellerDashboard = () => {
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
                         <option value="GBP">GBP</option>
+                        <option value="INR">INR</option>
                       </select>
                     </div>
                   </div>
@@ -858,12 +1462,12 @@ const SellerDashboard = () => {
                 </div>
                 
                 {/* Terms and Conditions */}
-                <div className="mb-6">
-                  <label className="flex items-start">
+                <div className="mb-4">
+                  <label className="flex items-start mb-2">
                     <input
                       type="checkbox"
-                      name="termsAccepted"
-                      checked={newProduct.termsAccepted}
+                      name="surveyTermsAccepted"
+                      checked={newProduct.surveyTermsAccepted}
                       onChange={handleProductInputChange}
                       className="mt-1 mr-2"
                       required
@@ -872,6 +1476,36 @@ const SellerDashboard = () => {
                       I accept the Survey Terms & Conditions *
                     </span>
                   </label>
+                  
+                  <label className="flex items-start mb-2">
+                    <input
+                      type="checkbox"
+                      name="sellerAgreementAccepted"
+                      checked={newProduct.sellerAgreementAccepted}
+                      onChange={handleProductInputChange}
+                      className="mt-1 mr-2"
+                      required
+                    />
+                    <span style={{ color: darkText }}>
+                      I accept the Seller Agreement *
+                    </span>
+                  </label>
+                  
+                  {newProduct.reLabeling === 'yes' && (
+                    <label className="flex items-start">
+                      <input
+                        type="checkbox"
+                        name="relabelingTermsAccepted"
+                        checked={newProduct.relabelingTermsAccepted}
+                        onChange={handleProductInputChange}
+                        className="mt-1 mr-2"
+                        required={newProduct.reLabeling === 'yes'}
+                      />
+                      <span style={{ color: darkText }}>
+                        I accept the Re-labeling Terms & Conditions *
+                      </span>
+                    </label>
+                  )}
                 </div>
                 
                 <div className="flex justify-end gap-3">
@@ -889,6 +1523,421 @@ const SellerDashboard = () => {
                     style={{ backgroundColor: bhagwa, color: "#fff" }}
                   >
                     Submit for Approval
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditProductModal && editingProduct && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div 
+            className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold" style={{ color: darkText }}>Edit Product</h3>
+                <button 
+                  className="p-2 rounded-full"
+                  onClick={() => setShowEditProductModal(false)}
+                  style={{ backgroundColor: creamCard }}
+                >
+                  <X size={20} style={{ color: darkText }} />
+                </button>
+              </div>
+              <form onSubmit={handleEditProduct}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Product Name */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="edit-name" className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Product Name/Version *
+                    </label>
+                    <input
+                      type="text"
+                      id="edit-name"
+                      name="name"
+                      className="w-full p-3 rounded-lg border"
+                      style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                      value={editProductData.name}
+                      onChange={handleEditProductInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  {/* Category */}
+                  <div>
+                    <label htmlFor="edit-category" className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Product Category *
+                    </label>
+                    <select
+                      id="edit-category"
+                      name="category"
+                      className="w-full p-3 rounded-lg border"
+                      style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                      value={editProductData.category}
+                      onChange={handleEditProductInputChange}
+                      required
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((category, index) => (
+                        <option key={index} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Branded/Unbranded */}
+                  <div>
+                    <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Branded/Unbranded *
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="branded"
+                          value="branded"
+                          checked={editProductData.branded === 'branded'}
+                          onChange={handleEditProductInputChange}
+                          className="mr-2"
+                        />
+                        <span style={{ color: darkText }}>Branded</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="branded"
+                          value="unbranded"
+                          checked={editProductData.branded === 'unbranded'}
+                          onChange={handleEditProductInputChange}
+                          className="mr-2"
+                        />
+                        <span style={{ color: darkText }}>Unbranded</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* MOQ and UOM */}
+                  <div>
+                    <label htmlFor="edit-moq" className="block mb-2 font-medium" style={{ color: darkText }}>
+                      MOQ
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        id="edit-moq"
+                        name="moq"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.moq}
+                        onChange={handleEditProductInputChange}
+                        min="0"
+                      />
+                      <select
+                        name="moqUom"
+                        className="p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.moqUom}
+                        onChange={handleEditProductInputChange}
+                      >
+                        <option value="pcs">pcs</option>
+                        <option value="kg">kg</option>
+                        <option value="ltr">ltr</option>
+                        <option value="mtr">mtr</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Available Quantity and UOM */}
+                  <div>
+                    <label htmlFor="edit-quantity" className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Available Quantity
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        id="edit-quantity"
+                        name="quantity"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.quantity}
+                        onChange={handleEditProductInputChange}
+                        min="0"
+                      />
+                      <select
+                        name="quantityUom"
+                        className="p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.quantityUom}
+                        onChange={handleEditProductInputChange}
+                      >
+                        <option value="pcs">pcs</option>
+                        <option value="kg">kg</option>
+                        <option value="ltr">ltr</option>
+                        <option value="mtr">mtr</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Offer Price and Currency */}
+                  <div>
+                    <label htmlFor="edit-price" className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Offer Price *
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        id="edit-price"
+                        name="price"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.price}
+                        onChange={handleEditProductInputChange}
+                        required
+                        min="0"
+                        step="0.01"
+                      />
+                      <select
+                        name="currency"
+                        className="p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.currency}
+                        onChange={handleEditProductInputChange}
+                      >
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                        <option value="INR">INR</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Price Type */}
+                  <div>
+                    <label htmlFor="edit-priceType" className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Price Type
+                    </label>
+                    <select
+                      id="edit-priceType"
+                      name="priceType"
+                      className="w-full p-3 rounded-lg border"
+                      style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                      value={editProductData.priceType}
+                      onChange={handleEditProductInputChange}
+                    >
+                      <option value="EXW">EXW</option>
+                      <option value="FOB">FOB</option>
+                      <option value="CIF">CIF</option>
+                      <option value="DDP">DDP</option>
+                    </select>
+                  </div>
+                  
+                  {/* Re-labeling Option */}
+                  <div>
+                    <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Re-labeling Option
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="reLabeling"
+                          value="yes"
+                          checked={editProductData.reLabeling === 'yes'}
+                          onChange={handleEditProductInputChange}
+                          className="mr-2"
+                        />
+                        <span style={{ color: darkText }}>Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="reLabeling"
+                          value="no"
+                          checked={editProductData.reLabeling === 'no'}
+                          onChange={handleEditProductInputChange}
+                          className="mr-2"
+                        />
+                        <span style={{ color: darkText }}>No</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Offer Validity */}
+                  <div>
+                    <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                      Offer Validity
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        name="validityDate"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.validityDate}
+                        onChange={handleEditProductInputChange}
+                      />
+                      <input
+                        type="time"
+                        name="validityTime"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.validityTime}
+                        onChange={handleEditProductInputChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Description */}
+                <div className="mb-4">
+                  <label htmlFor="edit-description" className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Description *
+                  </label>
+                  <textarea
+                    id="edit-description"
+                    name="description"
+                    className="w-full p-3 rounded-lg border"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    value={editProductData.description}
+                    onChange={handleEditProductInputChange}
+                    rows="4"
+                    required
+                  ></textarea>
+                  <p className="text-sm mt-1" style={{ color: "#7a614a" }}>
+                    * No contact details allowed in description
+                  </p>
+                </div>
+                
+                {/* Image Upload */}
+                <div className="mb-6">
+                  <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Product Image
+                  </label>
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg" 
+                    style={{ borderColor: "#d9cfc1", backgroundColor: creamCard }}>
+                    {editProductData.imageUrl ? (
+                      <div className="relative">
+                        <img src={editProductData.imageUrl} alt="Preview" className="max-h-48 rounded-lg" />
+                        <button 
+                          type="button"
+                          className="absolute top-2 right-2 p-1 rounded-full"
+                          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                          onClick={() => {
+                            setEditProductData(prev => ({ ...prev, image: null, imageUrl: '' }));
+                          }}
+                        >
+                          <X size={16} style={{ color: "#fff" }} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Camera size={48} style={{ color: darkText, marginBottom: '1rem' }} />
+                        <p className="text-center mb-4" style={{ color: darkText }}>
+                          Take a photo or upload an image
+                        </p>
+                        <div className="flex gap-3">
+                          <button 
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
+                            onClick={handleEditCameraCapture}
+                            style={{ backgroundColor: bhagwa, color: "#fff" }}
+                          >
+                            <Camera size={16} />
+                            Camera
+                          </button>
+                          <button 
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
+                            style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                          >
+                            <Upload size={16} />
+                            Upload
+                            <input
+                              id="editImageUpload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleEditImageUpload}
+                            />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-sm mt-2" style={{ color: "#7a614a" }}>
+                    Image will be stamped with date/time/latitude/longitude automatically
+                  </p>
+                </div>
+                
+                {/* Terms and Conditions */}
+                <div className="mb-4">
+                  <label className="flex items-start mb-2">
+                    <input
+                      type="checkbox"
+                      name="surveyTermsAccepted"
+                      checked={editProductData.surveyTermsAccepted}
+                      onChange={handleEditProductInputChange}
+                      className="mt-1 mr-2"
+                      required
+                    />
+                    <span style={{ color: darkText }}>
+                      I accept the Survey Terms & Conditions *
+                    </span>
+                  </label>
+                  
+                  <label className="flex items-start mb-2">
+                    <input
+                      type="checkbox"
+                      name="sellerAgreementAccepted"
+                      checked={editProductData.sellerAgreementAccepted}
+                      onChange={handleEditProductInputChange}
+                      className="mt-1 mr-2"
+                      required
+                    />
+                    <span style={{ color: darkText }}>
+                      I accept the Seller Agreement *
+                    </span>
+                  </label>
+                  
+                  {editProductData.reLabeling === 'yes' && (
+                    <label className="flex items-start">
+                      <input
+                        type="checkbox"
+                        name="relabelingTermsAccepted"
+                        checked={editProductData.relabelingTermsAccepted}
+                        onChange={handleEditProductInputChange}
+                        className="mt-1 mr-2"
+                        required={editProductData.reLabeling === 'yes'}
+                      />
+                      <span style={{ color: darkText }}>
+                        I accept the Re-labeling Terms & Conditions *
+                      </span>
+                    </label>
+                  )}
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  <button 
+                    type="button" 
+                    className="px-4 py-2 rounded-lg font-medium"
+                    onClick={() => setShowEditProductModal(false)}
+                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="px-4 py-2 rounded-lg font-medium"
+                    style={{ backgroundColor: bhagwa, color: "#fff" }}
+                  >
+                    Update Product
                   </button>
                 </div>
               </form>
