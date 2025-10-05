@@ -8,7 +8,8 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
+
 
 // Configure multer for handling multipart form data
 const upload = multer({ 
@@ -2969,15 +2970,14 @@ app.get(/^((?!api|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).)*$/, (req
 
 // Even simpler approach - just handle the root route and let static middleware handle assets
 // Serve static files from the React app build directory
-// This must come before the catch-all route
 const staticPath = path.join(__dirname, '../client/build');
 console.log('Serving static files from:', staticPath);
 app.use(express.static(staticPath));
 
 // Catch all handler: send back React's index.html file for any non-API routes
-// This MUST be the last route to avoid interfering with API routes or static files
+// This MUST be the very last route to avoid interfering with API routes or static files
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes
+  // Don't serve index.html for API routes or static assets
   if (req.path.startsWith('/api/')) {
     return res.status(404).send('API route not found');
   }
@@ -2987,5 +2987,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
