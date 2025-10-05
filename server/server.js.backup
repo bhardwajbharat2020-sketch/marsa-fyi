@@ -2971,10 +2971,11 @@ app.get(/^((?!api|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).)*$/, (req
 // Serve static files from the React app build directory
 // This must come before the catch-all route
 const staticPath = path.join(__dirname, '../client/build');
+console.log('Serving static files from:', staticPath);
 app.use(express.static(staticPath));
 
 // Catch all handler: send back React's index.html file for any non-API routes
-// This MUST be the very last route to avoid interfering with API routes or static files
+// This MUST be the last route to avoid interfering with API routes or static files
 app.get('*', (req, res) => {
   // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
@@ -2987,4 +2988,6 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
 });
