@@ -529,7 +529,7 @@ const ShopPage = () => {
       </section>
 
       {/* Filters and Search */}
-      <section className="py-12 bg-white">
+      <section className="py-12" style={{ backgroundColor: cream }}>
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto" id="filters-section">
             {/* Search Bar */}
@@ -544,6 +544,7 @@ const ShopPage = () => {
                   className="w-full pl-10 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ backgroundColor: "#fff", color: darkText }}
                 />
                 <button className="absolute inset-y-0 right-0 px-6 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors">
                   Search
@@ -565,8 +566,9 @@ const ShopPage = () => {
                       setSearchParams({ category: encodeURIComponent(e.target.value) });
                     }
                   }}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  className="appearance-none border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                   name="category"
+                  style={{ backgroundColor: "#fff", color: darkText }}
                 >
                   {categoriesList.map(category => (
                     <option key={category} value={category}>{category}</option>
@@ -581,7 +583,8 @@ const ShopPage = () => {
                 <select
                   value={selectedPort}
                   onChange={(e) => setSelectedPort(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  className="appearance-none border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  style={{ backgroundColor: "#fff", color: darkText }}
                 >
                   {ports.map(port => (
                     <option key={port} value={port}>{port}</option>
@@ -596,7 +599,8 @@ const ShopPage = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  className="appearance-none border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  style={{ backgroundColor: "#fff", color: darkText }}
                 >
                   <option value="featured">Featured</option>
                   <option value="price-low">Price: Low to High</option>
@@ -612,12 +616,12 @@ const ShopPage = () => {
             
             {/* Results Info */}
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
-              <p className="text-gray-600 mt-2">{filteredProducts.length} products found</p>
+              <h2 className="text-3xl font-bold" style={{ color: darkText }}>Featured Products</h2>
+              <p className="mt-2" style={{ color: "#7a614a" }}>{filteredProducts.length} products found</p>
             </div>
             
             {/* Loading and Error States */}
-            {loading && <div className="text-center py-10">Loading products...</div>}
+            {loading && <div className="text-center py-10" style={{ color: darkText }}>Loading products...</div>}
             {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
             
             {/* Products Grid */}
@@ -626,8 +630,9 @@ const ShopPage = () => {
                 {currentProducts.map(product => (
                   <div 
                     key={product.id} 
-                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+                    className="rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
                     onClick={() => navigate(`/product/${product.id}`)}
+                    style={{ backgroundColor: "#fff" }}
                   >
                     <div className="relative">
                       <img src="/placeholder.jpg" alt={product.name} className="w-full h-56 object-cover" />
@@ -646,11 +651,11 @@ const ShopPage = () => {
                     </div>
                   
                     <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h3>
-                      <p className="text-gray-600 text-sm mb-1">Vendor: {product.company_name || 'Unknown Vendor'}</p>
-                      <p className="text-gray-600 text-sm mb-4">Port: {product.origin_port_name || 'Not specified'}</p>
+                      <h3 className="text-xl font-bold mb-2" style={{ color: darkText }}>{product.name}</h3>
+                      <p className="text-sm mb-1" style={{ color: "#7a614a" }}>Vendor: {product.company_name || 'Unknown Vendor'}</p>
+                      <p className="text-sm mb-4" style={{ color: "#7a614a" }}>Port: {product.origin_port_name || 'Not specified'}</p>
                     
-                      <p className="text-gray-700 mb-4 text-sm">{product.short_description || product.description}</p>
+                      <p className="mb-4 text-sm" style={{ color: darkText }}>{product.short_description || product.description}</p>
                     
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
@@ -666,15 +671,16 @@ const ShopPage = () => {
                               />
                             ))}
                           </div>
-                          <span className="ml-2 text-gray-600 text-sm">4.5</span> {/* In a real app, this would come from the product rating */}
+                          <span className="ml-2 text-sm" style={{ color: "#7a614a" }}>4.5</span> {/* In a real app, this would come from the product rating */}
                         </div>
-                        <span className="text-gray-500 text-sm">👍 0</span> {/* In a real app, this would come from the product likes */}
+                        <span className="text-sm" style={{ color: "#7a614a" }}>👍 0</span> {/* In a real app, this would come from the product likes */}
                       </div>
                     
                       <div className="mt-auto">
                         <button 
-                          className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                          className="w-full px-4 py-2 rounded-lg transition-colors font-medium"
                           onClick={() => handleRFQ(product.id)}
+                          style={{ backgroundColor: bhagwa, color: "#fff" }}
                         >
                           Request Quotation
                         </button>
@@ -690,9 +696,14 @@ const ShopPage = () => {
             {totalPages > 1 && !loading && !error && (
               <div className="flex justify-center items-center gap-4 mt-16">
                 <button 
-                  className="px-4 py-2 bg-white text-gray-600 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
+                  style={{ 
+                    backgroundColor: "#fff", 
+                    color: darkText,
+                    borderColor: "#d9cfc1"
+                  }}
                 >
                   Previous
                 </button>
@@ -703,12 +714,13 @@ const ShopPage = () => {
                     return (
                       <button
                         key={page}
-                        className={`w-10 h-10 rounded-full ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                        }`}
+                        className={`w-10 h-10 rounded-full`}
                         onClick={() => setCurrentPage(page)}
+                        style={{ 
+                          backgroundColor: currentPage === page ? bhagwa : "#fff",
+                          color: currentPage === page ? "#fff" : darkText,
+                          border: currentPage === page ? "none" : "1px solid #d9cfc1"
+                        }}
                       >
                         {page}
                       </button>
@@ -717,14 +729,45 @@ const ShopPage = () => {
                 </div>
                 
                 <button 
-                  className="px-4 py-2 bg-white text-gray-600 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
+                  style={{ 
+                    backgroundColor: "#fff", 
+                    color: darkText,
+                    borderColor: "#d9cfc1"
+                  }}
                 >
                   Next
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16" style={{ backgroundColor: cream }}>
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6" style={{ color: darkText }}>Ready to find the perfect products?</h2>
+          <p className="text-xl mb-10 max-w-2xl mx-auto" style={{ color: "#7a614a" }}>
+            Connect with verified suppliers and get competitive quotes for your business needs
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button 
+              className="px-8 py-3 rounded-lg transition-colors font-medium"
+              onClick={() => navigate('/register')}
+              style={{ backgroundColor: "#fff", color: bhagwa, border: `1px solid ${creamCard}` }}
+            >
+              Register as Buyer
+            </button>
+            <button 
+              className="px-8 py-3 rounded-lg transition-colors font-medium"
+              onClick={() => navigate('/contact')}
+              style={{ backgroundColor: bhagwa, color: "#fff", border: `2px solid ${bhagwa}` }}
+            >
+              Contact Sales
+            </button>
           </div>
         </div>
       </section>

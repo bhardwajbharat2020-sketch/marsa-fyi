@@ -239,7 +239,7 @@ const ProductDetailPage = () => {
       </div>
 
       {/* Breadcrumb */}
-      <section className="py-4" style={{ backgroundColor: "#fff" }}>
+      <section className="py-4" style={{ backgroundColor: creamCard }}>
         <div className="container mx-auto px-4">
           <div className="flex items-center text-sm" style={{ color: darkText }}>
             <button 
@@ -259,16 +259,16 @@ const ProductDetailPage = () => {
       </section>
 
       {/* Product Detail */}
-      <section className="py-12 bg-white">
+      <section className="py-12" style={{ backgroundColor: cream }}>
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Product Images */}
             <div>
-              <div className="relative">
+              <div className="relative rounded-xl overflow-hidden shadow-md" style={{ backgroundColor: "#fff" }}>
                 <img 
                   src="/placeholder.jpg" 
                   alt={product.name} 
-                  className="w-full h-96 object-cover rounded-xl"
+                  className="w-full h-96 object-cover"
                 />
                 {product.is_verified && (
                   <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center">
@@ -283,10 +283,11 @@ const ProductDetailPage = () => {
                 {[0, 1, 2].map((index) => (
                   <div 
                     key={index}
-                    className={`w-20 h-20 border-2 rounded-lg overflow-hidden cursor-pointer ${
-                      selectedImage === index ? 'border-blue-600' : 'border-gray-200'
+                    className={`w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 ${
+                      selectedImage === index ? 'border-[#f77f00]' : 'border-[#d9cfc1]'
                     }`}
                     onClick={() => setSelectedImage(index)}
+                    style={{ backgroundColor: "#fff" }}
                   >
                     <img 
                       src="/placeholder.jpg" 
@@ -299,8 +300,8 @@ const ProductDetailPage = () => {
             </div>
             
             {/* Product Info */}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
+            <div style={{ backgroundColor: "#fff" }} className="rounded-xl p-6 shadow-md">
+              <h1 className="text-3xl font-bold mb-4" style={{ color: darkText }}>{product.name}</h1>
               
               <div className="flex items-center mb-6">
                 <div className="flex">
@@ -315,29 +316,29 @@ const ProductDetailPage = () => {
                     />
                   ))}
                 </div>
-                <span className="ml-2 text-gray-600">4.5</span> {/* In a real app, this would come from the product rating */}
-                <span className="mx-2 text-gray-300">•</span>
-                <span className="text-gray-500">👍 0 likes</span> {/* In a real app, this would come from the product likes */}
+                <span className="ml-2" style={{ color: "#7a614a" }}>4.5</span> {/* In a real app, this would come from the product rating */}
+                <span className="mx-2 text-[#d9cfc1]">•</span>
+                <span style={{ color: "#7a614a" }}>👍 0 likes</span> {/* In a real app, this would come from the product likes */}
               </div>
               
-              <p className="text-gray-700 mb-8">{product.description || 'No description available'}</p>
+              <p className="mb-8" style={{ color: darkText }}>{product.description || 'No description available'}</p>
               
-              <div className="border-t border-b border-gray-200 py-6 mb-8">
+              <div className="border-t border-b py-6 mb-8" style={{ borderColor: "#d9cfc1" }}>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Vendor</h3>
-                    <p className="text-gray-900">{product.company_name || 'Unknown Vendor'}</p>
+                    <h3 className="text-sm font-medium" style={{ color: "#7a614a" }}>Vendor</h3>
+                    <p className="" style={{ color: darkText }}>{product.company_name || 'Unknown Vendor'}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Port</h3>
-                    <p className="text-gray-900">{product.origin_port_name || 'Not specified'}</p>
+                    <h3 className="text-sm font-medium" style={{ color: "#7a614a" }}>Port</h3>
+                    <p className="" style={{ color: darkText }}>{product.origin_port_name || 'Not specified'}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Category</h3>
-                    <p className="text-gray-900">{product.category_name || 'Uncategorized'}</p>
+                    <h3 className="text-sm font-medium" style={{ color: "#7a614a" }}>Category</h3>
+                    <p className="" style={{ color: darkText }}>{product.category_name || 'Uncategorized'}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Availability</h3>
+                    <h3 className="text-sm font-medium" style={{ color: "#7a614a" }}>Availability</h3>
                     <p className="text-green-600">In Stock</p>
                   </div>
                 </div>
@@ -345,13 +346,17 @@ const ProductDetailPage = () => {
               
               <div className="flex flex-wrap gap-4">
                 <button 
-                  className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex-1"
+                  className="px-8 py-3 rounded-lg transition-colors font-medium flex-1"
                   onClick={handleRFQ}
+                  style={{ backgroundColor: bhagwa, color: "#fff" }}
                 >
                   Request Quotation
                 </button>
-                <button className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  <Heart className="h-6 w-6 text-gray-600" />
+                <button 
+                  className="p-3 rounded-lg transition-colors"
+                  style={{ backgroundColor: creamCard, border: "1px solid #d9cfc1" }}
+                >
+                  <Heart className="h-6 w-6" style={{ color: darkText }} />
                 </button>
               </div>
             </div>
@@ -360,39 +365,51 @@ const ProductDetailPage = () => {
       </section>
 
       {/* Product Details Tabs */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12" style={{ backgroundColor: cream }}>
         <div className="container mx-auto px-4">
-          <div className="bg-white rounded-xl shadow-sm">
+          <div className="rounded-xl shadow-sm" style={{ backgroundColor: "#fff" }}>
             {/* Tabs */}
-            <div className="border-b border-gray-200">
+            <div className="border-b" style={{ borderColor: "#d9cfc1" }}>
               <nav className="flex">
                 <button
                   className={`px-6 py-4 font-medium text-sm ${
                     activeTab === 'description'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      ? 'border-b-2'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                   onClick={() => setActiveTab('description')}
+                  style={{ 
+                    color: activeTab === 'description' ? bhagwa : '#7a614a',
+                    borderColor: activeTab === 'description' ? bhagwa : 'transparent'
+                  }}
                 >
                   Description
                 </button>
                 <button
                   className={`px-6 py-4 font-medium text-sm ${
                     activeTab === 'specifications'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      ? 'border-b-2'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                   onClick={() => setActiveTab('specifications')}
+                  style={{ 
+                    color: activeTab === 'specifications' ? bhagwa : '#7a614a',
+                    borderColor: activeTab === 'specifications' ? bhagwa : 'transparent'
+                  }}
                 >
                   Specifications
                 </button>
                 <button
                   className={`px-6 py-4 font-medium text-sm ${
                     activeTab === 'certifications'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      ? 'border-b-2'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                   onClick={() => setActiveTab('certifications')}
+                  style={{ 
+                    color: activeTab === 'certifications' ? bhagwa : '#7a614a',
+                    borderColor: activeTab === 'certifications' ? bhagwa : 'transparent'
+                  }}
                 >
                   Certifications
                 </button>
@@ -403,14 +420,14 @@ const ProductDetailPage = () => {
             <div className="p-6">
               {activeTab === 'description' && (
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Product Description</h3>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Product Description</h3>
                   <div className="prose max-w-none">
                     {product.description ? (
                       product.description.split('\n').map((paragraph, index) => (
-                        <p key={index} className="mb-4 text-gray-700">{paragraph}</p>
+                        <p key={index} className="mb-4" style={{ color: darkText }}>{paragraph}</p>
                       ))
                     ) : (
-                      <p>No description available for this product.</p>
+                      <p style={{ color: darkText }}>No description available for this product.</p>
                     )}
                   </div>
                 </div>
@@ -418,15 +435,15 @@ const ProductDetailPage = () => {
               
               {activeTab === 'specifications' && (
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Technical Specifications</h3>
-                  <p>Specifications information is not available for this product.</p>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Technical Specifications</h3>
+                  <p style={{ color: darkText }}>Specifications information is not available for this product.</p>
                 </div>
               )}
               
               {activeTab === 'certifications' && (
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Certifications</h3>
-                  <p>Certification information is not available for this product.</p>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Certifications</h3>
+                  <p style={{ color: darkText }}>Certification information is not available for this product.</p>
                 </div>
               )}
             </div>
@@ -436,14 +453,15 @@ const ProductDetailPage = () => {
 
       {/* Related Products */}
       {relatedProducts.length > 0 && (
-        <section className="py-16 bg-white">
+        <section className="py-16" style={{ backgroundColor: cream }}>
           <div className="container mx-auto px-4">
             <div className="flex justify-between items-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900">Related Products</h2>
+              <h2 className="text-3xl font-bold" style={{ color: darkText }}>Related Products</h2>
               <a 
                 href="#" 
-                className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                className="font-medium flex items-center"
                 onClick={(e) => {e.preventDefault(); navigate('/shop');}}
+                style={{ color: bhagwa }}
               >
                 View All
                 <ChevronRight className="h-5 w-5 ml-1" />
@@ -454,8 +472,9 @@ const ProductDetailPage = () => {
               {relatedProducts.slice(0, 4).map(product => (
                 <div 
                   key={product.id} 
-                  className="bg-gray-50 rounded-xl p-6 text-center hover:shadow-lg transition-shadow cursor-pointer group"
+                  className="rounded-xl p-6 text-center hover:shadow-lg transition-shadow cursor-pointer group"
                   onClick={() => navigate(`/product/${product.id}`)}
+                  style={{ backgroundColor: "#fff" }}
                 >
                   <div className="relative mb-4">
                     <img 
@@ -470,8 +489,8 @@ const ProductDetailPage = () => {
                       </div>
                     )}
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600">{product.name}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{product.company_name || 'Unknown Vendor'}</p>
+                  <h3 className="font-semibold mb-2 group-hover:text-blue-600" style={{ color: darkText }}>{product.name}</h3>
+                  <p className="text-sm mb-3" style={{ color: "#7a614a" }}>{product.company_name || 'Unknown Vendor'}</p>
                   <div className="flex items-center justify-center mb-3">
                     <div className="flex">
                       {[...Array(5)].map((_, i) => (
@@ -485,11 +504,12 @@ const ProductDetailPage = () => {
                         />
                       ))}
                     </div>
-                    <span className="ml-1 text-gray-600 text-sm">4.5</span> {/* In a real app, this would come from the product rating */}
+                    <span className="ml-1 text-sm" style={{ color: "#7a614a" }}>4.5</span> {/* In a real app, this would come from the product rating */}
                   </div>
                   <button 
-                    className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    className="w-full py-2 rounded-lg transition-colors text-sm"
                     onClick={(e) => {e.stopPropagation(); handleRFQ();}}
+                    style={{ backgroundColor: bhagwa, color: "#fff" }}
                   >
                     Request Quotation
                   </button>
@@ -501,22 +521,24 @@ const ProductDetailPage = () => {
       )}
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-16" style={{ backgroundColor: cream }}>
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Need Custom Solutions?</h2>
-          <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6" style={{ color: darkText }}>Need Custom Solutions?</h2>
+          <p className="text-xl mb-10 max-w-2xl mx-auto" style={{ color: "#7a614a" }}>
             Our experts can help you find the perfect products for your specific requirements
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button 
-              className="px-8 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              className="px-8 py-3 rounded-lg transition-colors font-medium"
               onClick={() => navigate('/contact')}
+              style={{ backgroundColor: "#fff", color: bhagwa, border: `1px solid ${creamCard}` }}
             >
               Contact Supplier
             </button>
             <button 
-              className="px-8 py-3 bg-transparent border-2 border-white text-white rounded-lg hover:bg-white/10 transition-colors font-medium"
+              className="px-8 py-3 rounded-lg transition-colors font-medium"
               onClick={() => navigate('/register')}
+              style={{ backgroundColor: bhagwa, color: "#fff", border: `2px solid ${bhagwa}` }}
             >
               Become a Buyer
             </button>
