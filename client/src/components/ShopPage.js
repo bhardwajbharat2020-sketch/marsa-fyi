@@ -1,7 +1,75 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, ChevronRight, Star, Heart, CheckCircle, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, ChevronRight, Star, Heart, CheckCircle, Ship, ShieldCheck, Globe, User, MapPin } from 'lucide-react';
 import '../App.css';
+
+const heroSlides = [
+  {
+    id: 1,
+    title: "Revolutionizing Global Trade",
+    subtitle: "Connecting businesses across continents with trusted partnerships",
+    image: "/placeholder-hero.jpg",
+    cta: "Explore Opportunities",
+  },
+  {
+    id: 2,
+    title: "Verified Suppliers Worldwide",
+    subtitle: "Work with pre-verified partners for secure transactions",
+    image: "/placeholder-hero2.jpg",
+    cta: "Find Suppliers",
+  },
+  {
+    id: 3,
+    title: "End-to-End Trade Solutions",
+    subtitle: "From RFQ to delivery, we've got you covered",
+    image: "/placeholder-hero3.jpg",
+    cta: "Learn More",
+  },
+];
+
+const categories = [
+  { id: 1, name: 'Industrial Plants, Machinery & Equipment', icon: '🏭' },
+  { id: 2, name: 'Consumer Electronics & Household Appliances', icon: '📺' },
+  { id: 3, name: 'Industrial & Engineering Products, Spares and Supplies', icon: '🔩' },
+  { id: 4, name: 'Building Construction Material & Equipment', icon: '🏗️' },
+  { id: 5, name: 'Apparel, Clothing & Garments', icon: '👕' },
+  { id: 6, name: 'Vegetables, Fruits, Grains, Dairy Products & FMCG', icon: '🍎' },
+  { id: 7, name: 'Medical, Pharma, Surgical & Healthcare', icon: '⚕️' },
+  { id: 8, name: 'Packaging Material, Supplies & Machines', icon: '📦' },
+  { id: 9, name: 'Chemicals, Dyes & Allied Products', icon: '⚗️' },
+  { id: 10, name: 'Kitchen Containers, Utensils & Cookware', icon: '🍳' },
+  { id: 11, name: 'Textiles, Yarn, Fabrics & Allied Industries', icon: '🧵' },
+  { id: 12, name: 'Books, Notebooks, Stationery & Publications', icon: '📚' },
+  { id: 13, name: 'Cosmetics, Toiletries & Personal Care Products', icon: '🧴' },
+  { id: 14, name: 'Home Furnishings and Home Textiles', icon: '🛋️' },
+  { id: 15, name: 'Gems, Jewellery & Precious Stones', icon: '💎' },
+  { id: 16, name: 'Computers, Software, IT Support & Solutions', icon: '💻' },
+  { id: 17, name: 'Fashion & Garment Accessories', icon: '👠' },
+  { id: 18, name: 'Ayurvedic & Herbal Products', icon: '🌿' },
+  { id: 19, name: 'Security Devices, Safety Systems & Services', icon: '🛡️' },
+  { id: 20, name: 'Sports Goods, Games, Toys & Accessories', icon: '🏀' },
+  { id: 21, name: 'Telecom Products, Equipment & Supplies', icon: '📡' },
+  { id: 22, name: 'Stationery and Paper Products', icon: '文' },
+  { id: 23, name: 'Bags, Handbags, Luggage & Accessories', icon: '👜' },
+  { id: 24, name: 'Stones, Marble & Granite Supplies', icon: '🪨' },
+  { id: 25, name: 'Railway, Shipping & Aviation Products', icon: '🚆' },
+  { id: 26, name: 'Leather and Leather Products & Accessories', icon: '👢' },
+  { id: 27, name: 'Electronics Components and Supplies', icon: '💡' },
+  { id: 28, name: 'Electrical Equipment and Supplies', icon: '⚡' },
+  { id: 29, name: 'Pharmaceutical Drugs & Medicines', icon: '💊' },
+  { id: 30, name: 'Mechanical Components & Parts', icon: '⚙️' },
+  { id: 31, name: 'Scientific, Measuring & Laboratory Instruments', icon: '🔬' },
+  { id: 32, name: 'Furniture, Furniture Supplies & Hardware', icon: '🪑' },
+  { id: 33, name: 'Fertilizers, Seeds, Plants & Animal Husbandry', icon: '🌱' },
+  { id: 34, name: 'Automobiles, Spare Parts and Accessories', icon: '🚗' },
+  { id: 35, name: 'Housewares, Home Appliances & Decorations', icon: '🏠' },
+  { id: 36, name: 'Metals, Minerals, Ores & Alloys', icon: '🪙' },
+  { id: 37, name: 'Tools, Machine Tools & Power Tools', icon: '🛠️' },
+  { id: 38, name: 'Gifts, Crafts, Antiques & Handmade Decoratives', icon: '🎁' },
+  { id: 39, name: 'Bicycles, Rickshaws, Spares and Accessories', icon: '🚲' }
+];
+
+const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
 
 const ShopPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,11 +80,20 @@ const ShopPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [categories, setCategories] = useState(['All Categories']);
+  const [categoriesList, setCategoriesList] = useState(['All Categories']);
   const [ports, setPorts] = useState(['All Ports']);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [selectedCountry, setSelectedCountry] = useState("Global");
+  const [countryOpen, setCountryOpen] = useState(false);
+  // State for category slider
+  const [sliderPosition, setSliderPosition] = useState(0);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+  const sliderRef = useRef(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Fetch real products from Supabase
+  // Keep your Supabase fetch logic unchanged
   useEffect(() => {
     const fetchProductsAndFilters = async () => {
       try {
@@ -31,9 +108,10 @@ const ShopPage = () => {
           
           // Extract unique categories and ports for filter dropdowns
           const uniqueCategories = ['All Categories', ...new Set(productsData.map(product => product.category_name).filter(Boolean))];
-          const uniquePorts = ['All Ports', ...new Set(productsData.map(product => product.origin_port_name).filter(Boolean))];
+          // Since ports are not directly related to products in the schema, we'll use a default list
+          const uniquePorts = ['All Ports', 'Mumbai Port', 'Chennai Port', 'JNPT', 'Vishakhapatnam Port', 'Kolkata Port'];
           
-          setCategories(uniqueCategories);
+          setCategoriesList(uniqueCategories);
           setPorts(uniquePorts);
         } else {
           setError(productsData.error || 'Failed to fetch products');
@@ -49,13 +127,97 @@ const ShopPage = () => {
     fetchProductsAndFilters();
   }, []);
 
+  // Check for category parameter in URL
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      const decodedCategory = decodeURIComponent(categoryParam);
+      setSelectedCategory(decodedCategory);
+      // Update the category dropdown to reflect the selected category
+      const categorySelect = document.querySelector('select[name="category"]');
+      if (categorySelect) {
+        categorySelect.value = decodedCategory;
+      }
+    }
+  }, [searchParams]);
+
+  // hero auto-rotate
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCurrentSlide((s) => (s === heroSlides.length - 1 ? 0 : s + 1));
+    }, 5500);
+    return () => clearInterval(id);
+  }, []);
+
+  // Handle category slider navigation
+  const slideLeft = () => {
+    if (sliderRef.current) {
+      const scrollAmount = sliderRef.current.offsetWidth * 0.8;
+      sliderRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      setTimeout(() => {
+        if (sliderRef.current) {
+          updateArrowVisibility(sliderRef.current.scrollLeft - scrollAmount);
+        }
+      }, 300);
+    }
+  };
+
+  const slideRight = () => {
+    if (sliderRef.current) {
+      const scrollAmount = sliderRef.current.offsetWidth * 0.8;
+      sliderRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      setTimeout(() => {
+        if (sliderRef.current) {
+          updateArrowVisibility(sliderRef.current.scrollLeft + scrollAmount);
+        }
+      }, 300);
+    }
+  };
+
+  const updateArrowVisibility = (position) => {
+    if (sliderRef.current) {
+      const maxScroll = sliderRef.current.scrollWidth - sliderRef.current.offsetWidth;
+      setShowLeftArrow(position > 0);
+      setShowRightArrow(position < maxScroll - 10);
+    }
+  };
+
+  // Update arrow visibility when component mounts and on resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (sliderRef.current) {
+        updateArrowVisibility(sliderRef.current.scrollLeft);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    // Initial check
+    setTimeout(() => {
+      if (sliderRef.current) {
+        updateArrowVisibility(sliderRef.current.scrollLeft);
+      }
+    }, 100);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Check arrow visibility when categories load
+  useEffect(() => {
+    setTimeout(() => {
+      if (sliderRef.current) {
+        updateArrowVisibility(sliderRef.current.scrollLeft);
+      }
+    }, 100);
+  }, [categories]);
+
   // Filter products based on search, category, and port
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           product.short_description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All Categories' || product.category_name === selectedCategory;
-    const matchesPort = selectedPort === 'All Ports' || product.origin_port_name === selectedPort;
+    // Since ports are not directly related to products in the schema, we'll skip port filtering for now
+    const matchesPort = selectedPort === 'All Ports';
     return matchesSearch && matchesCategory && matchesPort;
   });
 
@@ -71,52 +233,305 @@ const ShopPage = () => {
     navigate('/login');
   };
 
+  // small helper for theme colors in inline style
+  const bhagwa = "#f77f00";
+  const cream = "#f6efe6";
+  const creamCard = "#efe6d9";
+  const darkText = "#5a4632";
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gray-100 text-sm text-center text-gray-600 py-2 px-4">
-        <p>Free shipping on orders $100+</p>
+    <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+      {/* global small style additions (keyframes) */}
+      <style>{`
+        @keyframes floatUp { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        .animate-float { animation: floatUp 600ms ease-out both; }
+        .glass {
+          background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.35));
+          backdrop-filter: blur(6px);
+        }
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+
+      {/* Top thin bar */}
+      <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
+        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
       </div>
 
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800 cursor-pointer" onClick={() => navigate('/')}>MARSA FYI</h1>
-          
-          <nav className="hidden lg:flex items-center space-x-8">
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/');}} className="text-gray-600 hover:text-orange-600 font-medium">Home</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/shop');}} className="font-semibold text-orange-600">Shop</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/about');}} className="text-gray-600 hover:text-orange-600 font-medium">About</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/contact');}} className="text-gray-600 hover:text-orange-600 font-medium">Contact</a>
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            <div className="relative hidden md:block">
-              <input type="text" placeholder="Search for..." className="pl-4 pr-10 py-2 border rounded-md w-48 focus:ring-2 focus:ring-orange-500 transition"/>
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* Header */}
+      <header className="sticky top-0 z-50 shadow-sm" style={{ backgroundColor: cream }}>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              onClick={() => navigate("/")}
+              style={{ backgroundColor: creamCard }}
+            >
+              <div
+                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+                className="flex items-center justify-center text-white font-bold text-lg"
+              >
+                M
+              </div>
+              <div className="">
+                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
+                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
+              </div>
             </div>
-            <button onClick={() => navigate('/register')} className="px-5 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 transition-colors">Register/Login</button>
-            <User className="text-gray-700 h-6 w-6 cursor-pointer lg:hidden" />
+
+            {/* visible on desktop */}
+            <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
+              <button onClick={() => navigate("/shop")} className="font-semibold" style={{ color: bhagwa }}>Shop</button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
+              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative hidden md:block">
+              <input
+                placeholder="Find products, suppliers, or ports..."
+                className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
+                style={{ backgroundColor: "#fff", color: darkText }}
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b5f3b]" />
+            </div>
+
+            <button
+              onClick={() => navigate("/register")}
+              className="px-4 py-2 rounded-full font-semibold"
+              style={{ backgroundColor: bhagwa, color: "#fff" }}
+            >
+              Join / Login
+            </button>
+
+            <User className="h-6 w-6 text-[#6b503d]" />
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative h-80 md:h-96 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 to-purple-900/60 z-10"></div>
-        <div className="absolute inset-0 bg-cover bg-center" style={{backgroundImage: "url('/placeholder-hero.jpg')"}}></div>
-        
-        <div className="relative z-20 container mx-auto px-4 h-full flex items-center">
-          <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Discover Quality Products</h1>
-            <p className="text-xl text-blue-100 mb-8">Connect with verified suppliers from around the world</p>
+      {/* Country selector */}
+      <div className="w-full border-t border-b" style={{ borderColor: "#eadfce" }}>
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="relative" onMouseLeave={() => setCountryOpen(false)}>
+            <button
+              onMouseEnter={() => setCountryOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+              style={{ backgroundColor: creamCard, color: darkText }}
+            >
+              <MapPin className="h-4 w-4" />
+              <span>{selectedCountry}</span>
+              <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            {countryOpen && (
+              <div className="absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
+                {countries.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
+                    style={{ color: darkText }}
+                  >
+                    {c === "Global" ? "🌍 Global" : c}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          <div className="text-sm" style={{ color: "#7a614a" }}>
+            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+          </div>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <section className="relative h-[560px] container mx-auto px-4 mt-8">
+        <div
+          className="absolute inset-0 rounded-2xl overflow-hidden"
+          style={{
+            backgroundImage: `url(${heroSlides[currentSlide].image})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "brightness(0.6) saturate(0.9)",
+          }}
+        />
+        <div className="relative z-10 rounded-2xl p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8"
+             style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.06))" }}>
+          <div className="max-w-2xl text-white animate-float">
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight" style={{ textShadow: "0 6px 20px rgba(0,0,0,0.5)" }}>
+              {heroSlides[currentSlide].title}
+            </h1>
+            <p className="mt-4 text-lg md:text-xl text-white/90">{heroSlides[currentSlide].subtitle}</p>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => navigate("/shop")}
+                className="px-6 py-3 rounded-full font-bold"
+                style={{ backgroundColor: bhagwa, color: "#fff" }}
+              >
+                {heroSlides[currentSlide].cta}
+              </button>
+              <button
+                onClick={() => navigate("/contact")}
+                className="px-6 py-3 rounded-full font-semibold"
+                style={{ backgroundColor: "rgba(255,255,255,0.9)", color: darkText }}
+              >
+                Contact Sales
+              </button>
+            </div>
+          </div>
+
+          {/* quick search card */}
+          <div className="w-full md:w-96 p-4 rounded-xl shadow-md" style={{ backgroundColor: creamCard }}>
+            <div className="text-sm font-semibold mb-2" style={{ color: darkText }}>Quick RFQ & Search</div>
+            <div className="flex gap-2">
+              <input className="flex-1 px-3 py-2 rounded-md border border-transparent focus:outline-none" placeholder="Search products, suppliers, or ports" />
+              <button className="px-3 rounded-md" style={{ backgroundColor: bhagwa, color: "#fff" }}>
+                <Search />
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+              <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
+                <div className="font-semibold" style={{ color: darkText }}>Port Integration</div>
+                <div className="text-xs text-[#8b6a4f]">Live ETA & berth data</div>
+              </button>
+              <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
+                <div className="font-semibold" style={{ color: darkText }}>Supplier Verification</div>
+                <div className="text-xs text-[#8b6a4f]">KYC & audits</div>
+              </button>
+              <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
+                <div className="font-semibold" style={{ color: darkText }}>Customs Support</div>
+                <div className="text-xs text-[#8b6a4f]">Paperwork & clearance</div>
+              </button>
+              <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
+                <div className="font-semibold" style={{ color: darkText }}>Secure Payments</div>
+                <div className="text-xs text-[#8b6a4f]">Escrow & trade assurance</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* hero pagination dots */}
+        <div className="relative z-20 flex justify-center gap-2 mt-4">
+          {heroSlides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`w-8 h-2 rounded-full transition-all ${idx === currentSlide ? "scale-110" : "opacity-60"}`}
+              style={{ backgroundColor: idx === currentSlide ? bhagwa : "#fff" }}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* Categories */}
+      {/* Removed the homepage categories section to avoid duplication */}
+
+      {/* Creative Category Slider */}
+      <section className="container mx-auto px-4 mt-12 relative">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold mb-4" style={{ color: darkText }}>Shop by Category</h2>
+          <p className="text-[#7a614a] max-w-2xl mx-auto">Discover our wide range of products across various categories</p>
+        </div>
+        
+        {/* Slider Controls */}
+        <div className="relative">
+          {/* Left Arrow */}
+          {showLeftArrow && (
+            <button 
+              onClick={slideLeft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-[#f0e6d9] transition-colors md:block hidden"
+              style={{ color: darkText, marginLeft: '-10px' }}
+            >
+              <ChevronRight className="h-6 w-6 rotate-180" />
+            </button>
+          )}
+          
+          {/* Category Slider */}
+          <div 
+            ref={sliderRef}
+            className="flex overflow-x-auto scrollbar-hide py-4 px-2 md:px-4"
+            onScroll={(e) => updateArrowVisibility(e.target.scrollLeft)}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            <div className="flex space-x-4 md:space-x-6" style={{ minWidth: 'max-content' }}>
+              {categories.map((category) => (
+                <div 
+                  key={category.id}
+                  className="flex-shrink-0 w-40 md:w-48 bg-white rounded-2xl p-4 md:p-6 shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer text-center"
+                  onClick={() => {
+                    setSelectedCategory(category.name);
+                    // Update URL with category parameter
+                    setSearchParams({ category: encodeURIComponent(category.name) });
+                    // Scroll to filter section
+                    setTimeout(() => {
+                      const filterSection = document.getElementById('filters-section');
+                      if (filterSection) {
+                        filterSection.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }, 100);
+                  }}
+                >
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-[#f0e6d9] flex items-center justify-center mx-auto mb-3 md:mb-4 text-xl md:text-2xl">
+                    {category.icon}
+                  </div>
+                  <h3 className="font-bold text-xs md:text-sm mb-2 line-clamp-3" style={{ color: darkText }}>{category.name}</h3>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Right Arrow */}
+          {showRightArrow && (
+            <button 
+              onClick={slideRight}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-[#f0e6d9] transition-colors md:block hidden"
+              style={{ color: darkText, marginRight: '-10px' }}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          )}
+        </div>
+        
+        {/* Mobile Scroll Indicator */}
+        <div className="text-center mt-4 md:hidden">
+          <p className="text-[#7a614a] text-sm">← Swipe to browse categories →</p>
+        </div>
+        
+        {/* View All Categories Button */}
+        <div className="text-center mt-8">
+          <button 
+            className="px-6 py-3 rounded-full font-semibold flex items-center gap-2 mx-auto"
+            style={{ backgroundColor: creamCard, color: darkText }}
+            onClick={() => navigate('/categories')}
+          >
+            View All Categories
+            <ChevronRight className="h-5 w-5" />
+          </button>
         </div>
       </section>
 
       {/* Filters and Search */}
       <section className="py-12 bg-white">
         <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-6xl mx-auto" id="filters-section">
             {/* Search Bar */}
             <div className="mb-10">
               <div className="relative max-w-3xl mx-auto">
@@ -141,10 +556,19 @@ const ShopPage = () => {
               <div className="relative">
                 <select
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    // Update URL parameter
+                    if (e.target.value === 'All Categories') {
+                      setSearchParams({});
+                    } else {
+                      setSearchParams({ category: encodeURIComponent(e.target.value) });
+                    }
+                  }}
                   className="appearance-none bg-white border border-gray-300 rounded-lg py-3 px-4 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  name="category"
                 >
-                  {categories.map(category => (
+                  {categoriesList.map(category => (
                     <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
@@ -223,8 +647,8 @@ const ShopPage = () => {
                   
                     <div className="p-6">
                       <h3 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h3>
-                      <p className="text-gray-600 text-sm mb-1">Seller: {product.company_name || 'Unknown'}</p>
-                      <p className="text-gray-600 text-sm mb-4">Port: {product.origin_port_name || 'Unknown'}</p>
+                      <p className="text-gray-600 text-sm mb-1">Vendor: {product.company_name || 'Unknown Vendor'}</p>
+                      <p className="text-gray-600 text-sm mb-4">Port: {product.origin_port_name || 'Not specified'}</p>
                     
                       <p className="text-gray-700 mb-4 text-sm">{product.short_description || product.description}</p>
                     
@@ -305,84 +729,60 @@ const ShopPage = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-600">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Can't Find What You're Looking For?</h2>
-          <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-            Submit a request and our suppliers will reach out to you with custom solutions
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button 
-              className="px-8 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-              onClick={() => navigate('/contact')}
-            >
-              Submit RFQ
-            </button>
-            <button 
-              className="px-8 py-3 bg-transparent border-2 border-white text-white rounded-lg hover:bg-white/10 transition-colors font-medium"
-              onClick={() => navigate('/register')}
-            >
-              Become a Supplier
-            </button>
+      {/* Footer */}
+      <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
+        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="flex flex-col items-center">
+            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+
+            <div className="flex gap-3">
+              {/* Instagram */}
+              <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+              </a>
+
+              {/* Facebook */}
+              <a href="https://www.facebook.com/share/1CjsjNy4AF/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Facebook">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a4 4 0 0 0-4 4v3H8v4h3v8h4v-8h3l1-4h-4V6a1 1 0 0 1 1-1h3V2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+
+              {/* X (Twitter) */}
+              <a href="https://x.com/MarsaGroup?t=lcCaLBHxnJiOjeAqzQzTlQ&s=09" target="_blank" rel="noopener noreferrer" aria-label="X" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="X">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 16.5 3c-2.72 0-4.92 2.3-4.92 5.13 0 .4.05.8.13 1.18A13 13 0 0 1 2 4.5s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5V5c0-.7.5-1.5 1-2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+
+              {/* YouTube */}
+              <a href="https://youtube.com/marsafyi" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="YouTube">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1 1.8-1 .6-.7.8-2.3.8-2.3S23 8 23 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <div className="font-semibold mb-3">For Buyers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
+              <li>Submit RFQ</li>
+              <li>Search Suppliers</li>
+              <li>Trade Assurance</li>
+              <li>Payment Options</li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <div className="font-semibold mb-3">For Suppliers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
+              <li>Display Products</li>
+              <li>Supplier Membership</li>
+              <li>Learning Center</li>
+              <li>Success Stories</li>
+            </ul>
           </div>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-            <div className="lg:col-span-2">
-              <h3 className="text-2xl font-bold mb-4">MarsaFyi</h3>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Global B2B Trade Platform connecting buyers and sellers worldwide
-              </p>
-              <div className="flex space-x-4">
-                {['📘', '🐦', '📷', '💼'].map((icon, index) => (
-                  <a key={index} href="#" className="text-gray-400 hover:text-white text-2xl">
-                    {icon}
-                  </a>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Buyers</h4>
-              <ul className="space-y-2">
-                {['Submit RFQ', 'Search Suppliers', 'Trade Assurance', 'Payment Options'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Suppliers</h4>
-              <ul className="space-y-2">
-                {['Display Products', 'Supplier Membership', 'Learning Center', 'Success Stories'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Company</h4>
-              <ul className="space-y-2">
-                {['About Us', 'Contact Us', 'Careers', 'Press'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 MarsaFyi. All rights reserved. | Privacy Policy | Terms of Service</p>
+        <div className="border-t" style={{ borderColor: "#3a2b20" }}>
+          <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
+            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
           </div>
         </div>
       </footer>

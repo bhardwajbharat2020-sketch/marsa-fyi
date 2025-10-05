@@ -1,7 +1,29 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, Search } from 'lucide-react';
-import '../App.css';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  ChevronRight,
+  Star,
+  Heart,
+  CheckCircle,
+  Ship,
+  ShieldCheck,
+  Globe,
+  User,
+  MapPin,
+  Mail,
+  Phone,
+  Clock,
+} from "lucide-react";
+
+/*
+  Theme colors used inline via hex:
+  - bhagwa (saffron / highlight): #f77f00
+  - cream base: #f6efe6 / cards bg: #efe6d9
+  - deep/creamy dark text: #5a4632
+*/
+
+const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +34,8 @@ const ContactPage = () => {
   });
   const [submitStatus, setSubmitStatus] = useState(null);
   const navigate = useNavigate();
+  const [selectedCountry, setSelectedCountry] = useState("Global");
+  const [countryOpen, setCountryOpen] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,284 +47,451 @@ const ContactPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+    setSubmitStatus({ type: 'loading', message: 'Sending...' });
+
     // Simulate form submission
     setTimeout(() => {
       setSubmitStatus({ type: 'success', message: 'Thank you for your message! We will get back to you soon.' });
       setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 1000);
+      setTimeout(() => setSubmitStatus(null), 5000); // Clear status after 5 seconds
+    }, 1500);
   };
 
+  // small helper for theme colors in inline style
+  const bhagwa = "#f77f00";
+  const cream = "#f6efe6";
+  const creamCard = "#efe6d9";
+  const darkText = "#5a4632";
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gray-100 text-sm text-center text-gray-600 py-2 px-4">
-        <p>Free shipping on orders $100+</p>
+    <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+      {/* global small style additions (keyframes) */}
+      <style>{`
+        @keyframes slide-in-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slide-in-down { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-slide-in-up { animation: slide-in-up 0.6s ease-out forwards; }
+        .animate-slide-in-down { animation: slide-in-down 0.6s ease-out forwards; }
+        .animate-scale-in { animation: scale-in 0.5s ease-out forwards; }
+        .input-field:focus + .input-label, .input-field:not(:placeholder-shown) + .input-label { transform: translateY(-1.75rem) scale(0.8); color: ${bhagwa}; }
+      `}</style>
+
+      {/* ========================================================================================= */}
+      {/* ========= UNTOUCHED HEADER START ======================================================== */}
+      {/* ========================================================================================= */}
+
+      {/* Top thin bar */}
+      <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
+        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
       </div>
 
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800 cursor-pointer" onClick={() => navigate('/')}>MARSA FYI</h1>
-          
-          <nav className="hidden lg:flex items-center space-x-8">
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/');}} className="text-gray-600 hover:text-orange-600 font-medium">Home</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/about');}} className="text-gray-600 hover:text-orange-600 font-medium">About</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/shop');}} className="text-gray-600 hover:text-orange-600 font-medium">Shop</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/contact');}} className="font-semibold text-orange-600">Contact</a>
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            <div className="relative hidden md:block">
-              <input type="text" placeholder="Search for..." className="pl-4 pr-10 py-2 border rounded-md w-48 focus:ring-2 focus:ring-orange-500 transition"/>
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* Header */}
+      <header className="sticky top-0 z-50 shadow-sm" style={{ backgroundColor: cream }}>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              onClick={() => navigate("/")}
+              style={{ backgroundColor: creamCard }}
+            >
+              <div
+                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+                className="flex items-center justify-center text-white font-bold text-lg"
+              >
+                M
+              </div>
+              <div className="">
+                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
+                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
+              </div>
             </div>
-            <button onClick={() => navigate('/register')} className="px-5 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 transition-colors">Register/Login</button>
-            <User className="text-gray-700 h-6 w-6 cursor-pointer lg:hidden" />
+
+            {/* visible on desktop */}
+            <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
+              <button onClick={() => navigate("/contact")} className="font-semibold" style={{ color: bhagwa }}>Contact</button>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative hidden md:block">
+              <input
+                placeholder="Find products, suppliers, or ports..."
+                className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
+                style={{ backgroundColor: "#fff", color: darkText }}
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b5f3b]" />
+            </div>
+
+            <button
+              onClick={() => navigate("/register")}
+              className="px-4 py-2 rounded-full font-semibold"
+              style={{ backgroundColor: bhagwa, color: "#fff" }}
+            >
+              Join / Login
+            </button>
+
+            <User className="h-6 w-6 text-[#6b503d]" />
           </div>
         </div>
       </header>
 
-      {/* Contact Header */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 py-16">
+      {/* Country selector */}
+      <div className="w-full border-t border-b" style={{ borderColor: "#eadfce" }}>
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="relative" onMouseLeave={() => setCountryOpen(false)}>
+            <button
+              onMouseEnter={() => setCountryOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+              style={{ backgroundColor: creamCard, color: darkText }}
+            >
+              <MapPin className="h-4 w-4" />
+              <span>{selectedCountry}</span>
+              <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            {countryOpen && (
+              <div className="absolute mt-2 left-0 w-44 rounded-md shadow-lg bg-white/50 backdrop-blur-md overflow-hidden z-40">
+                {countries.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
+                    style={{ color: darkText }}
+                  >
+                    {c === "Global" ? "🌍 Global" : c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="text-sm" style={{ color: "#7a614a" }}>
+            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================================================= */}
+      {/* ========= UNTOUCHED HEADER END ======================================================== */}
+      {/* ======================================================================================= */}
+
+
+      {/* ======================================================================================= */}
+      {/* ========= CREATIVE & ANIMATED MIDDLE PART START ======================================= */}
+      {/* ======================================================================================= */}
+      
+      {/* Redesigned Hero Section */}
+      <section className="py-20 md:py-32">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold text-white mb-4">Contact Us</h1>
-          <p className="text-xl text-blue-100">We'd love to hear from you. Get in touch with our team.</p>
+            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight animate-slide-in-down" style={{ color: darkText }}>
+                Let's <span style={{ color: bhagwa }}>Connect</span> & Build Together.
+            </h1>
+            <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto animate-slide-in-up" style={{ animationDelay: '200ms', color: "#7a614a" }}>
+                Whether you have a question, a project proposal, or just want to say hello, our team is ready to answer all your questions.
+            </p>
         </div>
       </section>
 
-      {/* Contact Content */}
-      <section className="contact-content">
-        <div className="container">
-          <div className="contact-layout">
-            <div className="contact-form-section">
-              <h2>Send us a message</h2>
-              <form onSubmit={handleSubmit} className="contact-form">
-                <div className="form-group">
-                  <label htmlFor="name">Full Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    className="form-control"
-                    placeholder="Enter your full name"
-                  />
+      {/* Redesigned Contact Section */}
+      <section className="container mx-auto px-4 pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 animate-scale-in" style={{ animationDelay: '400ms' }}>
+
+          {/* Left Column: Contact Info */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="p-6 rounded-2xl" style={{ backgroundColor: creamCard }}>
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full" style={{ backgroundColor: bhagwa }}>
+                  <MapPin className="h-6 w-6 text-white" />
                 </div>
-                <div className="form-group">
-                  <label htmlFor="email">Email Address</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="form-control"
-                    placeholder="Enter your email address"
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="subject">Subject</label>
-                  <input
-                    type="text"
-                    id="subject"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    required
-                    className="form-control"
-                    placeholder="Enter subject"
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="message">Message</label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    required
-                    className="form-control"
-                    placeholder="Enter your message"
-                    rows="6"
-                  ></textarea>
-                </div>
-                <button type="submit" className="btn btn-primary">Send Message</button>
-              </form>
-              {submitStatus && (
-                <div className={`status-message ${submitStatus.type}`}>
-                  {submitStatus.message}
-                </div>
-              )}
-            </div>
-            
-            <div className="contact-info-section">
-              <h2>Contact Information</h2>
-              <div className="contact-info">
-                <div className="info-item">
-                  <div className="info-icon">📍</div>
-                  <div className="info-content">
-                    <h3>Our Office</h3>
-                    <p>123 Global Trade Center<br />Mumbai, Maharashtra 400001<br />India</p>
-                  </div>
-                </div>
-                <div className="info-item">
-                  <div className="info-icon">📞</div>
-                  <div className="info-content">
-                    <h3>Phone Numbers</h3>
-                    <p>+1 (555) 123-4567 (International)<br />+91 98765 43210 (India)</p>
-                  </div>
-                </div>
-                <div className="info-item">
-                  <div className="info-icon">✉️</div>
-                  <div className="info-content">
-                    <h3>Email Addresses</h3>
-                    <p>support@marsafyi.com<br />sales@marsafyi.com<br />partnerships@marsafyi.com</p>
-                  </div>
-                </div>
-                <div className="info-item">
-                  <div className="info-icon">🕒</div>
-                  <div className="info-content">
-                    <h3>Working Hours</h3>
-                    <p>Monday - Friday: 9:00 AM - 6:00 PM (IST)<br />Saturday: 10:00 AM - 2:00 PM (IST)<br />Sunday: Closed</p>
-                  </div>
+                <div>
+                  <h3 className="text-xl font-bold" style={{ color: darkText }}>Headquarters</h3>
+                  <p className="mt-1 text-[#7a614a]">
+                    123 Global Trade Center<br />Mumbai, Maharashtra 400001, India
+                  </p>
                 </div>
               </div>
-              
-              <div className="map-container">
-                <div className="placeholder-map">Interactive Map</div>
+            </div>
+            
+            <div className="p-6 rounded-2xl" style={{ backgroundColor: creamCard }}>
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full" style={{ backgroundColor: bhagwa }}>
+                  <Mail className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold" style={{ color: darkText }}>Email Us</h3>
+                  <p className="mt-1 text-[#7a614a]">
+                    <a href="mailto:support@marsafyi.com" className="hover:underline">support@marsafyi.com</a><br/>
+                    <a href="mailto:sales@marsafyi.com" className="hover:underline">sales@marsafyi.com</a>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl" style={{ backgroundColor: creamCard }}>
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full" style={{ backgroundColor: bhagwa }}>
+                  <Phone className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold" style={{ color: darkText }}>Call Us</h3>
+                  <p className="mt-1 text-[#7a614a]">
+                    +91 98765 43210 (India)<br/>
+                    +1 (555) 123-4567 (International)
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Right Column: Animated Form */}
+          <div className="lg:col-span-3 bg-white p-8 md:p-12 rounded-3xl shadow-xl">
+            <h2 className="text-4xl font-bold mb-8" style={{ color: darkText }}>Send a Message</h2>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Animated Form Fields with Floating Labels */}
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '500ms' }}>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  placeholder=" "
+                  className="input-field block w-full px-4 py-3 bg-transparent border-b-2 border-gray-200 focus:outline-none focus:border-orange-500 transition-colors peer"
+                  style={{ color: darkText }}
+                />
+                <label htmlFor="name" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
+                  Full Name
+                </label>
+              </div>
+
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '600ms' }}>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  placeholder=" "
+                  className="input-field block w-full px-4 py-3 bg-transparent border-b-2 border-gray-200 focus:outline-none focus:border-orange-500 transition-colors peer"
+                   style={{ color: darkText }}
+                />
+                <label htmlFor="email" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
+                  Email Address
+                </label>
+              </div>
+
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '700ms' }}>
+                <input
+                  type="text"
+                  id="subject"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleChange}
+                  required
+                  placeholder=" "
+                  className="input-field block w-full px-4 py-3 bg-transparent border-b-2 border-gray-200 focus:outline-none focus:border-orange-500 transition-colors peer"
+                   style={{ color: darkText }}
+                />
+                <label htmlFor="subject" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
+                  Subject
+                </label>
+              </div>
+
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '800ms' }}>
+                <textarea
+                  id="message"
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  required
+                  placeholder=" "
+                  rows="4"
+                  className="input-field block w-full px-4 py-3 bg-transparent border-b-2 border-gray-200 focus:outline-none focus:border-orange-500 transition-colors resize-none peer"
+                   style={{ color: darkText }}
+                ></textarea>
+                <label htmlFor="message" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
+                  Your Message
+                </label>
+              </div>
+
+              <div className="animate-slide-in-up" style={{ animationDelay: '900ms' }}>
+                <button
+                  type="submit"
+                  className="w-full px-8 py-4 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105"
+                  style={{ backgroundColor: bhagwa }}
+                  disabled={submitStatus && submitStatus.type === 'loading'}
+                >
+                  {submitStatus && submitStatus.type === 'loading' ? 'Sending...' : 'Send Message'}
+                </button>
+              </div>
+            </form>
+            {submitStatus && submitStatus.type === 'success' && (
+              <div className="mt-6 p-4 rounded-lg bg-green-100 text-green-800 animate-scale-in">
+                {submitStatus.message}
+              </div>
+            )}
+             {submitStatus && submitStatus.type === 'error' && (
+              <div className="mt-6 p-4 rounded-lg bg-red-100 text-red-800 animate-scale-in">
+                {submitStatus.message}
+              </div>
+            )}
+          </div>
         </div>
       </section>
+      
+      {/* ======================================================================================= */}
+      {/* ========= CREATIVE & ANIMATED MIDDLE PART END ========================================= */}
+      {/* ======================================================================================= */}
+
+
+      {/* ======================================================================================= */}
+      {/* ========= NEW EXTENDED SECTIONS START ================================================= */}
+      {/* ======================================================================================= */}
 
       {/* Support Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-24" style={{ backgroundColor: creamCard }}>
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-16">How Can We Help You?</h2>
+          <h2 className="text-4xl font-bold text-center mb-16" style={{ color: darkText }}>How Can We Help?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-shadow text-center">
-              <div className="text-4xl mb-6">❓</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">General Inquiries</h3>
-              <p className="text-gray-600 mb-4">Have questions about our platform or services? Our team is here to help.</p>
-              <a href="mailto:info@marsafyi.com" className="text-blue-600 hover:text-blue-800 font-medium">info@marsafyi.com</a>
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
+              <div className="text-5xl mb-6">❓</div>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>General Inquiries</h3>
+              <p className="text-[#7a614a] mb-4 flex-grow">Have questions about our platform or services? Our team is here to help.</p>
+              <a href="mailto:info@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>info@marsafyi.com</a>
             </div>
-            <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-shadow text-center">
-              <div className="text-4xl mb-6">🛒</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Buyer Support</h3>
-              <p className="text-gray-600 mb-4">Need assistance with purchasing or finding products? Contact our buyer support.</p>
-              <a href="mailto:buyers@marsafyi.com" className="text-blue-600 hover:text-blue-800 font-medium">buyers@marsafyi.com</a>
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
+              <div className="text-5xl mb-6">🛒</div>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Buyer Support</h3>
+              <p className="text-[#7a614a] mb-4 flex-grow">Need assistance with purchasing or finding products? Contact our buyer support.</p>
+              <a href="mailto:buyers@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>buyers@marsafyi.com</a>
             </div>
-            <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-shadow text-center">
-              <div className="text-4xl mb-6">🏪</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Supplier Support</h3>
-              <p className="text-gray-600 mb-4">Looking to sell on our platform? Get help with supplier onboarding.</p>
-              <a href="mailto:suppliers@marsafyi.com" className="text-blue-600 hover:text-blue-800 font-medium">suppliers@marsafyi.com</a>
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
+              <div className="text-5xl mb-6">🏪</div>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Supplier Support</h3>
+              <p className="text-[#7a614a] mb-4 flex-grow">Looking to sell on our platform? Get help with supplier onboarding.</p>
+              <a href="mailto:suppliers@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>suppliers@marsafyi.com</a>
             </div>
-            <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition-shadow text-center">
-              <div className="text-4xl mb-6">💼</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Partnerships</h3>
-              <p className="text-gray-600 mb-4">Interested in partnering with us? Let's explore opportunities together.</p>
-              <a href="mailto:partnerships@marsafyi.com" className="text-blue-600 hover:text-blue-800 font-medium">partnerships@marsafyi.com</a>
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
+              <div className="text-5xl mb-6">💼</div>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Partnerships</h3>
+              <p className="text-[#7a614a] mb-4 flex-grow">Interested in partnering with us? Let's explore opportunities together.</p>
+              <a href="mailto:partnerships@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>partnerships@marsafyi.com</a>
             </div>
           </div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="py-16 bg-white">
+      <section className="py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-16">Frequently Asked Questions</h2>
-          <div className="max-w-3xl mx-auto space-y-6">
+          <h2 className="text-4xl font-bold text-center mb-16" style={{ color: darkText }}>Frequently Asked Questions</h2>
+          <div className="max-w-4xl mx-auto space-y-6">
             {[
               {
                 question: "How do I register as a buyer?",
-                answer: "Registration is simple and free. Click on the 'Register' button in the header, select 'Buyer' as your role, and follow the step-by-step registration process. You'll need to provide basic business information and verify your email address."
+                answer: "Registration is simple and free. Click on the 'Join / Login' button in the header, select the 'Buyer' role, and follow the step-by-step registration process. You'll need to provide basic business information and verify your email address to get started."
               },
               {
                 question: "What verification process do suppliers go through?",
-                answer: "All suppliers undergo a rigorous verification process that includes business registration verification, product quality checks, and reputation assessment. Verified suppliers receive a special badge on their profile and products."
+                answer: "All our suppliers undergo a rigorous multi-stage verification that includes business registration checks, operational history, and product quality assessments. Verified suppliers receive a special badge on their profile, giving you confidence in every transaction."
               },
               {
-                question: "How does the quotation process work?",
-                answer: "Once you find a product you're interested in, click 'Request Quotation'. The supplier will receive your request and typically respond within 24 hours with pricing, terms, and delivery information."
+                question: "How does the quotation and payment process work?",
+                answer: "Once you find a product, you can request a quotation directly from the supplier. After agreeing on terms, all payments are processed through our secure gateway, which includes an escrow service. Funds are only released to the supplier after you confirm successful delivery."
               },
               {
-                question: "What payment methods are supported?",
-                answer: "We support multiple payment methods including credit cards, bank transfers, and our secure escrow service. All transactions are protected by our Trade Assurance program."
+                question: "Do you offer logistics and customs support?",
+                answer: "Yes, we offer end-to-end logistics solutions. Our platform helps you connect with trusted freight forwarders and customs agents to ensure a smooth shipping and clearance process for your international orders."
               }
             ].map((faq, index) => (
-              <div key={index} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{faq.question}</h3>
-                <p className="text-gray-600">{faq.answer}</p>
+              <div key={index} className="border-b pb-6" style={{ borderColor: "#eadfce" }}>
+                <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>{faq.question}</h3>
+                <p className="text-[#7a614a] leading-relaxed">{faq.answer}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-            <div className="lg:col-span-2">
-              <h3 className="text-2xl font-bold mb-4">MarsaFyi</h3>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Global B2B Trade Platform connecting buyers and sellers worldwide
-              </p>
-              <div className="flex space-x-4">
-                {['📘', '🐦', '📷', '💼'].map((icon, index) => (
-                  <a key={index} href="#" className="text-gray-400 hover:text-white text-2xl">
-                    {icon}
-                  </a>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Buyers</h4>
-              <ul className="space-y-2">
-                {['Submit RFQ', 'Search Suppliers', 'Trade Assurance', 'Payment Options'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Suppliers</h4>
-              <ul className="space-y-2">
-                {['Display Products', 'Supplier Membership', 'Learning Center', 'Success Stories'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Company</h4>
-              <ul className="space-y-2">
-                {['About Us', 'Contact Us', 'Careers', 'Press'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
+      {/* ======================================================================================= */}
+      {/* ========= NEW EXTENDED SECTIONS END =================================================== */}
+      {/* ======================================================================================= */}
+
+
+      {/* ======================================================================================= */}
+      {/* ========= UNTOUCHED FOOTER START ====================================================== */}
+      {/* ======================================================================================= */}
+      
+      <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
+        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="flex flex-col items-center">
+            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+
+            <div className="flex gap-3">
+              {/* Instagram */}
+              <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+              </a>
+
+              {/* Facebook */}
+              <a href="https://www.facebook.com/share/1CjsjNy4AF/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Facebook">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a4 4 0 0 0-4 4v3H8v4h3v8h4v-8h3l1-4h-4V6a1 1 0 0 1 1-1h3V2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+
+              {/* X (Twitter) */}
+              <a href="https://x.com/MarsaGroup?t=lcCaLBHxnJiOjeAqzQzTlQ&s=09" target="_blank" rel="noopener noreferrer" aria-label="X" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="X">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 16.5 3c-2.72 0-4.92 2.3-4.92 5.13 0 .4.05.8.13 1.18A13 13 0 0 1 2 4.5s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5V5c0-.7.5-1.5 1-2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+
+              {/* YouTube */}
+              <a href="https://youtube.com/marsafyi" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="YouTube">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1-1.8-1 .6-.7.8-2.3.8-2.3s.2-1.8.2-3.6v-1.4C23 8 22.5 6.2 22.5 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
+              </a>
             </div>
           </div>
-          
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 MarsaFyi. All rights reserved. | Privacy Policy | Terms of Service</p>
+
+          <div className="flex flex-col items-center">
+            <div className="font-semibold mb-3">For Buyers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
+              <li>Submit RFQ</li>
+              <li>Search Suppliers</li>
+              <li>Trade Assurance</li>
+              <li>Payment Options</li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <div className="font-semibold mb-3">For Suppliers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
+              <li>Display Products</li>
+              <li>Supplier Membership</li>
+              <li>Learning Center</li>
+              <li>Success Stories</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t" style={{ borderColor: "#3a2b20" }}>
+          <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
+            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
           </div>
         </div>
       </footer>
+
+      {/* ======================================================================================= */}
+      {/* ========= UNTOUCHED FOOTER END ======================================================== */}
+      {/* ======================================================================================= */}
     </div>
   );
 };
 
 export default ContactPage;
+

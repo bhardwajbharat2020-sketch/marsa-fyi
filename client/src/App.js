@@ -20,6 +20,7 @@ import InsuranceAgentDashboard from './components/InsuranceAgentDashboard';
 import TransporterDashboard from './components/TransporterDashboard';
 import LogisticsDashboard from './components/LogisticsDashboard';
 import CHADashboard from './components/CHADashboard';
+import CategoriesPage from './components/CategoriesPage';
 import RoleSwitcher from './components/RoleSwitcher';
 import RoleDashboard from './components/RoleDashboard';
 import { AuthProvider } from './contexts/AuthContext';
@@ -37,6 +38,7 @@ function App() {
             <Route path="/product/:productId" element={<ProductDetailPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/dashboard" element={<RoleDashboard />} />
             <Route path="/dashboard/seller" element={<SellerDashboard />} />
             <Route path="/dashboard/buyer" element={<BuyerDashboard />} />

@@ -1,144 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Star, Heart, CheckCircle, ChevronLeft, ChevronRight, User, Search } from 'lucide-react';
+import { Star, Heart, CheckCircle, ChevronLeft, ChevronRight, User, Search, MapPin } from 'lucide-react';
 import '../App.css';
-
-// Mock data for products
-const mockProducts = [
-  {
-    id: 1,
-    title: 'Premium Electronics Components',
-    seller: 'VEND-23-ABC123',
-    port: 'Mumbai Port',
-    category: 'Electronics',
-    description: 'High-quality electronic components for industrial use with 5-year warranty. These components are designed for heavy-duty applications and have been tested under extreme conditions to ensure reliability and longevity.',
-    detailedDescription: 'Our premium electronic components are manufactured using state-of-the-art technology and the highest quality materials. Each component undergoes rigorous testing to meet international standards. Key features include:\n\n- Operating temperature range: -40°C to +85°C\n- Humidity resistance up to 95% RH\n- Vibration resistance up to 20G\n- ESD protection up to 15kV\n- RoHS compliant\n\nApplications include industrial automation, automotive electronics, aerospace systems, and telecommunications infrastructure.',
-    price: '$5,000',
-    likes: 1240,
-    image: '/placeholder.jpg',
-    rating: 4.8,
-    verified: true,
-    specifications: [
-      { name: 'Operating Voltage', value: '5V - 24V' },
-      { name: 'Current Rating', value: '10A' },
-      { name: 'Power Consumption', value: '2.5W' },
-      { name: 'Dimensions', value: '50mm x 30mm x 15mm' },
-      { name: 'Weight', value: '45g' },
-      { name: 'Material', value: 'Aluminum Alloy' }
-    ],
-    certifications: ['ISO 9001', 'RoHS', 'CE']
-  },
-  {
-    id: 2,
-    title: 'Organic Cotton Textiles',
-    seller: 'VEND-23-XYZ789',
-    port: 'Chennai Port',
-    category: 'Textiles',
-    description: 'Sustainable organic cotton fabrics for fashion industry, GOTS certified. Made from 100% organic cotton without the use of harmful chemicals or pesticides.',
-    detailedDescription: 'Our organic cotton textiles are produced using environmentally friendly processes that protect both the planet and the people involved in production. The cotton is grown without synthetic fertilizers or pesticides, ensuring a cleaner environment and safer working conditions.\n\nFeatures:\n- 100% Organic Cotton\n- GOTS certified production\n- OEKO-TEX Standard 100 compliant\n- Soft and breathable\n- Hypoallergenic\n- Biodegradable\n\nAvailable in various weights and weaves suitable for different applications from lightweight summer clothing to heavy-duty workwear.',
-    price: '$3,500',
-    likes: 890,
-    image: '/placeholder.jpg',
-    rating: 4.9,
-    verified: true,
-    specifications: [
-      { name: 'Fiber Content', value: '100% Organic Cotton' },
-      { name: 'Weight', value: '150 GSM' },
-      { name: 'Width', value: '150cm' },
-      { name: 'Shrinkage', value: '<3%' },
-      { name: 'Color Fastness', value: 'Grade 4-5' }
-    ],
-    certifications: ['GOTS', 'OEKO-TEX', 'Fair Trade']
-  },
-  {
-    id: 3,
-    title: 'Industrial Machinery Parts',
-    seller: 'VEND-23-DEF456',
-    port: 'JNPT',
-    category: 'Machinery',
-    description: 'Heavy-duty machinery components for manufacturing with ISO 9001 certification. Precision-engineered for maximum durability and performance.',
-    detailedDescription: 'These industrial machinery parts are designed for demanding applications in manufacturing environments. Each component is precision-machined to exacting tolerances and undergoes comprehensive quality control testing.\n\nKey characteristics:\n- High-strength alloy construction\n- Precision machining with tolerances ±0.01mm\n- Heat-treated for enhanced durability\n- Surface finishing for corrosion resistance\n- Interchangeable with OEM parts\n- Backed by 2-year warranty\n\nSuitable for use in automotive assembly lines, food processing equipment, packaging machinery, and textile manufacturing.',
-    price: '$12,000',
-    likes: 670,
-    image: '/placeholder.jpg',
-    rating: 4.7,
-    verified: false,
-    specifications: [
-      { name: 'Material', value: 'Alloy Steel' },
-      { name: 'Hardness', value: 'HRC 58-62' },
-      { name: 'Tolerance', value: '±0.01mm' },
-      { name: 'Surface Finish', value: 'Ra 0.8μm' },
-      { name: 'Operating Temp', value: '-20°C to +150°C' }
-    ],
-    certifications: ['ISO 9001', 'CE']
-  },
-  {
-    id: 4,
-    title: 'Specialty Chemicals',
-    seller: 'VEND-23-GHI321',
-    port: 'Vishakhapatnam Port',
-    category: 'Chemicals',
-    description: 'High-purity chemicals for pharmaceutical industry, REACH compliant. Manufactured under strict quality control standards.',
-    detailedDescription: 'Our specialty chemicals are produced in ISO-certified facilities with stringent quality control measures. Each batch is tested for purity, consistency, and compliance with international standards.\n\nProduct highlights:\n- Purity >99.5%\n- Trace metal content <10ppm\n- Consistent batch-to-batch quality\n- Detailed Certificate of Analysis provided\n- Custom packaging available\n- Technical support available\n\nApplications include active pharmaceutical ingredients (APIs), excipients, and intermediate compounds for drug manufacturing.',
-    price: '$8,500',
-    likes: 420,
-    image: '/placeholder.jpg',
-    rating: 4.6,
-    verified: true,
-    specifications: [
-      { name: 'Purity', value: '>99.5%' },
-      { name: 'Moisture Content', value: '<0.5%' },
-      { name: 'Particle Size', value: '<10μm' },
-      { name: 'Solubility', value: 'Freely soluble in water' },
-      { name: 'pH', value: '6.5-7.5' }
-    ],
-    certifications: ['REACH', 'ISO 9001', 'GMP']
-  },
-  {
-    id: 5,
-    title: 'Automotive Spare Parts',
-    seller: 'VEND-23-JKL987',
-    port: 'Kolkata Port',
-    category: 'Automotive',
-    description: 'OEM quality automotive components with 2-year guarantee. Direct replacement parts for major vehicle manufacturers.',
-    detailedDescription: 'These automotive spare parts are manufactured to OEM specifications ensuring perfect fit and performance. Each component undergoes extensive testing to meet or exceed original equipment standards.\n\nQuality assurance:\n- OEM equivalent materials\n- Precision manufacturing\n- Comprehensive testing protocols\n- 2-year warranty coverage\n- Global compatibility\n- Technical documentation included\n\nSuitable for passenger cars, light commercial vehicles, and motorcycles from major manufacturers.',
-    price: '$6,200',
-    likes: 750,
-    image: '/placeholder.jpg',
-    rating: 4.5,
-    verified: true,
-    specifications: [
-      { name: 'Compatibility', value: 'Universal fit' },
-      { name: 'Material', value: 'High-grade Steel/Aluminum' },
-      { name: 'Finish', value: 'Chrome/Zinc plated' },
-      { name: 'Warranty', value: '2 years' },
-      { name: 'Standards', value: 'ISO 9001, TS 16949' }
-    ],
-    certifications: ['ISO/TS 16949', 'SAE', 'E-Mark']
-  },
-  {
-    id: 6,
-    title: 'Construction Materials',
-    seller: 'VEND-23-MNO654',
-    port: 'Mumbai Port',
-    category: 'Construction',
-    description: 'High-grade construction materials with ISI certification. Durable and reliable for all construction projects.',
-    detailedDescription: 'Our construction materials are engineered for strength, durability, and compliance with national and international building standards. These materials are ideal for both residential and commercial construction projects.\n\nProduct benefits:\n- High tensile strength\n- Corrosion resistant\n- Weatherproof\n- Easy to install\n- Cost-effective\n- Long service life\n\nApplications include structural frameworks, foundation work, roofing systems, and decorative elements.',
-    price: '$4,800',
-    likes: 530,
-    image: '/placeholder.jpg',
-    rating: 4.4,
-    verified: false,
-    specifications: [
-      { name: 'Material Grade', value: 'IS 2062' },
-      { name: 'Tensile Strength', value: '410 MPa' },
-      { name: 'Yield Strength', value: '250 MPa' },
-      { name: 'Elongation', value: '>22%' },
-      { name: 'Coating', value: 'Galvanized' }
-    ],
-    certifications: ['ISI', 'ISO 9001']
-  }
-];
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
@@ -146,14 +9,73 @@ const ProductDetailPage = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
+  const [selectedCountry, setSelectedCountry] = useState("Global");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
 
-  // Find the current product
-  const currentProduct = mockProducts.find(product => product.id === parseInt(productId)) || mockProducts[0];
-  
-  // Find related products (same category, excluding current product)
-  const relatedProducts = mockProducts.filter(product => 
-    product.category === currentProduct.category && product.id !== currentProduct.id
-  );
+  // small helper for theme colors in inline style
+  const bhagwa = "#f77f00";
+  const cream = "#f6efe6";
+  const creamCard = "#efe6d9";
+  const darkText = "#5a4632";
+
+  const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
+
+  // Fetch product data
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching product with ID:', productId);
+        const response = await fetch(`/api/products/${productId}`);
+        const data = await response.json();
+        console.log('Product fetch response:', response.status, data);
+        
+        if (response.ok) {
+          setProduct(data);
+        } else {
+          setError(data.error || 'Failed to fetch product');
+        }
+      } catch (err) {
+        setError('Failed to fetch product');
+        console.error('Error fetching product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchProduct();
+    }
+  }, [productId]);
+
+  // Fetch related products when product category is known
+  useEffect(() => {
+    const fetchRelatedProducts = async () => {
+      if (!product || !product.category_name) return;
+      
+      try {
+        const response = await fetch(`/api/products/category/${encodeURIComponent(product.category_name)}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Filter out the current product
+          const filteredProducts = data.filter(p => p.id !== parseInt(productId));
+          setRelatedProducts(filteredProducts);
+        }
+      } catch (err) {
+        console.error('Error fetching related products:', err);
+        // It's okay if related products fail to load
+      }
+    };
+
+    if (product && product.category_name) {
+      fetchRelatedProducts();
+    }
+  }, [product, productId]);
 
   const handleRFQ = () => {
     // In a real app, this would check if user is logged in
@@ -166,50 +88,172 @@ const ProductDetailPage = () => {
     alert('Added to cart!');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+        <div className="container mx-auto px-4 py-12 text-center">
+          <p>Loading product details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+        <div className="container mx-auto px-4 py-12 text-center">
+          <p>Error: {error}</p>
+          <button 
+            onClick={() => navigate('/shop')}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Shop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+        <div className="container mx-auto px-4 py-12 text-center">
+          <p>Product not found</p>
+          <button 
+            onClick={() => navigate('/shop')}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Shop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gray-100 text-sm text-center text-gray-600 py-2 px-4">
-        <p>Free shipping on orders $100+</p>
+    <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+      {/* global small style additions (keyframes) */}
+      <style>{`
+        @keyframes floatUp { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        .animate-float { animation: floatUp 600ms ease-out both; }
+        .glass {
+          background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.35));
+          backdrop-filter: blur(6px);
+        }
+      `}</style>
+
+      {/* Top thin bar */}
+      <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
+        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
       </div>
 
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800 cursor-pointer" onClick={() => navigate('/')}>MARSA FYI</h1>
-          
-          <nav className="hidden lg:flex items-center space-x-8">
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/');}} className="text-gray-600 hover:text-orange-600 font-medium">Home</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/about');}} className="text-gray-600 hover:text-orange-600 font-medium">About</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/shop');}} className="text-gray-600 hover:text-orange-600 font-medium">Shop</a>
-            <a href="#" onClick={(e) => {e.preventDefault(); navigate('/contact');}} className="text-gray-600 hover:text-orange-600 font-medium">Contact</a>
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            <div className="relative hidden md:block">
-              <input type="text" placeholder="Search for..." className="pl-4 pr-10 py-2 border rounded-md w-48 focus:ring-2 focus:ring-orange-500 transition"/>
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* Header */}
+      <header className="sticky top-0 z-50 shadow-sm" style={{ backgroundColor: cream }}>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              onClick={() => navigate("/")}
+              style={{ backgroundColor: creamCard }}
+            >
+              <div
+                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+                className="flex items-center justify-center text-white font-bold text-lg"
+              >
+                M
+              </div>
+              <div className="">
+                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
+                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
+              </div>
             </div>
-            <button onClick={() => navigate('/register')} className="px-5 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 transition-colors">Register/Login</button>
-            <User className="text-gray-700 h-6 w-6 cursor-pointer lg:hidden" />
+
+            {/* visible on desktop */}
+            <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
+              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative hidden md:block">
+              <input
+                placeholder="Find products, suppliers, or ports..."
+                className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
+                style={{ backgroundColor: "#fff", color: darkText }}
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b5f3b]" />
+            </div>
+
+            <button
+              onClick={() => navigate("/register")}
+              className="px-4 py-2 rounded-full font-semibold"
+              style={{ backgroundColor: bhagwa, color: "#fff" }}
+            >
+              Join / Login
+            </button>
+
+            <User className="h-6 w-6 text-[#6b503d]" />
           </div>
         </div>
       </header>
 
+      {/* Country selector */}
+      <div className="w-full border-t border-b" style={{ borderColor: "#eadfce" }}>
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="relative" onMouseLeave={() => setCountryOpen(false)}>
+            <button
+              onMouseEnter={() => setCountryOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+              style={{ backgroundColor: creamCard, color: darkText }}
+            >
+              <MapPin className="h-4 w-4" />
+              <span>{selectedCountry}</span>
+              <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            {countryOpen && (
+              <div className="absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
+                {countries.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
+                    style={{ color: darkText }}
+                  >
+                    {c === "Global" ? "🌍 Global" : c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="text-sm" style={{ color: "#7a614a" }}>
+            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+          </div>
+        </div>
+      </div>
+
       {/* Breadcrumb */}
-      <section className="py-4 bg-white border-b">
+      <section className="py-4" style={{ backgroundColor: "#fff" }}>
         <div className="container mx-auto px-4">
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-center text-sm" style={{ color: darkText }}>
             <button 
               onClick={() => navigate(-1)}
-              className="flex items-center text-blue-600 hover:text-blue-800"
+              className="flex items-center font-semibold"
+              style={{ color: bhagwa }}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
               Back
             </button>
             <span className="mx-2">/</span>
-            <span>{currentProduct.category}</span>
+            <span>{product.category_name || 'Category'}</span>
             <span className="mx-2">/</span>
-            <span className="text-gray-900 font-medium">{currentProduct.title}</span>
+            <span className="font-medium">{product.name}</span>
           </div>
         </div>
       </section>
@@ -222,11 +266,11 @@ const ProductDetailPage = () => {
             <div>
               <div className="relative">
                 <img 
-                  src={currentProduct.image} 
-                  alt={currentProduct.title} 
+                  src="/placeholder.jpg" 
+                  alt={product.name} 
                   className="w-full h-96 object-cover rounded-xl"
                 />
-                {currentProduct.verified && (
+                {product.is_verified && (
                   <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center">
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Verified
@@ -245,8 +289,8 @@ const ProductDetailPage = () => {
                     onClick={() => setSelectedImage(index)}
                   >
                     <img 
-                      src={currentProduct.image} 
-                      alt={`${currentProduct.title} ${index + 1}`} 
+                      src="/placeholder.jpg" 
+                      alt={`${product.name} ${index + 1}`} 
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -256,7 +300,7 @@ const ProductDetailPage = () => {
             
             {/* Product Info */}
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">{currentProduct.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
               
               <div className="flex items-center mb-6">
                 <div className="flex">
@@ -264,33 +308,33 @@ const ProductDetailPage = () => {
                     <Star 
                       key={i} 
                       className={`h-5 w-5 ${
-                        i < Math.floor(currentProduct.rating) 
+                        i < 4 // In a real app, this would come from the product rating
                           ? 'text-yellow-400 fill-current' 
                           : 'text-gray-300'
                       }`} 
                     />
                   ))}
                 </div>
-                <span className="ml-2 text-gray-600">{currentProduct.rating}</span>
+                <span className="ml-2 text-gray-600">4.5</span> {/* In a real app, this would come from the product rating */}
                 <span className="mx-2 text-gray-300">•</span>
-                <span className="text-gray-500">👍 {currentProduct.likes} likes</span>
+                <span className="text-gray-500">👍 0 likes</span> {/* In a real app, this would come from the product likes */}
               </div>
               
-              <p className="text-gray-700 mb-8">{currentProduct.description}</p>
+              <p className="text-gray-700 mb-8">{product.description || 'No description available'}</p>
               
               <div className="border-t border-b border-gray-200 py-6 mb-8">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500">Seller</h3>
-                    <p className="text-gray-900">{currentProduct.seller}</p>
+                    <h3 className="text-sm font-medium text-gray-500">Vendor</h3>
+                    <p className="text-gray-900">{product.company_name || 'Unknown Vendor'}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Port</h3>
-                    <p className="text-gray-900">{currentProduct.port}</p>
+                    <p className="text-gray-900">{product.origin_port_name || 'Not specified'}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Category</h3>
-                    <p className="text-gray-900">{currentProduct.category}</p>
+                    <p className="text-gray-900">{product.category_name || 'Uncategorized'}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Availability</h3>
@@ -361,13 +405,13 @@ const ProductDetailPage = () => {
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">Product Description</h3>
                   <div className="prose max-w-none">
-                    {currentProduct.detailedDescription.split('\n').map((paragraph, index) => (
-                      paragraph.startsWith('-') ? (
-                        <li key={index} className="ml-4">{paragraph.substring(1).trim()}</li>
-                      ) : (
+                    {product.description ? (
+                      product.description.split('\n').map((paragraph, index) => (
                         <p key={index} className="mb-4 text-gray-700">{paragraph}</p>
-                      )
-                    ))}
+                      ))
+                    ) : (
+                      <p>No description available for this product.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -375,32 +419,14 @@ const ProductDetailPage = () => {
               {activeTab === 'specifications' && (
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">Technical Specifications</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentProduct.specifications.map((spec, index) => (
-                      <div key={index} className="flex justify-between py-3 border-b border-gray-100">
-                        <span className="font-medium text-gray-900">{spec.name}</span>
-                        <span className="text-gray-700">{spec.value}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <p>Specifications information is not available for this product.</p>
                 </div>
               )}
               
               {activeTab === 'certifications' && (
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">Certifications</h3>
-                  <div className="flex flex-wrap gap-4">
-                    {currentProduct.certifications.map((cert, index) => (
-                      <div key={index} className="bg-blue-50 px-4 py-2 rounded-lg">
-                        <span className="font-medium text-blue-700">{cert}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-4 text-gray-700">
-                    All our products undergo rigorous testing and certification processes to ensure they meet 
-                    the highest quality and safety standards. We work with internationally recognized 
-                    certification bodies to provide you with confidence in our products.
-                  </p>
+                  <p>Certification information is not available for this product.</p>
                 </div>
               )}
             </div>
@@ -433,33 +459,33 @@ const ProductDetailPage = () => {
                 >
                   <div className="relative mb-4">
                     <img 
-                      src={product.image} 
-                      alt={product.title} 
+                      src="/placeholder.jpg" 
+                      alt={product.name} 
                       className="w-full h-48 object-cover rounded-lg"
                     />
-                    {product.verified && (
+                    {product.is_verified && (
                       <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Verified
                       </div>
                     )}
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600">{product.title}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{product.seller}</p>
+                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600">{product.name}</h3>
+                  <p className="text-gray-600 text-sm mb-3">{product.company_name || 'Unknown Vendor'}</p>
                   <div className="flex items-center justify-center mb-3">
                     <div className="flex">
                       {[...Array(5)].map((_, i) => (
                         <Star 
                           key={i} 
                           className={`h-4 w-4 ${
-                            i < Math.floor(product.rating) 
+                            i < 4 // In a real app, this would come from the product rating
                               ? 'text-yellow-400 fill-current' 
                               : 'text-gray-300'
                           }`} 
                         />
                       ))}
                     </div>
-                    <span className="ml-1 text-gray-600 text-sm">{product.rating}</span>
+                    <span className="ml-1 text-gray-600 text-sm">4.5</span> {/* In a real app, this would come from the product rating */}
                   </div>
                   <button 
                     className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -499,59 +525,59 @@ const ProductDetailPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-            <div className="lg:col-span-2">
-              <h3 className="text-2xl font-bold mb-4">MarsaFyi</h3>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Global B2B Trade Platform connecting buyers and sellers worldwide
-              </p>
-              <div className="flex space-x-4">
-                {['📘', '🐦', '📷', '💼'].map((icon, index) => (
-                  <a key={index} href="#" className="text-gray-400 hover:text-white text-2xl">
-                    {icon}
-                  </a>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Buyers</h4>
-              <ul className="space-y-2">
-                {['Submit RFQ', 'Search Suppliers', 'Trade Assurance', 'Payment Options'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">For Suppliers</h4>
-              <ul className="space-y-2">
-                {['Display Products', 'Supplier Membership', 'Learning Center', 'Success Stories'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Company</h4>
-              <ul className="space-y-2">
-                {['About Us', 'Contact Us', 'Careers', 'Press'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-white transition-colors">{item}</a>
-                  </li>
-                ))}
-              </ul>
+      <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
+        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="flex flex-col items-center">
+            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+
+            <div className="flex gap-3">
+              {/* Instagram */}
+              <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+              </a>
+
+              {/* Facebook */}
+              <a href="https://www.facebook.com/share/1CjsjNy4AF/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Facebook">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a4 4 0 0 0-4 4v3H8v4h3v8h4v-8h3l1-4h-4V6a1 1 0 0 1 1-1h3V2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+
+              {/* X (Twitter) */}
+              <a href="https://x.com/MarsaGroup?t=lcCaLBHxnJiOjeAqzQzTlQ&s=09" target="_blank" rel="noopener noreferrer" aria-label="X" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="X">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 16.5 3c-2.72 0-4.92 2.3-4.92 5.13 0 .4.05.8.13 1.18A13 13 0 0 1 2 4.5s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5V5c0-.7.5-1.5 1-2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+
+              {/* YouTube */}
+              <a href="https://youtube.com/marsafyi" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="YouTube">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1 1.8-1 .6-.7.8-2.3.8-2.3S23 8 23 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
+              </a>
             </div>
           </div>
-          
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 MarsaFyi. All rights reserved. | Privacy Policy | Terms of Service</p>
+
+          <div className="flex flex-col items-center">
+            <div className="font-semibold mb-3">For Buyers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
+              <li>Submit RFQ</li>
+              <li>Search Suppliers</li>
+              <li>Trade Assurance</li>
+              <li>Payment Options</li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <div className="font-semibold mb-3">For Suppliers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
+              <li>Display Products</li>
+              <li>Supplier Membership</li>
+              <li>Learning Center</li>
+              <li>Success Stories</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t" style={{ borderColor: "#3a2b20" }}>
+          <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
+            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
           </div>
         </div>
       </footer>
