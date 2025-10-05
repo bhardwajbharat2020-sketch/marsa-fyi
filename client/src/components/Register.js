@@ -685,3 +685,5 @@ const getDocumentInstructions = (workClass) => {
 };
 
 export default Register;
+
+//forcing a fresh update for vercel deployment
