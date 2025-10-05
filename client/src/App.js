@@ -23,6 +23,7 @@ import CHADashboard from './components/CHADashboard';
 import CategoriesPage from './components/CategoriesPage';
 import RoleSwitcher from './components/RoleSwitcher';
 import RoleDashboard from './components/RoleDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -40,19 +41,105 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/dashboard" element={<RoleDashboard />} />
-            <Route path="/dashboard/seller" element={<SellerDashboard />} />
-            <Route path="/dashboard/buyer" element={<BuyerDashboard />} />
-            <Route path="/dashboard/captain" element={<CaptainDashboard />} />
-            <Route path="/dashboard/admin" element={<AdminDashboard />} />
-            <Route path="/dashboard/hr" element={<HrDashboard />} />
-            <Route path="/dashboard/accountant" element={<AccountantDashboard />} />
-            <Route path="/dashboard/arbitrator" element={<ArbitratorDashboard />} />
-            <Route path="/dashboard/surveyor" element={<SurveyorDashboard />} />
-            <Route path="/dashboard/insurance" element={<InsuranceAgentDashboard />} />
-            <Route path="/dashboard/transporter" element={<TransporterDashboard />} />
-            <Route path="/dashboard/logistics" element={<LogisticsDashboard />} />
-            <Route path="/dashboard/cha" element={<CHADashboard />} />
             <Route path="/role-switch" element={<RoleSwitcher />} />
+            
+            {/* Protected Dashboard Routes */}
+            <Route 
+              path="/dashboard/seller" 
+              element={
+                <ProtectedRoute allowedRoles={['seller']}>
+                  <SellerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/buyer" 
+              element={
+                <ProtectedRoute allowedRoles={['buyer']}>
+                  <BuyerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/captain" 
+              element={
+                <ProtectedRoute allowedRoles={['captain']}>
+                  <CaptainDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/admin" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/hr" 
+              element={
+                <ProtectedRoute allowedRoles={['hr']}>
+                  <HrDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/accountant" 
+              element={
+                <ProtectedRoute allowedRoles={['accountant']}>
+                  <AccountantDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/arbitrator" 
+              element={
+                <ProtectedRoute allowedRoles={['arbitrator']}>
+                  <ArbitratorDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/surveyor" 
+              element={
+                <ProtectedRoute allowedRoles={['surveyor']}>
+                  <SurveyorDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/insurance" 
+              element={
+                <ProtectedRoute allowedRoles={['insurance']}>
+                  <InsuranceAgentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/transporter" 
+              element={
+                <ProtectedRoute allowedRoles={['transporter']}>
+                  <TransporterDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/logistics" 
+              element={
+                <ProtectedRoute allowedRoles={['logistics']}>
+                  <LogisticsDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard/cha" 
+              element={
+                <ProtectedRoute allowedRoles={['cha']}>
+                  <CHADashboard />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
         </div>
       </AuthProvider>
