@@ -2957,7 +2957,39 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
 app.use(express.static(path.join(__dirname, '../client/build')));
 
 // Catch all handler: send back React's index.html file for any non-API routes
+// But exclude requests for static assets (files with extensions)
+app.get(/^\/(?!api).*\.(?!js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
+
+// Alternative catch-all that excludes common static file extensions
+app.get(/^((?!api|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).)*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
+
+// Even simpler approach - just handle the root route and let static middleware handle assets
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../client/build')));
+
+// Health check endpoint (should come before catch-all)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API routes should be defined here (they already are in your code above)
+
+// Catch all handler: send back React's index.html file for any non-API routes
+// But exclude API routes and static assets
 app.get('*', (req, res) => {
+  // If it's an API request, don't serve index.html
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).send('API route not found');
+  }
+  
+  // For all other routes, serve the React app
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
