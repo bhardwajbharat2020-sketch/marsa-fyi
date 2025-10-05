@@ -9,45 +9,46 @@ const RoleDashboard = () => {
   useEffect(() => {
     if (userRole) {
       // Redirect to role-specific dashboard based on user role
+      // Using full role names instead of codes
       switch (userRole) {
-        case 'ADM':
+        case 'admin':
           navigate('/dashboard/admin');
           break;
-        case 'HR':
+        case 'hr':
           navigate('/dashboard/hr');
           break;
-        case 'ACC':
+        case 'accountant':
           navigate('/dashboard/accountant');
           break;
-        case 'CAPT':
-          navigate('/dashboard/captain');
+        case 'captain':
+          navigate('/dashboard/ccaptain');
           break;
-        case 'SELL':
+        case 'seller':
           navigate('/dashboard/seller');
           break;
-        case 'BUY':
+        case 'buyer':
           navigate('/dashboard/buyer');
           break;
-        case 'SUR':
+        case 'surveyor':
           navigate('/dashboard/surveyor');
           break;
-        case 'ARB':
+        case 'arbitrator':
           navigate('/dashboard/arbitrator');
           break;
-        case 'INS':
+        case 'insurance':
           navigate('/dashboard/insurance');
           break;
-        case 'TRN':
+        case 'transporter':
           navigate('/dashboard/transporter');
           break;
-        case 'LOG':
+        case 'logistics':
           navigate('/dashboard/logistics');
           break;
-        case 'CHA':
+        case 'cha':
           navigate('/dashboard/cha');
           break;
         default:
-          navigate('/dashboard');
+          navigate('/dashboard/buyer'); // Default to buyer dashboard
       }
     }
   }, [userRole, navigate]);

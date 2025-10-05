@@ -3,7 +3,8 @@
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm start",
     "client": "cd client && npx react-scripts start",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "update-schema": "node update_product_schema.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

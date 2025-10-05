@@ -91,6 +91,7 @@ const Login = () => {
             navigate('/dashboard/buyer');
         }
       } else {
+
         // Login failed
         setError(data.message || 'Invalid credentials. Please try again.');
       }

@@ -132,8 +132,16 @@ CREATE TABLE products (
     currency_id INTEGER REFERENCES currencies(id) DEFAULT 1,
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
+    moq INTEGER,
+    moq_uom VARCHAR(10),
+    available_quantity INTEGER,
+    quantity_uom VARCHAR(10),
+    price_type VARCHAR(10) DEFAULT 'EXW',
+    is_relabeling_allowed BOOLEAN DEFAULT FALSE,
+    offer_validity_date TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) DEFAULT 'pending', -- pending, approved, rejected
     image_url TEXT,
+    thumbnail_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -689,9 +697,9 @@ CREATE TRIGGER update_user_issues_updated_at BEFORE UPDATE ON user_issues
 -- ('sarah_buyer', 'sarah@example.com', '+1234567891', 'Sarah', 'Buyer', 'hashed_password_here', 'BUY-23-DEF456');
 
 -- Sample products (for testing only)
--- INSERT INTO products (seller_id, name, description, category_id, price, currency_id, is_active, is_verified) VALUES
--- (1, 'Premium Electronics Components', 'High-quality electronic components for industrial use', 1, 5000.00, 1, TRUE, TRUE),
--- (1, 'Advanced Circuit Boards', 'Multi-layer PCBs with advanced features', 1, 12000.00, 1, TRUE, TRUE);
+-- INSERT INTO products (seller_id, name, description, category_id, price, currency_id, is_active, is_verified, moq, moq_uom, available_quantity, quantity_uom, price_type, is_relabeling_allowed, offer_validity_date, status, image_url, thumbnail_url) VALUES
+-- (1, 'Premium Electronics Components', 'High-quality electronic components for industrial use', 1, 5000.00, 1, TRUE, TRUE, 100, 'pcs', 1000, 'pcs', 'EXW', TRUE, '2025-12-31 23:59:59', 'approved', '/images/product1.jpg', '/images/thumb1.jpg'),
+-- (1, 'Advanced Circuit Boards', 'Multi-layer PCBs with advanced features', 1, 12000.00, 1, TRUE, TRUE, 50, 'pcs', 500, 'pcs', 'FOB', FALSE, '2025-12-31 23:59:59', 'approved', '/images/product2.jpg', '/images/thumb2.jpg');
 
 -- Sample roles (already inserted above)
 -- INSERT INTO roles (name, code, description) VALUES

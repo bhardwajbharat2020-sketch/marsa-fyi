@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { User, LogOut, Menu, X } from 'lucide-react';
 import '../App.css';
 
 const DashboardLayout = ({ children, title, role }) => {
@@ -8,6 +9,13 @@ const DashboardLayout = ({ children, title, role }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Theme colors to match homepage
+  const bhagwa = "#f77f00";
+  const cream = "#f6efe6";
+  const creamCard = "#efe6d9";
+  const darkText = "#5a4632";
 
   const handleLogout = () => {
     logout();
@@ -16,6 +24,10 @@ const DashboardLayout = ({ children, title, role }) => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const getMenuItems = () => {
@@ -155,56 +167,139 @@ const DashboardLayout = ({ children, title, role }) => {
   ];
 
   return (
-    <div className="dashboard-container">
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-          <h2 className="sidebar-title">{sidebarCollapsed ? 'M' : 'MarsaFyi'}</h2>
-          <button className="sidebar-toggle" onClick={toggleSidebar}>
+    <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+      {/* Mobile menu button */}
+      <div className="md:hidden fixed top-4 left-4 z-50">
+        <button
+          onClick={toggleMobileMenu}
+          className="p-2 rounded-md"
+          style={{ backgroundColor: creamCard }}
+        >
+          {mobileMenuOpen ? <X size={24} style={{ color: darkText }} /> : <Menu size={24} style={{ color: darkText }} />}
+        </button>
+      </div>
+
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-40 md:hidden"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={toggleMobileMenu}
+        >
+          <div 
+            className="fixed left-0 top-0 h-full w-64 overflow-y-auto"
+            style={{ backgroundColor: "#2b2017" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-4 border-b" style={{ borderColor: "#3a2b20" }}>
+              <h2 className="text-xl font-bold" style={{ color: "#f8efe3" }}>MarsaFyi</h2>
+            </div>
+            <nav className="p-2">
+              {getMenuItems().map((item, index) => (
+                <div 
+                  key={index} 
+                  className={`p-3 rounded-md mb-1 flex items-center cursor-pointer ${
+                    location.pathname === item.path ? 'font-semibold' : ''
+                  }`}
+                  onClick={() => {
+                    navigate(item.path);
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{ 
+                    backgroundColor: location.pathname === item.path ? "#3a2b20" : "transparent",
+                    color: "#f8efe3"
+                  }}
+                >
+                  <span className="mr-3 text-lg">{item.icon}</span>
+                  <span>{item.name}</span>
+                </div>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <div className={`hidden md:block fixed h-full z-30 transition-all duration-300 ${
+        sidebarCollapsed ? 'w-20' : 'w-64'
+      }`} style={{ backgroundColor: "#2b2017" }}>
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "#3a2b20" }}>
+          {!sidebarCollapsed && (
+            <h2 className="text-xl font-bold" style={{ color: "#f8efe3" }}>MarsaFyi</h2>
+          )}
+          <button 
+            className="p-1 rounded-md"
+            onClick={toggleSidebar}
+            style={{ color: "#f8efe3" }}
+          >
             {sidebarCollapsed ? '»' : '«'}
           </button>
         </div>
-        <nav className="sidebar-menu">
+        <nav className="p-2">
           {getMenuItems().map((item, index) => (
             <div 
               key={index} 
-              className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+              className={`p-3 rounded-md mb-1 flex items-center cursor-pointer ${
+                location.pathname === item.path ? 'font-semibold' : ''
+              }`}
               onClick={() => navigate(item.path)}
+              style={{ 
+                backgroundColor: location.pathname === item.path ? "#3a2b20" : "transparent",
+                color: "#f8efe3"
+              }}
             >
-              <span className="menu-icon">{item.icon}</span>
-              {!sidebarCollapsed && <span className="menu-text">{item.name}</span>}
+              <span className="text-lg mr-3">{item.icon}</span>
+              {!sidebarCollapsed && <span>{item.name}</span>}
             </div>
           ))}
         </nav>
       </div>
       
       {/* Main Content */}
-      <div className="main-content">
+      <div 
+        className={`transition-all duration-300 ${
+          sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
+        }`}
+      >
         {/* Top Navigation Bar */}
-        <div className="top-navbar">
-          <div className="top-navbar-left">
-            <h1 className="dashboard-title">{title}</h1>
-            {/* Display role code for all roles except buyer */}
-            {role !== 'buyer' && vendorCode && (
-              <div className="vendor-code-display">
-                Role Code: <strong>{vendorCode}</strong>
-              </div>
-            )}
-          </div>
-          
-          <div className="top-navbar-right">
-            <div className="user-info">
-              <div className="user-name">{currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'User'}</div>
-              <div className="user-role">{getRoleName(userRole)}</div>
+        <div 
+          className="sticky top-0 z-20 shadow-sm"
+          style={{ backgroundColor: cream }}
+        >
+          <div className="flex justify-between items-center p-4">
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: darkText }}>{title}</h1>
+              {/* Display role code for all roles except buyer */}
+              {role !== 'buyer' && vendorCode && (
+                <div className="text-sm" style={{ color: "#7a614a" }}>
+                  Role Code: <strong>{vendorCode}</strong>
+                </div>
+              )}
             </div>
-            <button className="btn btn-danger" onClick={handleLogout}>
-              Logout
-            </button>
+            
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <div className="font-semibold" style={{ color: darkText }}>
+                  {currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'User'}
+                </div>
+                <div className="text-sm" style={{ color: "#7a614a" }}>
+                  {getRoleName(userRole)}
+                </div>
+              </div>
+              <button 
+                className="flex items-center gap-2 px-4 py-2 rounded-full font-semibold"
+                onClick={handleLogout}
+                style={{ backgroundColor: bhagwa, color: "#fff" }}
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
           </div>
         </div>
         
         {/* Page Content */}
-        <div className="page-content">
+        <div className="p-4 md:p-6">
           {children}
         </div>
       </div>

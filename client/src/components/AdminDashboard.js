@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
+import { Plus, X } from 'lucide-react';
 import '../App.css';
 
 const AdminDashboard = () => {
@@ -17,6 +18,12 @@ const AdminDashboard = () => {
     email: '',
     role: ''
   });
+
+  // Theme colors to match homepage
+  const bhagwa = "#f77f00";
+  const cream = "#f6efe6";
+  const creamCard = "#efe6d9";
+  const darkText = "#5a4632";
 
   // Fetch real data from Supabase
   useEffect(() => {
@@ -110,78 +117,144 @@ const AdminDashboard = () => {
     }
   };
 
+  // Status badge component
+  const StatusBadge = ({ status }) => {
+    const statusStyles = {
+      active: { backgroundColor: '#d4edda', color: '#155724' },
+      inactive: { backgroundColor: '#f8d7da', color: '#721c24' },
+      pending: { backgroundColor: '#fff3cd', color: '#856404' },
+      approved: { backgroundColor: '#d4edda', color: '#155724' },
+      rejected: { backgroundColor: '#f8d7da', color: '#721c24' }
+    };
+    
+    const style = statusStyles[status.toLowerCase()] || statusStyles.pending;
+    
+    return (
+      <span 
+        className="px-3 py-1 rounded-full text-xs font-semibold"
+        style={style}
+      >
+        {status}
+      </span>
+    );
+  };
+
   return (
     <DashboardLayout title="Administrator Dashboard" role="admin">
-      <div className="dashboard-tabs">
+      <div className="mb-6 flex flex-wrap gap-2 border-b" style={{ borderColor: "#d9cfc1" }}>
         <button 
-          className={`tab ${activeTab === 'users' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded-t-lg font-medium ${
+            activeTab === 'users' ? 'border-b-2' : ''
+          }`}
           onClick={() => setActiveTab('users')}
+          style={{ 
+            color: activeTab === 'users' ? bhagwa : darkText,
+            borderColor: activeTab === 'users' ? bhagwa : 'transparent'
+          }}
         >
           User Management
         </button>
         <button 
-          className={`tab ${activeTab === 'config' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded-t-lg font-medium ${
+            activeTab === 'config' ? 'border-b-2' : ''
+          }`}
           onClick={() => setActiveTab('config')}
+          style={{ 
+            color: activeTab === 'config' ? bhagwa : darkText,
+            borderColor: activeTab === 'config' ? bhagwa : 'transparent'
+          }}
         >
           System Configuration
         </button>
         <button 
-          className={`tab ${activeTab === 'logs' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded-t-lg font-medium ${
+            activeTab === 'logs' ? 'border-b-2' : ''
+          }`}
           onClick={() => setActiveTab('logs')}
+          style={{ 
+            color: activeTab === 'logs' ? bhagwa : darkText,
+            borderColor: activeTab === 'logs' ? bhagwa : 'transparent'
+          }}
         >
           Audit Logs
         </button>
       </div>
 
-      {loading && <div className="text-center py-10">Loading dashboard data...</div>}
+      {loading && <div className="text-center py-10" style={{ color: darkText }}>Loading dashboard data...</div>}
       {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
       
       {activeTab === 'users' && (
         <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">User Management</h2>
+          <div 
+            className="rounded-xl shadow-sm p-6 mb-6"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 className="text-2xl font-bold" style={{ color: darkText }}>User Management</h2>
               <button 
-                className="btn btn-primary"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold"
                 onClick={() => setShowAddUserModal(true)}
+                style={{ backgroundColor: bhagwa, color: "#fff" }}
               >
+                <Plus size={16} />
                 Add New User
               </button>
             </div>
             
-            <div className="table-container">
-              <table>
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th>User ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                  <tr style={{ backgroundColor: creamCard }}>
+                    <th className="text-left p-3" style={{ color: darkText }}>User ID</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Name</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Email</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Role</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Status</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map(user => (
-                    <tr key={user.id}>
-                      <td>{user.id}</td>
-                      <td>{user.name}</td>
-                      <td>{user.email}</td>
-                      <td>{user.role}</td>
-                      <td>
-                        <span className={`status-badge status-${user.status}`}>
-                          {user.status}
-                        </span>
+                    <tr key={user.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
+                      <td className="p-3" style={{ color: darkText }}>{user.id}</td>
+                      <td className="p-3" style={{ color: darkText }}>{user.name}</td>
+                      <td className="p-3" style={{ color: darkText }}>{user.email}</td>
+                      <td className="p-3" style={{ color: darkText }}>{user.role}</td>
+                      <td className="p-3">
+                        <StatusBadge status={user.status} />
                       </td>
-                      <td>
-                        <button className="btn btn-outline btn-small">View</button>
-                        <button className="btn btn-primary btn-small">Edit</button>
-                        <button className="btn btn-danger btn-small">Disable</button>
+                      <td className="p-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button 
+                            className="px-3 py-1 rounded text-sm"
+                            style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                          >
+                            View
+                          </button>
+                          <button 
+                            className="px-3 py-1 rounded text-sm"
+                            style={{ backgroundColor: bhagwa, color: "#fff" }}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            className="px-3 py-1 rounded text-sm"
+                            style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                          >
+                            Disable
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {users.length === 0 && !loading && (
+                <div className="text-center py-10" style={{ color: darkText }}>
+                  No users found.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -189,35 +262,50 @@ const AdminDashboard = () => {
 
       {activeTab === 'config' && (
         <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">System Configuration</h2>
+          <div 
+            className="rounded-xl shadow-sm p-6 mb-6"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 className="text-2xl font-bold" style={{ color: darkText }}>System Configuration</h2>
             </div>
             
-            <div className="table-container">
-              <table>
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th>Setting</th>
-                    <th>Value</th>
-                    <th>Description</th>
-                    <th>Actions</th>
+                  <tr style={{ backgroundColor: creamCard }}>
+                    <th className="text-left p-3" style={{ color: darkText }}>Setting</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Value</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Description</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {systemConfig.map(config => (
-                    <tr key={config.id}>
-                      <td>{config.setting}</td>
-                      <td>{config.value}</td>
-                      <td>{config.description}</td>
-                      <td>
-                        <button className="btn btn-outline btn-small">View</button>
-                        <button className="btn btn-primary btn-small">Edit</button>
+                  {systemConfig.map((config, index) => (
+                    <tr key={index} className="border-b" style={{ borderColor: "#d9cfc1" }}>
+                      <td className="p-3" style={{ color: darkText }}>{config.setting}</td>
+                      <td className="p-3" style={{ color: darkText }}>{config.value}</td>
+                      <td className="p-3" style={{ color: darkText }}>{config.description}</td>
+                      <td className="p-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button 
+                            className="px-3 py-1 rounded text-sm"
+                            style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {systemConfig.length === 0 && !loading && (
+                <div className="text-center py-10" style={{ color: darkText }}>
+                  No configuration settings found.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -225,32 +313,41 @@ const AdminDashboard = () => {
 
       {activeTab === 'logs' && (
         <div>
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Audit Logs</h2>
+          <div 
+            className="rounded-xl shadow-sm p-6 mb-6"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 className="text-2xl font-bold" style={{ color: darkText }}>Audit Logs</h2>
             </div>
             
-            <div className="table-container">
-              <table>
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Details</th>
+                  <tr style={{ backgroundColor: creamCard }}>
+                    <th className="text-left p-3" style={{ color: darkText }}>Timestamp</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>User</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Action</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {auditLogs.map(log => (
-                    <tr key={log.id}>
-                      <td>{log.timestamp}</td>
-                      <td>{log.user}</td>
-                      <td>{log.action}</td>
-                      <td>{log.details}</td>
+                  {auditLogs.map((log, index) => (
+                    <tr key={index} className="border-b" style={{ borderColor: "#d9cfc1" }}>
+                      <td className="p-3" style={{ color: darkText }}>{log.timestamp}</td>
+                      <td className="p-3" style={{ color: darkText }}>{log.user}</td>
+                      <td className="p-3" style={{ color: darkText }}>{log.action}</td>
+                      <td className="p-3" style={{ color: darkText }}>{log.details}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {auditLogs.length === 0 && !loading && (
+                <div className="text-center py-10" style={{ color: darkText }}>
+                  No audit logs found.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -258,82 +355,100 @@ const AdminDashboard = () => {
 
       {/* Add User Modal */}
       {showAddUserModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Add New User</h3>
-              <button 
-                className="close-button"
-                onClick={() => setShowAddUserModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleAddUser}>
-              <div className="form-group">
-                <label htmlFor="name" className="form-label">Full Name *</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  className="form-control"
-                  value={newUser.name}
-                  onChange={handleUserInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="email" className="form-label">Email *</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  className="form-control"
-                  value={newUser.email}
-                  onChange={handleUserInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="role" className="form-label">Role *</label>
-                <select
-                  id="role"
-                  name="role"
-                  className="form-control"
-                  value={newUser.role}
-                  onChange={handleUserInputChange}
-                  required
-                >
-                  <option value="">Select a role</option>
-                  <option value="Seller">Seller</option>
-                  <option value="Buyer">Buyer</option>
-                  <option value="Transporter">Transporter</option>
-                  <option value="Logistics">Logistics</option>
-                  <option value="Insurance">Insurance</option>
-                  <option value="Surveyor">Surveyor</option>
-                  <option value="CHA">CHA</option>
-                  <option value="Admin">Admin</option>
-                </select>
-              </div>
-              
-              <div className="form-navigation">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div 
+            className="rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold" style={{ color: darkText }}>Add New User</h3>
                 <button 
-                  type="button" 
-                  className="btn btn-outline"
+                  className="p-2 rounded-full"
                   onClick={() => setShowAddUserModal(false)}
+                  style={{ backgroundColor: creamCard }}
                 >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                >
-                  Add User
+                  <X size={20} style={{ color: darkText }} />
                 </button>
               </div>
-            </form>
+              <form onSubmit={handleAddUser}>
+                <div className="mb-4">
+                  <label htmlFor="name" className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    className="w-full p-3 rounded-lg border"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    value={newUser.name}
+                    onChange={handleUserInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="email" className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    className="w-full p-3 rounded-lg border"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    value={newUser.email}
+                    onChange={handleUserInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="mb-6">
+                  <label htmlFor="role" className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Role *
+                  </label>
+                  <select
+                    id="role"
+                    name="role"
+                    className="w-full p-3 rounded-lg border"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    value={newUser.role}
+                    onChange={handleUserInputChange}
+                    required
+                  >
+                    <option value="">Select a role</option>
+                    <option value="admin">Administrator</option>
+                    <option value="seller">Seller</option>
+                    <option value="buyer">Buyer</option>
+                    <option value="captain">Captain</option>
+                    <option value="hr">HR</option>
+                    <option value="accountant">Accountant</option>
+                  </select>
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  <button 
+                    type="button" 
+                    className="px-4 py-2 rounded-lg font-medium"
+                    onClick={() => setShowAddUserModal(false)}
+                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="px-4 py-2 rounded-lg font-medium"
+                    style={{ backgroundColor: bhagwa, color: "#fff" }}
+                  >
+                    Add User
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

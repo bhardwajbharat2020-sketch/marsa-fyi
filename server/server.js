@@ -238,15 +238,15 @@ app.post('/api/register', async (req, res) => {
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
   try {
+    console.log('Login endpoint called with data:', req.body);
     const { vendorCode, password } = req.body;
     
-    console.log('Login attempt for vendorCode/email:', vendorCode);
-    
-    // Validate input
+    // Validate required fields
     if (!vendorCode || !password) {
+      console.log('Login validation failed: missing required fields');
       return res.status(400).json({ 
         success: false, 
-        message: 'Vendor Code/Email and Password are required' 
+        error: 'Vendor Code/Email and Password are required' 
       });
     }
     
@@ -255,121 +255,101 @@ app.post('/api/auth/login', async (req, res) => {
       console.error('Supabase not initialized');
       return res.status(500).json({ 
         success: false, 
-        message: 'Database not available' 
+        error: 'Database not available' 
       });
     }
     
-    let user;
-    
-    // Check if vendorCode is an email or actual vendor code
+    console.log('Checking user credentials');
+    // Check user credentials by email or vendor code
+    let userQuery = supabase
+      .from('users')
+      .select(`
+        id,
+        username,
+        email,
+        first_name,
+        last_name,
+        phone,
+        is_verified,
+        vendor_code,
+        password_hash,
+        user_roles(role_id, is_primary, roles(name, code))
+      `);
+      
+    // Check if vendorCode is an email or vendor code
     if (vendorCode.includes('@')) {
-      // It's an email
-      console.log('Looking up user by email');
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, username, email, password_hash, first_name, last_name, vendor_code, is_verified')
-        .eq('email', vendorCode)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No user found
-          console.log('No user found with email:', vendorCode);
-          return res.status(401).json({ 
-            success: false, 
-            message: 'Invalid credentials' 
-          });
-        } else {
-          console.error('Database error during email lookup:', error.message);
-          return res.status(500).json({ 
-            success: false, 
-            message: 'Server error during login' 
-          });
-        }
-      }
-      
-      user = data;
+      userQuery = userQuery.eq('email', vendorCode);
     } else {
-      // It's a vendor code
-      console.log('Looking up user by vendor code');
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, username, email, password_hash, first_name, last_name, vendor_code, is_verified')
-        .eq('vendor_code', vendorCode)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No user found
-          console.log('No user found with vendor code:', vendorCode);
-          return res.status(401).json({ 
-            success: false, 
-            message: 'Invalid credentials' 
-          });
-        } else {
-          console.error('Database error during vendor code lookup:', error.message);
-          return res.status(500).json({ 
-            success: false, 
-            message: 'Server error during login' 
-          });
-        }
-      }
-      
-      user = data;
+      userQuery = userQuery.eq('vendor_code', vendorCode);
     }
     
-    console.log('User found, verifying password');
+    const { data: user, error: userError } = await userQuery.single();
+    
+    if (userError) {
+      console.error('Error fetching user:', userError.message);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid credentials' 
+      });
+    }
+    
+    if (!user) {
+      console.log('User not found with provided credentials');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid credentials' 
+      });
+    }
+    
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     
     if (!isPasswordValid) {
-      console.log('Invalid password for user:', vendorCode);
-      return res.status(401).json({ 
+      console.log('Invalid password for user:', user.email);
+      return res.status(400).json({ 
         success: false, 
-        message: 'Invalid credentials' 
+        error: 'Invalid credentials' 
       });
     }
     
-    console.log('Password verified, fetching user role');
-    // Get user role
-    const { data: userRoleData, error: userRoleError } = await supabase
-      .from('user_roles')
-      .select('roles(name, code)')
-      .eq('user_id', user.id)
-      .single();
-    
-    if (userRoleError) {
-      console.error('Error fetching user role:', userRoleError.message);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Server error during login' 
-      });
+    // Get user's primary role
+    let userRole = 'buyer'; // Default role
+    if (user.user_roles && user.user_roles.length > 0) {
+      const primaryRole = user.user_roles.find(role => role.is_primary);
+      if (primaryRole) {
+        userRole = primaryRole.roles.name;
+      } else {
+        // If no primary role, use the first role
+        userRole = user.user_roles[0].roles.name;
+      }
     }
     
-    const role = userRoleData.roles.code;
-    const frontendRole = role; // Map to frontend role if needed
+    console.log('User login successful for:', user.email, 'with role:', userRole);
     
-    console.log('Login successful for user:', vendorCode);
-    res.json({
+    // Return user data and role
+    const userData = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone,
+      is_verified: user.is_verified,
+      vendor_code: user.vendor_code,
+      role: userRole
+    };
+    
+    res.json({ 
       success: true,
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        vendor_code: user.vendor_code,
-        role: frontendRole
-      },
-      token: 'jwt-token-placeholder' // In a real app, this would be a real JWT token
+      user: userData,
+      token: 'dummy-token' // In a real app, you would generate a proper JWT token
     });
   } catch (error) {
-    console.error('Unexpected error during login:', error.message);
+    console.error('Error in login endpoint:', error.message);
     console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error during login' 
+      error: 'Server error during login' 
     });
   }
 });
@@ -585,11 +565,37 @@ app.get('/api/seller/products', async (req, res) => {
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching seller products from Supabase');
     
-    // Fetch products from Supabase with correct column names
+    // Get the seller ID from the authenticated user
+    // Using a default value for testing, but in production this should come from authentication
+    const sellerId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+    
+    // Fetch products from Supabase with all new columns
     const { data: products, error } = await supabase
       .from('products')
-      .select('id, name, price, status')
-      .eq('is_active', true);
+      .select(`
+        id,
+        seller_id,
+        name,
+        description,
+        price,
+        currency_id,
+        category_id,
+        is_active,
+        is_verified,
+        status,
+        moq,
+        moq_uom,
+        available_quantity,
+        quantity_uom,
+        price_type,
+        is_relabeling_allowed,
+        offer_validity_date,
+        image_url,
+        thumbnail_url,
+        categories (name),
+        currencies (code)
+      `)
+      .eq('seller_id', sellerId); // Filter by seller ID
 
     if (error) {
       console.error('Error fetching seller products from Supabase:', error.message);
@@ -600,14 +606,29 @@ app.get('/api/seller/products', async (req, res) => {
       });
     }
 
-    // Add category field manually since it doesn't exist in the schema
-    const productsWithCategory = products.map(product => ({
-      ...product,
-      category: 'Uncategorized' // Default category since the column doesn't exist
+    // Transform products to match frontend expectations
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      category: product.categories?.name || 'Uncategorized',
+      price: product.price,
+      currency: product.currencies?.code || 'USD',
+      status: product.status || 'pending',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      quantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      priceType: product.price_type,
+      reLabeling: product.is_relabeling_allowed ? 'yes' : 'no',
+      validityDate: product.offer_validity_date ? product.offer_validity_date.split('T')[0] : null,
+      validityTime: product.offer_validity_date ? product.offer_validity_date.split('T')[1]?.split('.')[0] : null,
+      imageUrl: product.image_url,
+      thumbnailUrl: product.thumbnail_url
     }));
 
-    console.log(`Successfully fetched ${productsWithCategory.length} seller products from Supabase`);
-    res.json(productsWithCategory || []);
+    console.log(`Successfully fetched ${formattedProducts.length} seller products from Supabase`);
+    res.json(formattedProducts || []);
   } catch (error) {
     console.error('Error in seller products endpoint:', error.message);
     console.error('Error stack:', error.stack);
@@ -831,13 +852,29 @@ app.get('/api/products/category/:categoryName', async (req, res) => {
 // Add product endpoint for sellers
 app.post('/api/seller/products', async (req, res) => {
   try {
-    const { name, price, description } = req.body;
+    // For multipart form data, we need to handle both req.body and req.file
+    const { 
+      name, 
+      category, 
+      branded, 
+      description, 
+      moq, 
+      moqUom, 
+      quantity, 
+      quantityUom, 
+      price, 
+      currency, 
+      priceType, 
+      reLabeling, 
+      validityDate, 
+      validityTime 
+    } = req.body;
     
     // Validate required fields
-    if (!name || !price) {
+    if (!name || !category || !price || !description) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Product name and price are required' 
+        error: 'Product name, category, price, and description are required' 
       });
     }
     
@@ -850,15 +887,81 @@ app.post('/api/seller/products', async (req, res) => {
       });
     }
     
-    // Save the product to the database with correct column names
+    // Get the seller ID from the authenticated user
+    // Using a default value for testing, but in production this should come from authentication
+    const sellerId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+    
+    // Get category ID from name (create if doesn't exist)
+    let categoryId = null;
+    if (category) {
+      const { data: existingCategory, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', category)
+        .single();
+      
+      if (existingCategory) {
+        categoryId = existingCategory.id;
+      } else {
+        // Create new category
+        const { data: newCategory, error: newCategoryError } = await supabase
+          .from('categories')
+          .insert({
+            name: category,
+            description: `${category} category`,
+            is_active: true,
+            created_at: new Date()
+          })
+          .select()
+          .single();
+          
+        if (newCategory) {
+          categoryId = newCategory.id;
+        }
+      }
+    }
+    
+    // Get currency ID from code (default to USD if not found)
+    let currencyId = 1; // Default to USD
+    if (currency) {
+      const { data: currencyData, error: currencyError } = await supabase
+        .from('currencies')
+        .select('id')
+        .eq('code', currency)
+        .single();
+      
+      if (currencyData) {
+        currencyId = currencyData.id;
+      }
+    }
+    
+    // Parse validity date and time
+    let offerValidityDate = null;
+    if (validityDate) {
+      const timePart = validityTime || '00:00';
+      offerValidityDate = new Date(`${validityDate}T${timePart}`);
+    }
+    
+    // Save the product to the database with all new fields
     const { data: product, error } = await supabase
       .from('products')
       .insert({
+        seller_id: sellerId, // Associate the product with the seller
         name,
-        price: parseFloat(price),
+        category_id: categoryId,
         description: description || '',
-        status: 'pending',
+        price: parseFloat(price),
+        currency_id: currencyId,
+        moq: moq ? parseInt(moq) : null,
+        moq_uom: moqUom || null,
+        available_quantity: quantity ? parseInt(quantity) : null,
+        quantity_uom: quantityUom || null,
+        price_type: priceType || 'EXW',
+        is_relabeling_allowed: reLabeling === 'yes',
+        offer_validity_date: offerValidityDate,
         is_active: true,
+        is_verified: false, // New products need approval
+        status: 'submitted', // Status for tracking
         created_at: new Date()
       })
       .select()
@@ -873,17 +976,32 @@ app.post('/api/seller/products', async (req, res) => {
       });
     }
     
-    // Add category field manually since it doesn't exist in the schema
-    const productWithCategory = {
-      ...product,
-      category: 'Uncategorized'
+    // Transform product for response
+    const productWithDetails = {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      category: category || 'Uncategorized',
+      price: product.price,
+      currency: currency || 'USD',
+      status: 'submitted',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      quantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      priceType: product.price_type,
+      reLabeling: product.is_relabeling_allowed ? 'yes' : 'no',
+      validityDate: product.offer_validity_date ? product.offer_validity_date.split('T')[0] : null,
+      validityTime: product.offer_validity_date ? product.offer_validity_date.split('T')[1]?.split('.')[0] : null,
+      imageUrl: product.image_url,
+      thumbnailUrl: product.thumbnail_url
     };
     
     console.log('Successfully created product in Supabase');
     res.json({ 
       success: true, 
-      message: 'Product created successfully',
-      product: productWithCategory
+      message: 'Product submitted successfully for approval',
+      product: productWithDetails
     });
   } catch (error) {
     console.error('Error in add product endpoint:', error.message);
@@ -1387,6 +1505,125 @@ app.get('/api/test-env', (req, res) => {
 app.get('/api/test', (req, res) => {
   console.log('Test endpoint hit');
   res.json({ message: 'API routes are working' });
+});
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    console.log('Login endpoint called with data:', req.body);
+    const { vendorCode, password } = req.body;
+    
+    // Validate required fields
+    if (!vendorCode || !password) {
+      console.log('Login validation failed: missing required fields');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Vendor Code/Email and Password are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Database not available' 
+      });
+    }
+    
+    console.log('Checking user credentials');
+    // Check user credentials by email or vendor code
+    let userQuery = supabase
+      .from('users')
+      .select(`
+        id,
+        username,
+        email,
+        first_name,
+        last_name,
+        phone,
+        is_verified,
+        vendor_code,
+        password_hash,
+        user_roles(role_id, is_primary, roles(name, code))
+      `);
+      
+    // Check if vendorCode is an email or vendor code
+    if (vendorCode.includes('@')) {
+      userQuery = userQuery.eq('email', vendorCode);
+    } else {
+      userQuery = userQuery.eq('vendor_code', vendorCode);
+    }
+    
+    const { data: user, error: userError } = await userQuery.single();
+    
+    if (userError) {
+      console.error('Error fetching user:', userError.message);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid credentials' 
+      });
+    }
+    
+    if (!user) {
+      console.log('User not found with provided credentials');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid credentials' 
+      });
+    }
+    
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isPasswordValid) {
+      console.log('Invalid password for user:', user.email);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid credentials' 
+      });
+    }
+    
+    // Get user's primary role
+    let userRole = 'buyer'; // Default role
+    if (user.user_roles && user.user_roles.length > 0) {
+      const primaryRole = user.user_roles.find(role => role.is_primary);
+      if (primaryRole) {
+        userRole = primaryRole.roles.name;
+      } else {
+        // If no primary role, use the first role
+        userRole = user.user_roles[0].roles.name;
+      }
+    }
+    
+    console.log('User login successful for:', user.email, 'with role:', userRole);
+    
+    // Return user data and role
+    const userData = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone,
+      is_verified: user.is_verified,
+      vendor_code: user.vendor_code,
+      role: userRole
+    };
+    
+    res.json({ 
+      success: true,
+      user: userData,
+      token: 'dummy-token' // In a real app, you would generate a proper JWT token
+    });
+  } catch (error) {
+    console.error('Error in login endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error during login' 
+    });
+  }
 });
 
 // Test endpoint to verify product ID route is working
