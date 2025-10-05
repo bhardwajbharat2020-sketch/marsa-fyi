@@ -2954,12 +2954,11 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
 });
 
 // Serve static files from the React app
-const buildPath = path.join(__dirname, '../client/build');
-app.use(express.static(buildPath));
+app.use(express.static(path.join(__dirname, '../client/build')));
 
 // Catch all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(buildPath, 'index.html'));
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
 app.listen(PORT, () => {
