@@ -2998,15 +2998,31 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
 // Serve static files from the React app's build directory
 const clientBuildPath = path.join(__dirname, '../client/build');
 console.log('Serving static files from:', clientBuildPath);
+
+// More specific static file serving to ensure JS/CSS files are served correctly
+app.use('/static', express.static(path.join(clientBuildPath, 'static')));
+app.use('/manifest.json', express.static(path.join(clientBuildPath, 'manifest.json')));
+app.use('/favicon.ico', express.static(path.join(clientBuildPath, 'favicon.ico')));
+
+// General static file serving as fallback
 app.use(express.static(clientBuildPath));
 
 // The "catch-all" handler: for any request that doesn't match an API route or a static file,
 // send back the React app's index.html file.
 // This MUST be the last route in your file.
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes
+  // Don't serve index.html for API routes or static assets
   if (req.path.startsWith('/api/')) {
     return res.status(404).send('API route not found');
+  }
+  
+  // For Vercel, we need to be more specific about what files should be served as static
+  // Check if this is a request for a file with an extension
+  const fileExtension = path.extname(req.path);
+  if (fileExtension && fileExtension !== '.html') {
+    // If it's a request for a file with an extension (other than .html),
+    // and we haven't served it as static yet, it means the file doesn't exist
+    return res.status(404).send('File not found');
   }
   
   // Serve the React app for all other routes
