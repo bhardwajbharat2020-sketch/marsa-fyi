@@ -427,22 +427,15 @@ app.post('/api/auth/login', async (req, res) => {
 // Catalogs endpoint - fetch featured products
 app.get('/api/catalogs', async (req, res) => {
   try {
+    console.log('GET /api/catalogs endpoint hit on Vercel');
+    
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching catalogs from Supabase');
     
-    // Fetch featured products from Supabase
+    // Simplified fetch - directly fetch products from Supabase
     const { data: products, error } = await supabase
       .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        image_url,
-        status,
-        is_verified,
-        seller_id,
-        users (first_name, last_name, vendor_code)
-      `)
+      .select('id, name, description, image_url, is_verified')
       .eq('is_active', true)
       .eq('is_verified', true)
       .limit(6);
@@ -456,18 +449,13 @@ app.get('/api/catalogs', async (req, res) => {
       });
     }
 
-    // Debug: Log the product data to see what we're getting
-    console.log('Catalog products data:', JSON.stringify(products, null, 2));
-    
-    // Transform the data to match the expected format
+    // Simple transformation
     const catalogs = products.map(product => ({
       id: product.id,
       title: product.name,
       description: product.description,
       image: product.image_url || '/placeholder.jpg',
-      status: product.is_verified ? 'approved' : 'pending',
-      likes: Math.floor(Math.random() * 50) + 1, // Random likes for demo
-      seller: product.users?.vendor_code || 'Unknown Vendor'
+      status: product.is_verified ? 'approved' : 'pending'
     }));
 
     console.log(`Successfully fetched ${catalogs.length} catalogs from Supabase`);
@@ -542,26 +530,17 @@ app.post('/api/rfq', async (req, res) => {
 // Products endpoint - fetch all products
 app.get('/api/products', async (req, res) => {
   try {
+    console.log('GET /api/products endpoint hit on Vercel');
+    
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching products from Supabase');
     
-    // Fetch products from Supabase with related data
-    // Only fetch approved and active products
+    // Simplified fetch - directly fetch products from Supabase
     const { data: products, error } = await supabase
       .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        currency_id,
-        is_verified,
-        is_active,
-        categories (name),
-        users (first_name, last_name, vendor_code)
-      `)
+      .select('id, name, description, price, is_verified, categories (name)')
       .eq('is_active', true)
-      .eq('status', 'approved'); // Only approved products
+      .eq('status', 'approved');
 
     if (error) {
       console.error('Error fetching products from Supabase:', error.message);
@@ -572,21 +551,15 @@ app.get('/api/products', async (req, res) => {
       });
     }
 
-    // Debug: Log the product data to see what we're getting
-    console.log('Products data:', JSON.stringify(products, null, 2));
-    
-    // Transform the data to match the expected format
+    // Simple transformation
     const formattedProducts = products.map(product => ({
       id: product.id,
       name: product.name,
       description: product.description,
       short_description: product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : '',
-      company_name: product.users?.vendor_code || 'Unknown Vendor',
-      origin_port_name: 'Unknown Port', // Ports are not directly related to products in the schema
       category_name: product.categories?.name || 'Uncategorized',
       is_verified: product.is_verified,
-      price: product.price,
-      currency: 'USD' // In a real app, this would come from the currencies table
+      price: product.price
     }));
 
     console.log(`Successfully fetched ${formattedProducts.length} products from Supabase`);
@@ -1725,17 +1698,44 @@ app.post('/api/admin/users', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
+  res.json({ 
+    status: 'OK', 
     timestamp: new Date().toISOString(),
-    supabaseConnected: !!supabase,
-    supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
-    supabaseKeyExists: !!supabaseKey,
-    supabaseKeyLength: supabaseKey ? supabaseKey.length : 0,
-    environment: process.env.NODE_ENV || 'development',
-    vercelEnv: process.env.VERCEL_ENV || 'NOT SET',
-    port: process.env.PORT || 5000
+    message: 'Server is running properly'
   });
+});
+
+// Health check endpoint with Supabase connection test
+app.get('/api/health/db', async (req, res) => {
+  try {
+    // Test Supabase connection by fetching a small amount of data
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      return res.status(500).json({ 
+        status: 'ERROR', 
+        message: 'Supabase connection failed',
+        error: error.message
+      });
+    }
+    
+    res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      message: 'Server and database are running properly',
+      dbTest: 'Successful',
+      sampleData: data
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'ERROR', 
+      message: 'Database connection test failed',
+      error: error.message
+    });
+  }
 });
 
 // Enhanced Health check endpoint with Supabase test
@@ -1799,6 +1799,48 @@ app.get('/api/test-env', (req, res) => {
     SUPABASE_KEY_LENGTH: process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.length : 0,
     PORT: process.env.PORT || 'NOT SET'
   });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    message: 'Server is running properly'
+  });
+});
+
+// Health check endpoint with Supabase connection test
+app.get('/api/health/db', async (req, res) => {
+  try {
+    // Test Supabase connection by fetching a small amount of data
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      return res.status(500).json({ 
+        status: 'ERROR', 
+        message: 'Supabase connection failed',
+        error: error.message
+      });
+    }
+    
+    res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      message: 'Server and database are running properly',
+      dbTest: 'Successful',
+      sampleData: data
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'ERROR', 
+      message: 'Database connection test failed',
+      error: error.message
+    });
+  }
 });
 
 // Test endpoint to verify API routes are working
