@@ -2953,21 +2953,6 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
   }
 });
 
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../client/build')));
-
-// Catch all handler: send back React's index.html file for any non-API routes
-// But exclude requests for static assets (files with extensions)
-app.get(/^\/(?!api).*\.(?!js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
-
-// Alternative catch-all that excludes common static file extensions
-app.get(/^((?!api|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).)*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
-
-// Even simpler approach - just handle the root route and let static middleware handle assets
 // Serve static files from the React app build directory
 // This must come before the catch-all route
 const staticPath = path.join(__dirname, '../client/build');
@@ -2988,6 +2973,4 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-});
-
 });
