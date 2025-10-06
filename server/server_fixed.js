@@ -1,1 +1,0 @@
-// Create a new fixed server file with the proper endpoints

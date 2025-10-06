@@ -98,12 +98,16 @@ const ShopPage = () => {
     const fetchProductsAndFilters = async () => {
       try {
         setLoading(true);
+        console.log('Fetching products from /api/products...');
         
         // Fetch products
         const productsResponse = await fetch('/api/products');
+        console.log('Products response status:', productsResponse.status);
         const productsData = await productsResponse.json();
+        console.log('Products data:', productsData);
         
         if (productsResponse.ok) {
+          console.log('Setting products:', productsData);
           setProducts(productsData);
           
           // Extract unique categories and ports for filter dropdowns
@@ -114,11 +118,12 @@ const ShopPage = () => {
           setCategoriesList(uniqueCategories);
           setPorts(uniquePorts);
         } else {
+          console.error('Failed to fetch products:', productsData.error || 'Unknown error');
           setError(productsData.error || 'Failed to fetch products');
         }
       } catch (err) {
-        setError('Failed to fetch products');
         console.error('Error fetching products:', err);
+        setError('Failed to fetch products');
       } finally {
         setLoading(false);
       }

@@ -8,8 +8,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
+const PORT = process.env.PORT || 5001; // Use port 5001 instead of 5000
 
 // Configure multer for handling multipart form data
 const upload = multer({ 
@@ -2954,38 +2953,28 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
   }
 });
 
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../client/build')));
+// Serve static files from the React app's build directory
+const clientBuildPath = path.join(__dirname, '../client/build');
+console.log('Serving static files from:', clientBuildPath);
+app.use(express.static(clientBuildPath));
 
-// Catch all handler: send back React's index.html file for any non-API routes
-// But exclude requests for static assets (files with extensions)
-app.get(/^\/(?!api).*\.(?!js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
-
-// Alternative catch-all that excludes common static file extensions
-app.get(/^((?!api|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).)*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
-
-// Even simpler approach - just handle the root route and let static middleware handle assets
-// Serve static files from the React app build directory
-const staticPath = path.join(__dirname, '../client/build');
-console.log('Serving static files from:', staticPath);
-app.use(express.static(staticPath));
-
-// Catch all handler: send back React's index.html file for any non-API routes
-// This MUST be the very last route to avoid interfering with API routes or static files
+// The "catch-all" handler: for any request that doesn't match an API route or a static file,
+// send back the React app's index.html file.
+// This MUST be the last route in your file.
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes or static assets
+  // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).send('API route not found');
   }
   
   // Serve the React app for all other routes
-  res.sendFile(path.join(staticPath, 'index.html'));
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Start the server - ONLY ONE SERVER STARTUP CALL
+const server = app.listen(PORT, () => {
+  const actualPort = server.address().port;
+  console.log(`Server running on port ${actualPort}`);
 });
+
+
