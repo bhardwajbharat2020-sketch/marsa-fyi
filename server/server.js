@@ -2953,14 +2953,95 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
   }
 });
 
-// Test route to verify static file serving
-app.get('/test-static-file', (req, res) => {
+// Serve static files from the React app build directory
+// This must come before the catch-all route
+const path = require('path');
+const fs = require('fs');
+
+// Function to find the correct static files path
+function findStaticPath() {
+  const possiblePaths = [
+    path.join(__dirname, '../client/build'),     // Standard structure
+    path.join(__dirname, './client/build'),      // Relative to server directory
+    path.join(__dirname, 'client/build'),        // Direct path
+    path.join(process.cwd(), 'client/build'),    // From current working directory
+    path.join(process.cwd(), '../client/build'), // From parent directory
+    './client/build',                            // Simple relative path
+    'client/build'                               // Simple path
+  ];
+  
+  for (const possiblePath of possiblePaths) {
+    console.log('Checking path:', possiblePath);
+    if (fs.existsSync(possiblePath)) {
+      console.log('Found static files at:', possiblePath);
+      return possiblePath;
+    }
+  }
+  
+  // In Vercel, the structure might be different
+  // Check if we're in a Vercel environment
+  if (process.env.VERCEL) {
+    console.log('Running in Vercel environment');
+    // In Vercel, files might be in the same directory
+    const vercelPath = path.join(__dirname, 'client/build');
+    if (fs.existsSync(vercelPath)) {
+      console.log('Found static files at Vercel path:', vercelPath);
+      return vercelPath;
+    }
+  }
+  
+  console.error('Could not find static files directory in any of the expected locations');
+  return null;
+}
+
+const staticPath = findStaticPath();
+
+if (staticPath) {
+  console.log('Serving static files from:', staticPath);
+  console.log('Static path exists:', fs.existsSync(staticPath));
+  if (fs.existsSync(staticPath)) {
+    console.log('Static/js path exists:', fs.existsSync(path.join(staticPath, 'static/js')));
+    const jsFilePath = path.join(staticPath, 'static/js/main.8b5b0229.js');
+    console.log('JS file path:', jsFilePath);
+    console.log('JS file exists:', fs.existsSync(jsFilePath));
+    
+    // Explicitly serve static files with correct paths
+    app.use('/static/js', express.static(path.join(staticPath, 'static/js')));
+    app.use('/static/css', express.static(path.join(staticPath, 'static/css')));
+    app.use('/static/media', express.static(path.join(staticPath, 'static/media')));
+    app.use('/static', express.static(path.join(staticPath, 'static')));
+
+    // Serve other static assets (including index.html, favicon.ico, etc.)
+    app.use(express.static(staticPath));
+  }
+} else {
+  console.error('Static files directory not found. Static assets will not be served.');
+}
+
+// Add logging for all requests to debug routing
+app.use((req, res, next) => {
+  console.log(`Request: ${req.method} ${req.url}`);
+  next();
+});
+
+// Explicitly handle favicon request
+app.get('/favicon.ico', (req, res) => {
+  if (staticPath && fs.existsSync(path.join(staticPath, 'favicon.ico'))) {
+    res.sendFile(path.join(staticPath, 'favicon.ico'));
+  } else {
+    // Send empty favicon response to prevent 404 errors
+    res.status(204).end();
+  }
+});
+
+// Test routes to verify static file serving
+app.get('/test-js-file', (req, res) => {
   const fs = require('fs');
   const path = require('path');
   const staticPath = path.join(__dirname, '../client/build');
   const jsFilePath = path.join(staticPath, 'static/js/main.8b5b0229.js');
   
-  console.log('Testing static file serving:');
+  console.log('Testing JS file serving:');
   console.log('Static path:', staticPath);
   console.log('JS file path:', jsFilePath);
   console.log('Static path exists:', fs.existsSync(staticPath));
@@ -2979,20 +3060,30 @@ app.get('/test-static-file', (req, res) => {
   }
 });
 
-// Serve static files from the React app build directory
-// This must come before the catch-all route
-const staticPath = path.join(__dirname, '../client/build');
-console.log('Serving static files from:', staticPath);
-console.log('Static path exists:', require('fs').existsSync(staticPath));
-
-// Explicitly serve static files with correct paths
-app.use('/static/js', express.static(path.join(staticPath, 'static/js')));
-app.use('/static/css', express.static(path.join(staticPath, 'static/css')));
-app.use('/static/media', express.static(path.join(staticPath, 'static/media')));
-app.use('/static', express.static(path.join(staticPath, 'static')));
-
-// Serve other static assets (including index.html, favicon.ico, etc.)
-app.use(express.static(staticPath));
+app.get('/test-css-file', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const staticPath = path.join(__dirname, '../client/build');
+  const cssFilePath = path.join(staticPath, 'static/css/main.cf4721eb.css');
+  
+  console.log('Testing CSS file serving:');
+  console.log('Static path:', staticPath);
+  console.log('CSS file path:', cssFilePath);
+  console.log('Static path exists:', fs.existsSync(staticPath));
+  console.log('CSS file exists:', fs.existsSync(cssFilePath));
+  
+  if (fs.existsSync(cssFilePath)) {
+    res.sendFile(cssFilePath);
+  } else {
+    res.status(404).json({
+      error: 'CSS file not found',
+      staticPath,
+      cssFilePath,
+      staticPathExists: fs.existsSync(staticPath),
+      cssFileExists: fs.existsSync(cssFilePath)
+    });
+  }
+});
 
 // Catch all handler: send back React's index.html file for any non-API routes
 // This MUST be the last route to avoid interfering with API routes or static files
@@ -3012,7 +3103,6 @@ app.get('*', (req, res) => {
     return res.status(404).send('Static asset not found');
   }
   
-  const staticPath = path.join(__dirname, '../client/build');
   const indexPath = path.join(staticPath, 'index.html');
   console.log('Serving index.html from:', indexPath);
   

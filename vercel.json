@@ -12,22 +12,6 @@
       "dest": "/server/server.js"
     },
     {
-      "src": "/static/js/(.*)",
-      "dest": "/client/build/static/js/$1"
-    },
-    {
-      "src": "/static/css/(.*)",
-      "dest": "/client/build/static/css/$1"
-    },
-    {
-      "src": "/static/media/(.*)",
-      "dest": "/client/build/static/media/$1"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/client/build/static/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/server/server.js"
     }
