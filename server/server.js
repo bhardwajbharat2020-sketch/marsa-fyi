@@ -2995,58 +2995,10 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    message: 'Server is running properly'
-  });
-});
-
-// Health check endpoint with Supabase connection test
-app.get('/api/health/db', async (req, res) => {
-  try {
-    // Test Supabase connection by fetching a small amount of data
-    const { data, error } = await supabase
-      .from('products')
-      .select('id')
-      .limit(1);
-    
-    if (error) {
-      return res.status(500).json({ 
-        status: 'ERROR', 
-        message: 'Supabase connection failed',
-        error: error.message
-      });
-    }
-    
-    res.json({ 
-      status: 'OK', 
-      timestamp: new Date().toISOString(),
-      message: 'Server and database are running properly',
-      dbTest: 'Successful',
-      sampleData: data
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      status: 'ERROR', 
-      message: 'Database connection test failed',
-      error: error.message
-    });
-  }
-});
-
 // Serve static files from the React app's build directory
-// For Vercel, we need to ensure static files are served correctly
 const clientBuildPath = path.join(__dirname, '../client/build');
 console.log('Serving static files from:', clientBuildPath);
-
-// Serve static files with proper caching headers for Vercel
-app.use(express.static(clientBuildPath, {
-  maxAge: '1y', // Cache for 1 year
-  etag: false
-}));
+app.use(express.static(clientBuildPath));
 
 // The "catch-all" handler: for any request that doesn't match an API route or a static file,
 // send back the React app's index.html file.
@@ -3066,5 +3018,3 @@ const server = app.listen(PORT, () => {
   const actualPort = server.address().port;
   console.log(`Server running on port ${actualPort}`);
 });
-
-
