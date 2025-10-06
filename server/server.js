@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 
 const app = express();
-const PORT = process.env.PORT || 5001; // Use port 5001 instead of 5000
+const PORT = process.env.PORT || 3001;
 
 // Configure multer for handling multipart form data
 const upload = multer({ 
@@ -427,15 +427,22 @@ app.post('/api/auth/login', async (req, res) => {
 // Catalogs endpoint - fetch featured products
 app.get('/api/catalogs', async (req, res) => {
   try {
-    console.log('GET /api/catalogs endpoint hit on Vercel');
-    
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching catalogs from Supabase');
     
-    // Simplified fetch - directly fetch products from Supabase
+    // Fetch featured products from Supabase
     const { data: products, error } = await supabase
       .from('products')
-      .select('id, name, description, image_url, is_verified')
+      .select(`
+        id,
+        name,
+        description,
+        image_url,
+        status,
+        is_verified,
+        seller_id,
+        users (first_name, last_name, vendor_code)
+      `)
       .eq('is_active', true)
       .eq('is_verified', true)
       .limit(6);
@@ -449,13 +456,18 @@ app.get('/api/catalogs', async (req, res) => {
       });
     }
 
-    // Simple transformation
+    // Debug: Log the product data to see what we're getting
+    console.log('Catalog products data:', JSON.stringify(products, null, 2));
+    
+    // Transform the data to match the expected format
     const catalogs = products.map(product => ({
       id: product.id,
       title: product.name,
       description: product.description,
       image: product.image_url || '/placeholder.jpg',
-      status: product.is_verified ? 'approved' : 'pending'
+      status: product.is_verified ? 'approved' : 'pending',
+      likes: Math.floor(Math.random() * 50) + 1, // Random likes for demo
+      seller: product.users?.vendor_code || 'Unknown Vendor'
     }));
 
     console.log(`Successfully fetched ${catalogs.length} catalogs from Supabase`);
@@ -530,17 +542,26 @@ app.post('/api/rfq', async (req, res) => {
 // Products endpoint - fetch all products
 app.get('/api/products', async (req, res) => {
   try {
-    console.log('GET /api/products endpoint hit on Vercel');
-    
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching products from Supabase');
     
-    // Simplified fetch - directly fetch products from Supabase
+    // Fetch products from Supabase with related data
+    // Only fetch approved and active products
     const { data: products, error } = await supabase
       .from('products')
-      .select('id, name, description, price, is_verified, categories (name)')
+      .select(`
+        id,
+        name,
+        description,
+        price,
+        currency_id,
+        is_verified,
+        is_active,
+        categories (name),
+        users (first_name, last_name, vendor_code)
+      `)
       .eq('is_active', true)
-      .eq('status', 'approved');
+      .eq('status', 'approved'); // Only approved products
 
     if (error) {
       console.error('Error fetching products from Supabase:', error.message);
@@ -551,15 +572,21 @@ app.get('/api/products', async (req, res) => {
       });
     }
 
-    // Simple transformation
+    // Debug: Log the product data to see what we're getting
+    console.log('Products data:', JSON.stringify(products, null, 2));
+    
+    // Transform the data to match the expected format
     const formattedProducts = products.map(product => ({
       id: product.id,
       name: product.name,
       description: product.description,
       short_description: product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : '',
+      company_name: product.users?.vendor_code || 'Unknown Vendor',
+      origin_port_name: 'Unknown Port', // Ports are not directly related to products in the schema
       category_name: product.categories?.name || 'Uncategorized',
       is_verified: product.is_verified,
-      price: product.price
+      price: product.price,
+      currency: 'USD' // In a real app, this would come from the currencies table
     }));
 
     console.log(`Successfully fetched ${formattedProducts.length} products from Supabase`);
@@ -1698,44 +1725,17 @@ app.post('/api/admin/users', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
-    message: 'Server is running properly'
+    supabaseConnected: !!supabase,
+    supabaseUrl: supabaseUrl ? 'SET' : 'NOT SET',
+    supabaseKeyExists: !!supabaseKey,
+    supabaseKeyLength: supabaseKey ? supabaseKey.length : 0,
+    environment: process.env.NODE_ENV || 'development',
+    vercelEnv: process.env.VERCEL_ENV || 'NOT SET',
+    port: process.env.PORT || 5000
   });
-});
-
-// Health check endpoint with Supabase connection test
-app.get('/api/health/db', async (req, res) => {
-  try {
-    // Test Supabase connection by fetching a small amount of data
-    const { data, error } = await supabase
-      .from('products')
-      .select('id')
-      .limit(1);
-    
-    if (error) {
-      return res.status(500).json({ 
-        status: 'ERROR', 
-        message: 'Supabase connection failed',
-        error: error.message
-      });
-    }
-    
-    res.json({ 
-      status: 'OK', 
-      timestamp: new Date().toISOString(),
-      message: 'Server and database are running properly',
-      dbTest: 'Successful',
-      sampleData: data
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      status: 'ERROR', 
-      message: 'Database connection test failed',
-      error: error.message
-    });
-  }
 });
 
 // Enhanced Health check endpoint with Supabase test
@@ -1799,48 +1799,6 @@ app.get('/api/test-env', (req, res) => {
     SUPABASE_KEY_LENGTH: process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.length : 0,
     PORT: process.env.PORT || 'NOT SET'
   });
-});
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    message: 'Server is running properly'
-  });
-});
-
-// Health check endpoint with Supabase connection test
-app.get('/api/health/db', async (req, res) => {
-  try {
-    // Test Supabase connection by fetching a small amount of data
-    const { data, error } = await supabase
-      .from('products')
-      .select('id')
-      .limit(1);
-    
-    if (error) {
-      return res.status(500).json({ 
-        status: 'ERROR', 
-        message: 'Supabase connection failed',
-        error: error.message
-      });
-    }
-    
-    res.json({ 
-      status: 'OK', 
-      timestamp: new Date().toISOString(),
-      message: 'Server and database are running properly',
-      dbTest: 'Successful',
-      sampleData: data
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      status: 'ERROR', 
-      message: 'Database connection test failed',
-      error: error.message
-    });
-  }
 });
 
 // Test endpoint to verify API routes are working
@@ -2995,42 +2953,41 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
   }
 });
 
-// Serve static files from the React app's build directory
-const clientBuildPath = path.join(__dirname, '../client/build');
-console.log('Serving static files from:', clientBuildPath);
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../client/build')));
 
-// More specific static file serving to ensure JS/CSS files are served correctly
-app.use('/static', express.static(path.join(clientBuildPath, 'static')));
-app.use('/manifest.json', express.static(path.join(clientBuildPath, 'manifest.json')));
-app.use('/favicon.ico', express.static(path.join(clientBuildPath, 'favicon.ico')));
+// Catch all handler: send back React's index.html file for any non-API routes
+// But exclude requests for static assets (files with extensions)
+app.get(/^\/(?!api).*\.(?!js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
 
-// General static file serving as fallback
-app.use(express.static(clientBuildPath));
+// Alternative catch-all that excludes common static file extensions
+app.get(/^((?!api|js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot).)*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
 
-// The "catch-all" handler: for any request that doesn't match an API route or a static file,
-// send back the React app's index.html file.
-// This MUST be the last route in your file.
+// Even simpler approach - just handle the root route and let static middleware handle assets
+// Serve static files from the React app build directory
+// This must come before the catch-all route
+const staticPath = path.join(__dirname, '../client/build');
+console.log('Serving static files from:', staticPath);
+app.use(express.static(staticPath));
+
+// Catch all handler: send back React's index.html file for any non-API routes
+// This MUST be the last route to avoid interfering with API routes or static files
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes or static assets
+  // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).send('API route not found');
   }
   
-  // For Vercel, we need to be more specific about what files should be served as static
-  // Check if this is a request for a file with an extension
-  const fileExtension = path.extname(req.path);
-  if (fileExtension && fileExtension !== '.html') {
-    // If it's a request for a file with an extension (other than .html),
-    // and we haven't served it as static yet, it means the file doesn't exist
-    return res.status(404).send('File not found');
-  }
-  
   // Serve the React app for all other routes
-  res.sendFile(path.join(clientBuildPath, 'index.html'));
+  res.sendFile(path.join(staticPath, 'index.html'));
 });
 
-// Start the server - ONLY ONE SERVER STARTUP CALL
-const server = app.listen(PORT, () => {
-  const actualPort = server.address().port;
-  console.log(`Server running on port ${actualPort}`);
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
 });
