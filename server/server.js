@@ -3,13 +3,14 @@
 
 // --- 1. INITIALIZATION ---
 
-// Load environment variables from the root .env file
-// CRITICAL FIX: The path must correctly point to the root folder from the /server directory.
+// CRITICAL FIX: 'path' must be required BEFORE it is used.
+const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const express = require('express');
-const path = require('path');
 const cors = require('cors');
+// ... rest of your require statements
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
