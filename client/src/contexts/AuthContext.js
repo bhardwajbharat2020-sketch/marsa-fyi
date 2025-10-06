@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   function login(userData, role, token = null) {
+    console.log('AuthContext login called with:', { userData, role, token });
     setCurrentUser(userData);
     setUserRole(role);
     setVendorCode(userData.vendor_code);
@@ -54,8 +55,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem('marsafyi_role', role);
     localStorage.setItem('marsafyi_vendor_code', userData.vendor_code);
     
-    // Redirect to role-specific dashboard after login
-    redirectToRoleDashboard(role);
+    // Don't redirect here - let the calling component handle redirection
+    // redirectToRoleDashboard(role);
   }
 
   function logout() {

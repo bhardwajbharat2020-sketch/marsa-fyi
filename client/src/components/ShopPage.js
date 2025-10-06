@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, ChevronRight, Star, Heart, CheckCircle, Ship, ShieldCheck, Globe, User, MapPin } from 'lucide-react';
+import RFQForm from './RFQForm';
 import '../App.css';
 
 const heroSlides = [
@@ -72,6 +74,8 @@ const categories = [
 const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
 
 const ShopPage = () => {
+  const { currentUser, userRole } = useAuth();
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedPort, setSelectedPort] = useState('All Ports');
@@ -92,6 +96,24 @@ const ShopPage = () => {
   const sliderRef = useRef(null);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  // State for RFQ modal
+  const [showRFQModal, setShowRFQModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // Check for pending RFQ from login
+  useEffect(() => {
+    if (location.state?.showRFQ && currentUser && userRole === 'buyer') {
+      // Find the product by ID
+      const productId = location.state.productId;
+      const product = products.find(p => p.id === parseInt(productId));
+      if (product) {
+        // Navigate to RFQ page with product data
+        navigate(`/rfq/${productId}`, { state: { product } });
+        // Clear the location state
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location, currentUser, userRole, products, navigate]);
 
   // Keep your Supabase fetch logic unchanged
   useEffect(() => {
@@ -232,10 +254,34 @@ const ShopPage = () => {
   const startIndex = (currentPage - 1) * productsPerPage;
   const currentProducts = filteredProducts.slice(startIndex, startIndex + productsPerPage);
 
-  const handleRFQ = (productId) => {
-    // In a real app, this would check if user is logged in
-    // For now, we'll redirect to login
-    navigate('/login');
+  const handleRFQ = (product) => {
+    console.log('handleRFQ called with product:', product);
+    // Check if user is logged in
+    if (!currentUser) {
+      console.log('User not logged in, storing RFQ data');
+      // Store the product info in localStorage for redirection after login
+      const rfqData = {
+        productId: product.id,
+        productName: product.name,
+        timestamp: Date.now()
+      };
+      console.log('Storing pending RFQ in localStorage:', rfqData);
+      localStorage.setItem('pendingRFQ', JSON.stringify(rfqData));
+      // Redirect to login
+      navigate('/login');
+      return;
+    }
+    
+    // Check if user is a buyer
+    if (userRole !== 'buyer') {
+      alert('Only buyers can request quotations');
+      return;
+    }
+    
+    // Show RFQ form in modal with product data
+    console.log('Showing RFQ form modal with product data');
+    setSelectedProduct(product);
+    setShowRFQModal(true);
   };
 
   // small helper for theme colors in inline style
@@ -684,7 +730,7 @@ const ShopPage = () => {
                       <div className="mt-auto">
                         <button 
                           className="w-full px-4 py-2 rounded-lg transition-colors font-medium"
-                          onClick={() => handleRFQ(product.id)}
+                          onClick={() => handleRFQ(product)}
                           style={{ backgroundColor: bhagwa, color: "#fff" }}
                         >
                           Request Quotation
@@ -833,6 +879,18 @@ const ShopPage = () => {
             © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
           </div>
         </div>
+      {showRFQModal && (
+        <RFQForm 
+          product={selectedProduct}
+          onClose={() => setShowRFQModal(false)}
+          onSuccess={() => {
+            setShowRFQModal(false);
+            alert('RFQ submitted successfully! The seller will respond to your request soon.');
+          }}
+          isResponseForm={false}
+        />
+      )}
+
       </footer>
     </div>
   );

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const CaptainDashboard = () => {
+  const { authToken } = useAuth();
   const [activeTab, setActiveTab] = useState('roles');
   const [roles, setRoles] = useState([]);
   const [catalogs, setCatalogs] = useState([]);
@@ -35,6 +37,20 @@ const CaptainDashboard = () => {
     validityDate: '',
     validityTime: ''
   });
+
+  // State for RFQ response
+  const [showRFQResponseModal, setShowRFQResponseModal] = useState(false);
+  const [selectedRFQ, setSelectedRFQ] = useState(null);
+  const [rfqResponse, setRfqResponse] = useState({
+    action: 'negotiate', // negotiate, doq, accept, reject
+    message: ''
+  });
+
+  // State for RFQ details modal
+  const [showRFQDetailsModal, setShowRFQDetailsModal] = useState(false);
+  const [selectedRFQDetails, setSelectedRFQDetails] = useState(null);
+  const [productDetails, setProductDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Define categories list (from ShopPage)
   const categories = [
@@ -95,7 +111,11 @@ const CaptainDashboard = () => {
         
         // Fetch roles
         try {
-          const rolesResponse = await fetch('/api/captain/roles');
+          const rolesResponse = await fetch('/api/captain/roles', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const rolesData = await rolesResponse.json();
           
           if (rolesResponse.ok) {
@@ -110,7 +130,11 @@ const CaptainDashboard = () => {
         
         // Fetch catalogs
         try {
-          const catalogsResponse = await fetch('/api/captain/catalogs');
+          const catalogsResponse = await fetch('/api/captain/catalogs', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const catalogsData = await catalogsResponse.json();
           
           if (catalogsResponse.ok) {
@@ -125,11 +149,16 @@ const CaptainDashboard = () => {
         
         // Fetch RFQs
         try {
-          const rfqsResponse = await fetch('/api/captain/rfqs');
+          const rfqsResponse = await fetch('/api/captain/rfqs', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const rfqsData = await rfqsResponse.json();
           
           if (rfqsResponse.ok) {
             setRfqs(rfqsData);
+            console.log('Successfully fetched RFQs:', rfqsData);
           } else {
             console.error('Error fetching RFQs:', rfqsData.error);
             // Don't set global error, just log it
@@ -140,7 +169,11 @@ const CaptainDashboard = () => {
         
         // Fetch DPQs
         try {
-          const dpqsResponse = await fetch('/api/captain/dpqs');
+          const dpqsResponse = await fetch('/api/captain/dpqs', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const dpqsData = await dpqsResponse.json();
           
           if (dpqsResponse.ok) {
@@ -155,7 +188,11 @@ const CaptainDashboard = () => {
         
         // Fetch DPOs
         try {
-          const dposResponse = await fetch('/api/captain/dpos');
+          const dposResponse = await fetch('/api/captain/dpos', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const dposData = await dposResponse.json();
           
           if (dposResponse.ok) {
@@ -170,7 +207,11 @@ const CaptainDashboard = () => {
         
         // Fetch disputes
         try {
-          const disputesResponse = await fetch('/api/captain/disputes');
+          const disputesResponse = await fetch('/api/captain/disputes', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const disputesData = await disputesResponse.json();
           
           if (disputesResponse.ok) {
@@ -185,7 +226,11 @@ const CaptainDashboard = () => {
         
         // Fetch products pending approval
         try {
-          const productsResponse = await fetch('/api/captain/products');
+          const productsResponse = await fetch('/api/captain/products', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
           const productsData = await productsResponse.json();
           
           if (productsResponse.ok) {
@@ -206,8 +251,10 @@ const CaptainDashboard = () => {
       }
     };
 
-    fetchData();
-  }, []);
+    if (authToken) {
+      fetchData();
+    }
+  }, [authToken]);
 
   // Function to approve a catalog
   const approveCatalog = async (catalogId) => {
@@ -216,6 +263,7 @@ const CaptainDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ catalogId }),
       });
@@ -249,6 +297,7 @@ const CaptainDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ productId }),
       });
@@ -283,6 +332,7 @@ const CaptainDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ 
           productId: productToReject.id,
@@ -352,6 +402,7 @@ const CaptainDashboard = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({
           name: editProductData.name,
@@ -412,6 +463,127 @@ const CaptainDashboard = () => {
     }
   };
 
+  // Function to open RFQ response modal
+  const openRFQResponseModal = (rfq) => {
+    setSelectedRFQ(rfq);
+    setRfqResponse({
+      action: 'negotiate',
+      message: ''
+    });
+    setShowRFQResponseModal(true);
+  };
+
+  // Handle input changes for RFQ response form
+  const handleRFQResponseChange = (e) => {
+    const { name, value } = e.target;
+    setRfqResponse(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle RFQ response submission
+  const handleRFQResponseSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedRFQ || !rfqResponse.message) {
+      alert('Please provide a response message');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/rfqs/${selectedRFQ.id}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          response: rfqResponse.message,
+          action: rfqResponse.action
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update RFQ status in the local state
+        setRfqs(prevRfqs => 
+          prevRfqs.map(rfq => 
+            rfq.id === selectedRFQ.id 
+              ? { ...rfq, status: result.rfq.status } 
+              : rfq
+          )
+        );
+        
+        // Close modal and reset state
+        setShowRFQResponseModal(false);
+        setSelectedRFQ(null);
+        setRfqResponse({
+          action: 'negotiate',
+          message: ''
+        });
+        
+        alert('RFQ response submitted successfully!');
+      } else {
+        alert('Failed to submit RFQ response: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error submitting RFQ response:', err);
+      alert('Failed to submit RFQ response. Please try again.');
+    }
+  };
+
+  // Function to fetch RFQ details
+  const fetchRFQDetails = async (rfqId) => {
+    try {
+      setLoadingDetails(true);
+      
+      // Fetch RFQ details
+      const rfqResponse = await fetch(`/api/captain/rfqs/${rfqId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      const rfqData = await rfqResponse.json();
+      
+      if (rfqResponse.ok) {
+        setSelectedRFQDetails(rfqData);
+        
+        // Fetch product details if product_id exists
+        if (rfqData.product_id) {
+          const productResponse = await fetch(`/api/products/${rfqData.product_id}`);
+          const productData = await productResponse.json();
+          
+          if (productResponse.ok) {
+            setProductDetails(productData);
+          } else {
+            console.error('Error fetching product details:', productData.error);
+            setProductDetails(null);
+          }
+        }
+        
+        setShowRFQDetailsModal(true);
+      } else {
+        console.error('Error fetching RFQ details:', rfqData.error);
+        alert('Failed to fetch RFQ details: ' + rfqData.error);
+      }
+    } catch (err) {
+      console.error('Error fetching RFQ details:', err);
+      alert('Failed to fetch RFQ details. Please try again.');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Function to close RFQ details modal
+  const closeRFQDetailsModal = () => {
+    setShowRFQDetailsModal(false);
+    setSelectedRFQDetails(null);
+    setProductDetails(null);
+  };
+
   // Status badge component
   const StatusBadge = ({ status }) => {
     const statusStyles = {
@@ -422,17 +594,18 @@ const CaptainDashboard = () => {
       completed: { backgroundColor: '#d4edda', color: '#155724' },
       open: { backgroundColor: '#fff3cd', color: '#856404' },
       resolved: { backgroundColor: '#d4edda', color: '#155724' },
-      submitted: { backgroundColor: '#cce5ff', color: '#004085' }
+      submitted: { backgroundColor: '#cce5ff', color: '#004085' },
+      resubmitted: { backgroundColor: '#e2d0f5', color: '#4b2e83' }
     };
     
     const style = statusStyles[status.toLowerCase()] || statusStyles.pending;
     
     return (
       <span 
-        className="px-3 py-1 rounded-full text-xs font-semibold"
+        className="px-2 py-1 rounded-full text-xs font-medium"
         style={style}
       >
-        {status}
+        {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
@@ -761,6 +934,7 @@ const CaptainDashboard = () => {
                         <th className="text-left p-3" style={{ color: darkText }}>RFQ ID</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Product</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Buyer</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Quantity</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Status</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
                       </tr>
@@ -769,8 +943,9 @@ const CaptainDashboard = () => {
                       {rfqs.length > 0 ? rfqs.map(rfq => (
                         <tr key={rfq.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
                           <td className="p-3" style={{ color: darkText }}>{rfq.id}</td>
-                          <td className="p-3" style={{ color: darkText }}>{rfq.product}</td>
+                          <td className="p-3" style={{ color: darkText }}>{rfq.title}</td>
                           <td className="p-3" style={{ color: darkText }}>{rfq.buyer}</td>
+                          <td className="p-3" style={{ color: darkText }}>{rfq.quantity}</td>
                           <td className="p-3">
                             <StatusBadge status={rfq.status} />
                           </td>
@@ -779,21 +954,31 @@ const CaptainDashboard = () => {
                               <button 
                                 className="px-3 py-1 rounded text-sm"
                                 style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                onClick={() => fetchRFQDetails(rfq.id)}
                               >
-                                View
+                                See Details
                               </button>
                               <button 
                                 className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: bhagwa, color: "#fff" }}
+                                style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                onClick={() => openRFQResponseModal(rfq)}
                               >
-                                Assign
+                                Respond
                               </button>
+                              {rfq.status?.toLowerCase() === 'open' && (
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#2ecc71", color: "#fff" }}
+                                >
+                                  Assign
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="5" className="text-center py-10" style={{ color: darkText }}>
+                          <td colSpan="6" className="text-center py-10" style={{ color: darkText }}>
                             No RFQs found.
                           </td>
                         </tr>
@@ -1339,6 +1524,332 @@ const CaptainDashboard = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RFQ Response Modal */}
+      {showRFQResponseModal && selectedRFQ && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div 
+            className="rounded-xl w-full max-w-md"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Respond to RFQ</h3>
+              <p className="mb-4" style={{ color: darkText }}>
+                Respond to RFQ #{selectedRFQ.id} for "{selectedRFQ.title}"
+              </p>
+              <form onSubmit={handleRFQResponseSubmit}>
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Action
+                  </label>
+                  <select
+                    name="action"
+                    className="w-full p-3 rounded-lg border"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    value={rfqResponse.action}
+                    onChange={handleRFQResponseChange}
+                  >
+                    <option value="negotiate">Request Negotiation</option>
+                    <option value="doq">Provide Document of Quotation (DOQ)</option>
+                    <option value="accept">Accept RFQ</option>
+                    <option value="reject">Reject RFQ</option>
+                  </select>
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="rfq-response-message" className="block mb-2 font-medium" style={{ color: darkText }}>
+                    Response Message *
+                  </label>
+                  <textarea
+                    id="rfq-response-message"
+                    name="message"
+                    className="w-full p-3 rounded-lg border"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    rows="4"
+                    value={rfqResponse.message}
+                    onChange={handleRFQResponseChange}
+                    placeholder="Enter your response..."
+                    required
+                  ></textarea>
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  <button 
+                    type="button"
+                    className="px-4 py-2 rounded-lg font-medium"
+                    onClick={() => {
+                      setShowRFQResponseModal(false);
+                      setSelectedRFQ(null);
+                      setRfqResponse({
+                        action: 'negotiate',
+                        message: ''
+                      });
+                    }}
+                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-4 py-2 rounded-lg font-medium"
+                    style={{ backgroundColor: bhagwa, color: "#fff" }}
+                  >
+                    Submit Response
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RFQ Details Modal */}
+      {showRFQDetailsModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div 
+            className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: "#fff" }}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold" style={{ color: darkText }}>RFQ Details</h3>
+                <button 
+                  className="p-2 rounded-full"
+                  onClick={closeRFQDetailsModal}
+                  style={{ backgroundColor: creamCard }}
+                >
+                  <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                </button>
+              </div>
+              
+              {loadingDetails ? (
+                <div className="text-center py-10" style={{ color: darkText }}>
+                  Loading RFQ details...
+                </div>
+              ) : selectedRFQDetails ? (
+                <div>
+                  {/* Buyer RFQ Details */}
+                  <div className="mb-6">
+                    <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
+                      Buyer RFQ Details
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>RFQ ID</p>
+                        <p style={{ color: darkText }}>{selectedRFQDetails.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Product Title</p>
+                        <p style={{ color: darkText }}>{selectedRFQDetails.title}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Buyer</p>
+                        <p style={{ color: darkText }}>{selectedRFQDetails.buyer.vendorCode}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Quantity</p>
+                        <p style={{ color: darkText }}>{selectedRFQDetails.quantity}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Status</p>
+                        <p style={{ color: darkText }}>
+                          <StatusBadge status={selectedRFQDetails.status} />
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Created At</p>
+                        <p style={{ color: darkText }}>
+                          {new Date(selectedRFQDetails.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      {selectedRFQDetails.budgetRangeMin && (
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Budget Range (Min)</p>
+                          <p style={{ color: darkText }}>${selectedRFQDetails.budgetRangeMin}</p>
+                        </div>
+                      )}
+                      {selectedRFQDetails.budgetRangeMax && (
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Budget Range (Max)</p>
+                          <p style={{ color: darkText }}>${selectedRFQDetails.budgetRangeMax}</p>
+                        </div>
+                      )}
+                      {selectedRFQDetails.responseDeadline && (
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Response Deadline</p>
+                          <p style={{ color: darkText }}>
+                            {new Date(selectedRFQDetails.responseDeadline).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedRFQDetails.description && (
+                      <div className="mt-4">
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Description</p>
+                        <p style={{ color: darkText }}>{selectedRFQDetails.description}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Product Details (if available) */}
+                  {selectedRFQDetails.productDetails && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
+                        Seller Product Details
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Product Name</p>
+                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Category</p>
+                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.category}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Price</p>
+                          <p style={{ color: darkText }}>${selectedRFQDetails.productDetails.price} {selectedRFQDetails.productDetails.currency}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>MOQ</p>
+                          <p style={{ color: darkText }}>
+                            {selectedRFQDetails.productDetails.moq} {selectedRFQDetails.productDetails.moqUom}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Available Quantity</p>
+                          <p style={{ color: darkText }}>
+                            {selectedRFQDetails.productDetails.availableQuantity} {selectedRFQDetails.productDetails.quantityUom}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Price Type</p>
+                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.priceType}</p>
+                        </div>
+                        {selectedRFQDetails.productDetails.offerValidityDate && (
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Offer Validity</p>
+                            <p style={{ color: darkText }}>
+                              {new Date(selectedRFQDetails.productDetails.offerValidityDate).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Relabeling Allowed</p>
+                          <p style={{ color: darkText }}>
+                            {selectedRFQDetails.productDetails.isRelabelingAllowed ? 'Yes' : 'No'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Product Status</p>
+                          <p style={{ color: darkText }}>
+                            <StatusBadge status={selectedRFQDetails.productDetails.status} />
+                          </p>
+                        </div>
+                        {selectedRFQDetails.productDetails.seller && (
+                          <>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.vendorCode}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller Name</p>
+                              <p style={{ color: darkText }}>
+                                {selectedRFQDetails.productDetails.seller.firstName} {selectedRFQDetails.productDetails.seller.lastName}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller Email</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.email}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller Phone</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.phone}</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      {selectedRFQDetails.productDetails.description && (
+                        <div className="mt-4">
+                          <p className="text-sm" style={{ color: "#7a614a" }}>Product Description</p>
+                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Resubmission Details (if status is resubmitted) */}
+                  {selectedRFQDetails.status === 'resubmitted' && selectedRFQDetails.productDetails && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
+                        Resubmission Details
+                      </h4>
+                      <div className="p-4 rounded-lg border" style={{ backgroundColor: "#fff", borderColor: "#d9cfc1" }}>
+                        <p style={{ color: darkText }}>
+                          Buyer has resubmitted this RFQ with updated details. Please review the current product information above and provide your response.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* All Messages/Notifications */}
+                  {selectedRFQDetails.notifications && selectedRFQDetails.notifications.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
+                        All Messages
+                      </h4>
+                      <div className="space-y-4">
+                        {selectedRFQDetails.notifications.map(notification => (
+                          <div 
+                            key={notification.id} 
+                            className="p-4 rounded-lg border"
+                            style={{ 
+                              backgroundColor: "#fff",
+                              borderColor: "#d9cfc1"
+                            }}
+                          >
+                            <h5 className="font-bold" style={{ color: darkText }}>
+                              {notification.title}
+                            </h5>
+                            <p className="mt-2" style={{ color: darkText }}>
+                              {notification.message}
+                            </p>
+                            <p className="text-sm mt-2" style={{ color: "#7a614a" }}>
+                              {new Date(notification.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      className="px-4 py-2 rounded-lg font-medium"
+                      onClick={closeRFQDetailsModal}
+                      style={{ backgroundColor: bhagwa, color: "#fff" }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10" style={{ color: darkText }}>
+                  No details available
+                </div>
+              )}
             </div>
           </div>
         </div>

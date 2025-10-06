@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, User, MapPin, ArrowLeft } from 'lucide-react';
 import '../App.css';
@@ -12,6 +12,7 @@ const Login = () => {
   const [selectedCountry, setSelectedCountry] = useState("Global");
   const [countryOpen, setCountryOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   // small helper for theme colors in inline style
@@ -21,6 +22,39 @@ const Login = () => {
   const darkText = "#5a4632";
 
   const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
+
+  useEffect(() => {
+    // Check if there's a pending RFQ after login
+    const checkPendingRFQ = () => {
+      const pendingRFQ = localStorage.getItem('pendingRFQ');
+      if (pendingRFQ) {
+        try {
+          const rfqData = JSON.parse(pendingRFQ);
+          // Check if the RFQ is still valid (not older than 30 minutes)
+          if (Date.now() - rfqData.timestamp < 30 * 60 * 1000) {
+            return rfqData;
+          } else {
+            // Clear expired RFQ
+            localStorage.removeItem('pendingRFQ');
+          }
+        } catch (e) {
+          // Clear invalid RFQ data
+          localStorage.removeItem('pendingRFQ');
+        }
+      }
+      return null;
+    };
+
+    // If we're on the login page and there's a pending RFQ, store the from location
+    const pendingRFQ = checkPendingRFQ();
+    if (pendingRFQ && !location.state?.from) {
+      // Store the original location in state
+      navigate(location.pathname, { 
+        replace: true, 
+        state: { ...location.state, from: location, hasPendingRFQ: true } 
+      });
+    }
+  }, [location, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,10 +80,74 @@ const Login = () => {
       const data = await response.json();
       
       if (response.ok && data.success) {
+        console.log('Login successful, checking for redirects');
         // Login successful
         login(data.user, data.user.role, data.token);
         
-        // Redirect to role-specific dashboard
+        // Check if there's a pending RFQ
+        const pendingRFQ = localStorage.getItem('pendingRFQ');
+        console.log('Checking for pending RFQ in localStorage:', pendingRFQ);
+        if (pendingRFQ) {
+          try {
+            const rfqData = JSON.parse(pendingRFQ);
+            console.log('Found pending RFQ data:', rfqData);
+            
+            // Check if the RFQ is still valid (not older than 30 minutes)
+            if (Date.now() - rfqData.timestamp < 30 * 60 * 1000) {
+              console.log('Redirecting to RFQ page for product:', rfqData.productId);
+              // Clear the pending RFQ from localStorage ONLY after successful redirect
+              localStorage.removeItem('pendingRFQ');
+              console.log('Cleared pending RFQ from localStorage');
+              // Redirect to RFQ page
+              navigate(`/rfq/${rfqData.productId}`);
+              // Important: Return here to prevent further redirection
+              setLoading(false);
+              return;
+            } else {
+              console.log('RFQ data expired');
+              // Clear expired data
+              localStorage.removeItem('pendingRFQ');
+            }
+          } catch (e) {
+            console.error('Error parsing pending RFQ:', e);
+            // Clear invalid RFQ data
+            localStorage.removeItem('pendingRFQ');
+          }
+        }
+        
+        // Check for post-login redirect (for direct navigation to login page)
+        const postLoginRedirect = localStorage.getItem('postLoginRedirect');
+        console.log('Checking for post-login redirect:', postLoginRedirect);
+        if (postLoginRedirect) {
+          try {
+            const redirectData = JSON.parse(postLoginRedirect);
+            console.log('Found post-login redirect data:', redirectData);
+            
+            // Check if the redirect is still valid (not older than 30 minutes)
+            if (Date.now() - redirectData.timestamp < 30 * 60 * 1000) {
+              console.log('Redirecting to post-login destination:', redirectData.path);
+              // Clear the redirect data from localStorage ONLY after successful redirect
+              localStorage.removeItem('postLoginRedirect');
+              console.log('Cleared post-login redirect from localStorage');
+              // Redirect to the intended destination
+              navigate(redirectData.path);
+              // Important: Return here to prevent further redirection
+              setLoading(false);
+              return;
+            } else {
+              console.log('Post-login redirect data expired');
+              // Clear expired data
+              localStorage.removeItem('postLoginRedirect');
+            }
+          } catch (e) {
+            console.error('Error parsing post-login redirect:', e);
+            // Clear invalid redirect data
+            localStorage.removeItem('postLoginRedirect');
+          }
+        }
+        
+        // Redirect to role-specific dashboard only if no pending RFQ or other redirect
+        console.log('Redirecting to role-specific dashboard for role:', data.user.role);
         switch(data.user.role) {
           case 'seller':
             navigate('/dashboard/seller');
@@ -91,7 +189,6 @@ const Login = () => {
             navigate('/dashboard/buyer');
         }
       } else {
-
         // Login failed
         setError(data.message || 'Invalid credentials. Please try again.');
       }

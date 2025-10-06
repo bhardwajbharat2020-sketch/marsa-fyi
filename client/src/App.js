@@ -6,6 +6,7 @@ import ShopPage from './components/ShopPage';
 import AboutPage from './components/AboutPage';
 import ContactPage from './components/ContactPage';
 import ProductDetailPage from './components/ProductDetailPage';
+import RFQPage from './components/RFQPage';
 import Login from './components/Login';
 import Register from './components/Register';
 import SellerDashboard from './components/SellerDashboard';
@@ -38,6 +39,7 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/product/:productId" element={<ProductDetailPage />} />
+            <Route path="/rfq/:productId" element={<RFQPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/categories" element={<CategoriesPage />} />

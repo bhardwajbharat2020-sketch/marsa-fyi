@@ -1328,7 +1328,7 @@ app.post('/api/seller/products', authenticateToken, upload.any(), async (req, re
 });
 
 // Buyer RFQs endpoint - fetch buyer's RFQs
-app.get('/api/buyer/rfqs', async (req, res) => {
+app.get('/api/buyer/rfqs', authenticateToken, async (req, res) => {
   try {
     // Always use Supabase - no mock data fallback
     if (!supabase) {
@@ -1342,8 +1342,8 @@ app.get('/api/buyer/rfqs', async (req, res) => {
     // Fetch RFQs from Supabase with correct column names
     const { data: rfqs, error } = await supabase
       .from('rfqs')
-      .select('id, quantity, status')
-      .eq('buyer_id', req.user?.id || 1);
+      .select('id, product_id, title, quantity, status, created_at')
+      .eq('buyer_id', req.user.id);
 
     if (error) {
       console.error('Error fetching buyer RFQs from Supabase:', error.message);
@@ -1354,14 +1354,8 @@ app.get('/api/buyer/rfqs', async (req, res) => {
       });
     }
 
-    // Add missing fields manually since they don't exist in the schema
-    const rfqsWithProduct = rfqs.map(rfq => ({
-      ...rfq,
-      product: 'Unknown Product'
-    }));
-
-    console.log(`Successfully fetched ${rfqsWithProduct.length} buyer RFQs from Supabase`);
-    res.json(rfqsWithProduct || []);
+    console.log(`Successfully fetched ${rfqs.length} buyer RFQs from Supabase`);
+    res.json(rfqs || []);
   } catch (error) {
     console.error('Error in buyer RFQs endpoint:', error.message);
     console.error('Error stack:', error.stack);
@@ -1384,10 +1378,10 @@ app.get('/api/buyer/orders', async (req, res) => {
       });
     }
 
-    // Fetch orders from Supabase
+    // Fetch orders from Supabase with available columns
     const { data: orders, error } = await supabase
       .from('orders')
-      .select('id, seller_id, product_id, quantity, status')
+      .select('id, quantity, status')
       .eq('buyer_id', req.user?.id || 1);
 
     if (error) {
@@ -1398,8 +1392,15 @@ app.get('/api/buyer/orders', async (req, res) => {
       });
     }
 
-    console.log(`Successfully fetched ${orders.length} buyer orders from Supabase`);
-    res.json(orders || []);
+    // Add missing fields manually since they don't exist in the schema
+    const ordersWithDetails = orders.map(order => ({
+      ...order,
+      seller: 'Unknown Seller',
+      product: 'Unknown Product'
+    }));
+
+    console.log(`Successfully fetched ${ordersWithDetails.length} buyer orders from Supabase`);
+    res.json(ordersWithDetails || []);
   } catch (error) {
     console.error('Error in buyer orders endpoint:', error.message);
     res.status(500).json({ 
@@ -1421,22 +1422,9 @@ app.get('/api/buyer/suppliers', async (req, res) => {
       });
     }
 
-    // Fetch suppliers from Supabase
-    const { data: suppliers, error } = await supabase
-      .from('suppliers')
-      .select('id, name, vendor_code, products, rating')
-      .eq('is_active', true);
-
-    if (error) {
-      console.error('Error fetching buyer suppliers from Supabase:', error.message);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching buyer suppliers: ' + error.message 
-      });
-    }
-
-    console.log(`Successfully fetched ${suppliers.length} buyer suppliers from Supabase`);
-    res.json(suppliers || []);
+    // Return empty array since suppliers table doesn't exist
+    console.log('Suppliers table not implemented, returning empty array');
+    res.json([]);
   } catch (error) {
     console.error('Error in buyer suppliers endpoint:', error.message);
     res.status(500).json({ 
@@ -1447,15 +1435,15 @@ app.get('/api/buyer/suppliers', async (req, res) => {
 });
 
 // Create RFQ endpoint for buyers
-app.post('/api/buyer/rfqs', async (req, res) => {
+app.post('/api/buyer/rfqs', authenticateToken, async (req, res) => {
   try {
-    const { product, quantity, description } = req.body;
+    const { product_id, title, description, quantity, budget_range_min, budget_range_max, response_deadline, currency_id } = req.body;
     
     // Validate required fields
-    if (!product || !quantity) {
+    if (!product_id || !title || !quantity) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Product name and quantity are required' 
+        error: 'Product ID, title, and quantity are required' 
       });
     }
     
@@ -1472,9 +1460,15 @@ app.post('/api/buyer/rfqs', async (req, res) => {
     const { data: rfq, error } = await supabase
       .from('rfqs')
       .insert({
-        product_name: product, // This column might not exist, let's check
-        quantity: parseInt(quantity),
+        buyer_id: req.user.id,
+        product_id: parseInt(product_id),
+        title: title,
         description: description || '',
+        quantity: parseInt(quantity),
+        budget_range_min: budget_range_min ? parseFloat(budget_range_min) : null,
+        budget_range_max: budget_range_max ? parseFloat(budget_range_max) : null,
+        response_deadline: response_deadline || null,
+        currency_id: currency_id || 1,
         status: 'open',
         created_at: new Date()
       })
@@ -1484,36 +1478,6 @@ app.post('/api/buyer/rfqs', async (req, res) => {
     if (error) {
       console.error('Error creating RFQ in Supabase:', error.message);
       console.error('Error details:', error);
-      
-      // Try again without the product_name column since it doesn't exist
-      if (error.message.includes('product_name')) {
-        const { data: rfq2, error: error2 } = await supabase
-          .from('rfqs')
-          .insert({
-            quantity: parseInt(quantity),
-            description: description || '',
-            status: 'open',
-            created_at: new Date()
-          })
-          .select()
-          .single();
-          
-        if (error2) {
-          console.error('Error creating RFQ (second attempt):', error2.message);
-          return res.status(500).json({ 
-            success: false,
-            error: 'Server error creating RFQ: ' + error2.message 
-          });
-        }
-        
-        console.log('Successfully created RFQ in Supabase (second attempt)');
-        return res.json({ 
-          success: true, 
-          message: 'RFQ created successfully',
-          rfq: rfq2
-        });
-      }
-      
       return res.status(500).json({ 
         success: false,
         error: 'Server error creating RFQ: ' + error.message 
@@ -1531,6 +1495,125 @@ app.post('/api/buyer/rfqs', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Server error creating RFQ: ' + error.message 
+    });
+  }
+});
+
+// Update RFQ endpoint for buyers
+app.put('/api/buyer/rfqs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      product_id,
+      title,
+      description,
+      quantity,
+      budget_range_min,
+      budget_range_max,
+      response_deadline,
+      currency_id
+    } = req.body;
+    
+    // Validate required fields
+    const hasValidProductId = product_id !== undefined && product_id !== null && product_id !== '' && !isNaN(parseInt(product_id)) && parseInt(product_id) > 0;
+    const hasValidTitle = title !== undefined && title !== null && title.toString().trim() !== '';
+    const hasValidQuantity = quantity !== undefined && quantity !== null && 
+                            quantity.toString().trim() !== '' && !isNaN(parseInt(quantity)) && 
+                            parseInt(quantity) > 0;
+    
+    if (!hasValidProductId || !hasValidTitle || !hasValidQuantity) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID, title, and quantity are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Verify that the RFQ exists and belongs to the buyer
+    const { data: existingRFQ, error: rfqError } = await supabase
+      .from('rfqs')
+      .select('id, buyer_id, status')
+      .eq('id', id)
+      .eq('buyer_id', req.user.id)
+      .single();
+    
+    console.log('Looking for RFQ with ID:', id);
+    console.log('Current user ID:', req.user.id);
+    console.log('Existing RFQ query result:', existingRFQ);
+    console.log('Existing RFQ query error:', rfqError);
+    
+    if (rfqError || !existingRFQ) {
+      console.log('RFQ not found or permission denied');
+      return res.status(404).json({ 
+        success: false,
+        error: 'RFQ not found or you do not have permission to update it' 
+      });
+    }
+    
+    console.log('Found existing RFQ with status:', existingRFQ.status);
+    
+    // Determine the new status - if the RFQ was in a responded state, set it to resubmitted
+    const respondedStatuses = ['negotiation_requested', 'doq_provided', 'responded', 'accepted', 'rejected'];
+    // More robust status checking with trimming and case normalization
+    const currentStatus = existingRFQ.status ? existingRFQ.status.toString().trim().toLowerCase() : '';
+    const newStatus = respondedStatuses.includes(currentStatus) ? 'resubmitted' : existingRFQ.status;
+    
+    console.log('Responded statuses:', respondedStatuses);
+    console.log('Existing RFQ status (trimmed and lowercase):', currentStatus);
+    console.log('Will set new status to:', newStatus);
+
+    // Update the RFQ in the database
+    const updateData = {
+      product_id: parseInt(product_id),
+      title: title,
+      description: description || '',
+      quantity: parseInt(quantity),
+      budget_range_min: budget_range_min ? parseFloat(budget_range_min) : null,
+      budget_range_max: budget_range_max ? parseFloat(budget_range_max) : null,
+      response_deadline: response_deadline || null,
+      currency_id: currency_id || 1,
+      status: newStatus,
+      updated_at: new Date()
+    };
+    
+    console.log('Update data being sent to database:', updateData);
+    
+    const { data: rfq, error } = await supabase
+      .from('rfqs')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating RFQ in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating RFQ: ' + error.message 
+      });
+    }
+
+    console.log('Successfully updated RFQ in Supabase');
+    console.log('Returned RFQ data:', rfq);
+    res.json({ 
+      success: true, 
+      message: 'RFQ updated successfully',
+      rfq
+    });
+  } catch (error) {
+    console.error('Error in update RFQ endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating RFQ: ' + error.message 
     });
   }
 });
@@ -1675,6 +1758,323 @@ app.get('/api/admin/config', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Server error fetching system configuration: ' + error.message 
+    });
+  }
+});
+
+// Admin audit logs endpoint
+app.get('/api/admin/logs', async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch audit logs from Supabase
+    const { data: logs, error } = await supabase
+      .from('audit_logs')
+      .select('id, user_id, action, details, reason, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching audit logs from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching audit logs: ' + error.message 
+      });
+    }
+
+    // Format logs data
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      userId: log.user_id,
+      action: log.action,
+      details: log.details,
+      reason: log.reason,
+      createdAt: log.created_at
+    }));
+
+    console.log(`Successfully fetched ${formattedLogs.length} audit logs from Supabase`);
+    res.json(formattedLogs || []);
+  } catch (error) {
+    console.error('Error in admin logs endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching audit logs: ' + error.message 
+    });
+  }
+});
+
+// Captain roles endpoint - fetch all roles with user counts
+app.get('/api/captain/roles', authenticateToken, async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch all roles with user counts
+    const { data: roles, error } = await supabase
+      .from('roles')
+      .select(`
+        id,
+        name,
+        code,
+        description,
+        is_active,
+        created_at,
+        user_roles (
+          id
+        )
+      `)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching roles from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching roles: ' + error.message 
+      });
+    }
+
+    // Format roles data with user counts
+    const formattedRoles = roles.map(role => ({
+      id: role.id,
+      name: role.name,
+      code: role.code,
+      description: role.description,
+      isActive: role.is_active,
+      userCount: role.user_roles ? role.user_roles.length : 0,
+      createdAt: role.created_at
+    }));
+
+    console.log(`Successfully fetched ${formattedRoles.length} roles from Supabase`);
+    res.json(formattedRoles || []);
+  } catch (error) {
+    console.error('Error in captain roles endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching roles: ' + error.message 
+    });
+  }
+});
+
+// Captain create role endpoint
+app.post('/api/captain/roles', authenticateToken, async (req, res) => {
+  try {
+    const { name, code, description } = req.body;
+    
+    // Validate required fields
+    if (!name || !code) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Role name and code are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Create the role
+    const { data: role, error } = await supabase
+      .from('roles')
+      .insert({
+        name: name,
+        code: code.toUpperCase(),
+        description: description || '',
+        is_active: true,
+        created_at: new Date()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating role in Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error creating role: ' + error.message 
+      });
+    }
+    
+    console.log('Successfully created role in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Role created successfully',
+      role: {
+        id: role.id,
+        name: role.name,
+        code: role.code,
+        description: role.description,
+        isActive: role.is_active,
+        userCount: 0,
+        createdAt: role.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain create role endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error creating role: ' + error.message 
+    });
+  }
+});
+
+// Captain update role endpoint
+app.put('/api/captain/roles/:id', authenticateToken, async (req, res) => {
+  try {
+    const roleId = req.params.id;
+    const { name, code, description, is_active } = req.body;
+    
+    // Validate required fields
+    if (!name || !code) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Role name and code are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Update the role
+    const { data: role, error } = await supabase
+      .from('roles')
+      .update({
+        name: name,
+        code: code.toUpperCase(),
+        description: description || '',
+        is_active: is_active !== undefined ? is_active : true,
+        updated_at: new Date()
+      })
+      .eq('id', roleId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating role in Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating role: ' + error.message 
+      });
+    }
+    
+    if (!role) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Role not found' 
+      });
+    }
+    
+    // Get user count for the role
+    const { data: userRoles, userCountError } = await supabase
+      .from('user_roles')
+      .select('id')
+      .eq('role_id', roleId);
+    
+    const userCount = userCountError ? 0 : userRoles.length;
+    
+    console.log('Successfully updated role in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Role updated successfully',
+      role: {
+        id: role.id,
+        name: role.name,
+        code: role.code,
+        description: role.description,
+        isActive: role.is_active,
+        userCount: userCount,
+        createdAt: role.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain update role endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating role: ' + error.message 
+    });
+  }
+});
+
+// Captain delete role endpoint
+app.delete('/api/captain/roles/:id', authenticateToken, async (req, res) => {
+  try {
+    const roleId = req.params.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Check if role has users assigned to it
+    const { data: userRoles, error: userCountError } = await supabase
+      .from('user_roles')
+      .select('id')
+      .eq('role_id', roleId);
+    
+    if (userCountError) {
+      console.error('Error checking role user count:', userCountError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error checking role user count: ' + userCountError.message 
+      });
+    }
+    
+    if (userRoles && userRoles.length > 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Cannot delete role with assigned users. Please reassign users first.' 
+      });
+    }
+    
+    // Delete the role
+    const { error } = await supabase
+      .from('roles')
+      .delete()
+      .eq('id', roleId);
+
+    if (error) {
+      console.error('Error deleting role in Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error deleting role: ' + error.message 
+      });
+    }
+    
+    console.log('Successfully deleted role in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Role deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in captain delete role endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error deleting role: ' + error.message 
     });
   }
 });
@@ -2267,6 +2667,854 @@ app.post('/api/captain/products/reject', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Server error rejecting product: ' + error.message 
+    });
+  }
+});
+
+// Create RFQ endpoint for buyers
+app.post('/api/buyer/rfqs', authenticateToken, async (req, res) => {
+  try {
+    console.log('Received RFQ request body:', req.body);
+    console.log('Request body types:', {
+      product_id: typeof req.body.product_id,
+      product_id_value: req.body.product_id,
+      title: typeof req.body.title,
+      quantity: typeof req.body.quantity
+    });
+    const {
+      product_id,
+      title,
+      description,
+      quantity,
+      budget_range_min,
+      budget_range_max,
+      response_deadline,
+      currency_id
+    } = req.body;
+    
+    // Validate required fields
+    console.log('Validating required fields:', { product_id, title, quantity });
+    console.log('Field types:', { 
+      product_id_type: typeof product_id, 
+      title_type: typeof title, 
+      quantity_type: typeof quantity 
+    });
+    
+    // More robust validation
+    const hasValidProductId = product_id !== undefined && product_id !== null && product_id !== '' && !isNaN(parseInt(product_id)) && parseInt(product_id) > 0;
+    const hasValidTitle = title !== undefined && title !== null && title.toString().trim() !== '';
+    const hasValidQuantity = quantity !== undefined && quantity !== null && 
+                            quantity.toString().trim() !== '' && !isNaN(parseInt(quantity)) && 
+                            parseInt(quantity) > 0;
+    
+    console.log('Validation results:', { hasValidProductId, hasValidTitle, hasValidQuantity });
+    
+    if (!hasValidProductId || !hasValidTitle || !hasValidQuantity) {
+      console.log('Validation failed:', { 
+        product_id_valid: hasValidProductId, 
+        title_valid: hasValidTitle, 
+        quantity_valid: hasValidQuantity,
+        product_id_value: product_id,
+        title_value: title,
+        quantity_value: quantity
+      });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID, title, and quantity are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Verify that the product exists
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id, seller_id')
+      .eq('id', parseInt(product_id))
+      .single();
+    
+    if (productError || !product) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Product not found' 
+      });
+    }
+    
+    // Save the RFQ to the database with correct column names
+    const { data: rfq, error } = await supabase
+      .from('rfqs')
+      .insert({
+        buyer_id: req.user.id,
+        product_id: parseInt(product_id),
+        title: title,
+        description: description || '',
+        quantity: parseInt(quantity),
+        budget_range_min: budget_range_min ? parseFloat(budget_range_min) : null,
+        budget_range_max: budget_range_max ? parseFloat(budget_range_max) : null,
+        response_deadline: response_deadline || null,
+        currency_id: currency_id || 1,
+        status: 'open',
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating RFQ in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error creating RFQ: ' + error.message 
+      });
+    }
+    // Send notification to the seller
+    if (product.seller_id) {
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: product.seller_id,
+            title: 'New RFQ Received',
+            message: `You have received a new Request for Quotation for "${title}".`,
+            is_read: false,
+            created_at: new Date()
+          });
+        
+        if (notificationError) {
+          console.error('Error sending notification to seller:', notificationError.message);
+        } else {
+          console.log('Notification sent to seller for new RFQ');
+        }
+      } catch (notificationErr) {
+        console.error('Error sending notification to seller:', notificationErr.message);
+      }
+    }
+
+    console.log('Successfully created RFQ in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'RFQ created successfully',
+      rfq
+    });
+  } catch (error) {
+    console.error('Error in create RFQ endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error creating RFQ: ' + error.message 
+    });
+  }
+});
+
+// Duplicate endpoint - commented out to avoid conflicts
+// app.put('/api/buyer/rfqs/:id', authenticateToken, async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const {
+//       product_id,
+//       title,
+//       description,
+//       quantity,
+//       budget_range_min,
+//       budget_range_max,
+//       response_deadline,
+//       currency_id
+//     } = req.body;
+//     
+//     // Validate required fields
+//     const hasValidProductId = product_id !== undefined && product_id !== null && product_id !== '' && !isNaN(parseInt(product_id)) && parseInt(product_id) > 0;
+//     const hasValidTitle = title !== undefined && title !== null && title.toString().trim() !== '';
+//     const hasValidQuantity = quantity !== undefined && quantity !== null && 
+//                             quantity.toString().trim() !== '' && !isNaN(parseInt(quantity)) && 
+//                             parseInt(quantity) > 0;
+//     
+//     if (!hasValidProductId || !hasValidTitle || !hasValidQuantity) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         error: 'Product ID, title, and quantity are required' 
+//       });
+//     }
+//     
+//     // Always use Supabase - no mock data fallback
+//     if (!supabase) {
+//       console.error('Supabase not initialized');
+//       return res.status(500).json({ 
+//         success: false,
+//         error: 'Database not available' 
+//       });
+//     }
+//     
+//     // Verify that the RFQ exists and belongs to the buyer
+//     const { data: existingRFQ, error: rfqError } = await supabase
+//       .from('rfqs')
+//       .select('id, buyer_id, status')
+//       .eq('id', id)
+//       .eq('buyer_id', req.user.id)
+//       .single();
+//     
+//     console.log('Looking for RFQ with ID:', id);
+//     console.log('Current user ID:', req.user.id);
+//     console.log('Existing RFQ query result:', existingRFQ);
+//     console.log('Existing RFQ query error:', rfqError);
+//     
+//     if (rfqError || !existingRFQ) {
+//       console.log('RFQ not found or permission denied');
+//       return res.status(404).json({ 
+//         success: false,
+//         error: 'RFQ not found or you do not have permission to update it' 
+//       });
+//     }
+//     
+//     console.log('Found existing RFQ with status:', existingRFQ.status);
+//     
+//     // Determine the new status - if the RFQ was in a responded state, set it to resubmitted
+//     const respondedStatuses = ['negotiation_requested', 'doq_provided', 'responded', 'accepted', 'rejected'];
+//     const newStatus = respondedStatuses.includes(existingRFQ.status?.toLowerCase()) ? 'resubmitted' : existingRFQ.status;
+//     
+//     console.log('Responded statuses:', respondedStatuses);
+//     console.log('Existing RFQ status (lowercase):', existingRFQ.status?.toLowerCase());
+//     console.log('Will set new status to:', newStatus);
+// 
+//     // Update the RFQ in the database
+//     const updateData = {
+//       product_id: parseInt(product_id),
+//       title: title,
+//       description: description || '',
+//       quantity: parseInt(quantity),
+//       budget_range_min: budget_range_min ? parseFloat(budget_range_min) : null,
+//       budget_range_max: budget_range_max ? parseFloat(budget_range_max) : null,
+//       response_deadline: response_deadline || null,
+//       currency_id: currency_id || 1,
+//       status: newStatus,
+//       updated_at: new Date()
+//     };
+//     
+//     console.log('Update data being sent to database:', updateData);
+//     
+//     const { data: rfq, error } = await supabase
+//       .from('rfqs')
+//       .update(updateData)
+//       .eq('id', id)
+//       .select()
+//       .single();
+// 
+//     if (error) {
+//       console.error('Error updating RFQ in Supabase:', error.message);
+//       console.error('Error details:', error);
+//       return res.status(500).json({ 
+//         success: false,
+//         error: 'Server error updating RFQ: ' + error.message 
+//       });
+//     }
+// 
+//     console.log('Successfully updated RFQ in Supabase');
+//     console.log('Returned RFQ data:', rfq);
+//     res.json({ 
+//       success: true, 
+//       message: 'RFQ updated successfully',
+//       rfq
+//     });
+//   } catch (error) {
+//     console.error('Error in update RFQ endpoint:', error.message);
+//     res.status(500).json({ 
+//       success: false,
+//       error: 'Server error updating RFQ: ' + error.message 
+//     });
+//   }
+// });
+
+// Buyer RFQs endpoint - fetch buyer's RFQs
+app.get('/api/buyer/rfqs', authenticateToken, async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch RFQs from Supabase with related data
+    const { data: rfqs, error } = await supabase
+      .from('rfqs')
+      .select(`
+        id,
+        buyer_id,
+        product_id,
+        title,
+        description,
+        quantity,
+        budget_range_min,
+        budget_range_max,
+        response_deadline,
+        status,
+        created_at,
+        updated_at,
+        products (name),
+        dpqs (id, status, unit_price, currency_id, currencies (code))
+      `)
+      .eq('buyer_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching buyer RFQs from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching buyer RFQs: ' + error.message 
+      });
+    }
+
+    // Format RFQs data
+    const formattedRFQs = rfqs.map(rfq => {
+      // Find the latest quotation if any
+      let latestQuotation = null;
+      if (rfq.dpqs && rfq.dpqs.length > 0) {
+        // Sort by created_at to get the latest
+        const sorted = rfq.dpqs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        latestQuotation = sorted[0];
+      }
+      
+      return {
+        id: rfq.id,
+        productId: rfq.product_id,
+        product: rfq.products?.name || 'Unknown Product',
+        title: rfq.title,
+        description: rfq.description,
+        quantity: rfq.quantity,
+        budgetRangeMin: rfq.budget_range_min,
+        budgetRangeMax: rfq.budget_range_max,
+        responseDeadline: rfq.response_deadline,
+        status: rfq.status,
+        createdAt: rfq.created_at,
+        updatedAt: rfq.updated_at,
+        latestQuotation: latestQuotation ? {
+          id: latestQuotation.id,
+          status: latestQuotation.status,
+          unitPrice: latestQuotation.unit_price,
+          currency: latestQuotation.currencies?.code || 'USD'
+        } : null
+      };
+    });
+
+    console.log(`Successfully fetched ${formattedRFQs.length} buyer RFQs from Supabase`);
+    res.json(formattedRFQs || []);
+  } catch (error) {
+    console.error('Error in buyer RFQs endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching buyer RFQs: ' + error.message 
+    });
+  }
+});
+
+// Buyer RFQ details endpoint - fetch detailed RFQ information including all notifications
+app.get('/api/buyer/rfqs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const buyerId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch RFQ details from Supabase with related data
+    const { data: rfq, error } = await supabase
+      .from('rfqs')
+      .select(`
+        id,
+        buyer_id,
+        product_id,
+        title,
+        description,
+        quantity,
+        budget_range_min,
+        budget_range_max,
+        response_deadline,
+        status,
+        created_at,
+        updated_at
+      `)
+      .eq('id', id)
+      .eq('buyer_id', buyerId) // Ensure buyer can only access their own RFQs
+      .single();
+
+    if (error) {
+      console.error('Error fetching RFQ details from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching RFQ details: ' + error.message 
+      });
+    }
+
+    if (!rfq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'RFQ not found or you do not have permission to access it' 
+      });
+    }
+
+    // Fetch ALL notifications related to this RFQ (both to buyer and from captain)
+    const { data: notifications, notificationError } = await supabase
+      .from('notifications')
+      .select('id, title, message, created_at, user_id')
+      .eq('related_entity_type', 'rfq')
+      .eq('related_entity_id', id)
+      .order('created_at', { ascending: false });
+
+    if (notificationError) {
+      console.error('Error fetching notifications:', notificationError.message);
+      // Don't fail the request if notifications can't be fetched, just log it
+    }
+
+    // Format RFQ details data
+    const formattedRFQ = {
+      id: rfq.id,
+      buyerId: rfq.buyer_id,
+      productId: rfq.product_id,
+      product: rfq.title, // Use title instead of product name
+      title: rfq.title,
+      description: rfq.description,
+      quantity: rfq.quantity,
+      budgetRangeMin: rfq.budget_range_min,
+      budgetRangeMax: rfq.budget_range_max,
+      responseDeadline: rfq.response_deadline,
+      status: rfq.status,
+      createdAt: rfq.created_at,
+      updatedAt: rfq.updated_at,
+      notifications: notifications || []
+    };
+
+    console.log('Successfully fetched details for RFQ ' + rfq.id + ' from Supabase');
+    res.json(formattedRFQ);
+  } catch (error) {
+    console.error('Error in buyer RFQ details endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching RFQ details: ' + error.message 
+    });
+  }
+});
+
+// Captain RFQ details endpoint - fetch detailed RFQ information including notifications
+app.get('/api/captain/rfqs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch RFQ details from Supabase with related data
+    const { data: rfq, error } = await supabase
+      .from('rfqs')
+      .select(`
+        id,
+        buyer_id,
+        product_id,
+        title,
+        description,
+        quantity,
+        budget_range_min,
+        budget_range_max,
+        response_deadline,
+        status,
+        created_at,
+        updated_at,
+        products (
+          id,
+          name,
+          seller_id,
+          description,
+          price,
+          currency_id,
+          moq,
+          moq_uom,
+          available_quantity,
+          quantity_uom,
+          price_type,
+          is_relabeling_allowed,
+          offer_validity_date,
+          status,
+          category_id,
+          categories (name),
+          currencies (code),
+          users (
+            id,
+            first_name,
+            last_name,
+            vendor_code,
+            email,
+            phone
+          )
+        ),
+        users (
+          id,
+          first_name,
+          last_name,
+          vendor_code,
+          email,
+          phone
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching RFQ details from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching RFQ details: ' + error.message 
+      });
+    }
+
+    if (!rfq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'RFQ not found' 
+      });
+    }
+
+    // Fetch ALL notifications related to this RFQ
+    const { data: notifications, notificationError } = await supabase
+      .from('notifications')
+      .select('id, title, message, created_at, user_id')
+      .eq('related_entity_type', 'rfq')
+      .eq('related_entity_id', id)
+      .order('created_at', { ascending: false });
+
+    if (notificationError) {
+      console.error('Error fetching notifications:', notificationError.message);
+      // Don't fail the request if notifications can't be fetched, just log it
+    }
+
+    // Format RFQ details data
+    const formattedRFQ = {
+      id: rfq.id,
+      buyerId: rfq.buyer_id,
+      productId: rfq.product_id,
+      product: rfq.products?.name || 'Unknown Product',
+      buyer: {
+        vendorCode: rfq.users?.vendor_code || 'Unknown Buyer',
+        firstName: rfq.users?.first_name || '',
+        lastName: rfq.users?.last_name || '',
+        email: rfq.users?.email || '',
+        phone: rfq.users?.phone || ''
+      },
+      title: rfq.title,
+      description: rfq.description,
+      quantity: rfq.quantity,
+      budgetRangeMin: rfq.budget_range_min,
+      budgetRangeMax: rfq.budget_range_max,
+      responseDeadline: rfq.response_deadline,
+      status: rfq.status,
+      createdAt: rfq.created_at,
+      updatedAt: rfq.updated_at,
+      notifications: notifications || [],
+      productDetails: rfq.products ? {
+        id: rfq.products.id,
+        name: rfq.products.name,
+        description: rfq.products.description,
+        price: rfq.products.price,
+        currency: rfq.products.currencies?.code || 'USD',
+        moq: rfq.products.moq,
+        moqUom: rfq.products.moq_uom,
+        availableQuantity: rfq.products.available_quantity,
+        quantityUom: rfq.products.quantity_uom,
+        priceType: rfq.products.price_type,
+        isRelabelingAllowed: rfq.products.is_relabeling_allowed,
+        offerValidityDate: rfq.products.offer_validity_date,
+        status: rfq.products.status,
+        category: rfq.products.categories?.name || 'Unknown Category',
+        seller: rfq.products.users ? {
+          vendorCode: rfq.products.users.vendor_code || 'Unknown Seller',
+          firstName: rfq.products.users.first_name || '',
+          lastName: rfq.products.users.last_name || '',
+          email: rfq.products.users.email || '',
+          phone: rfq.products.users.phone || ''
+        } : null
+      } : null
+    };
+
+    console.log('Successfully fetched details for RFQ ' + rfq.id + ' from Supabase');
+    res.json(formattedRFQ);
+  } catch (error) {
+    console.error('Error in captain RFQ details endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching RFQ details: ' + error.message 
+    });
+  }
+});
+
+// Captain RFQs endpoint - fetch RFQs for products owned by sellers
+app.get('/api/captain/rfqs', authenticateToken, async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch RFQs from Supabase with related data
+    const { data: rfqs, error } = await supabase
+      .from('rfqs')
+      .select(`
+        id,
+        buyer_id,
+        product_id,
+        title,
+        description,
+        quantity,
+        budget_range_min,
+        budget_range_max,
+        response_deadline,
+        status,
+        created_at,
+        updated_at,
+        products (name, seller_id),
+        users (first_name, last_name, vendor_code),
+        dpqs (id, status, unit_price, currency_id, currencies (code))
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching RFQs from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching RFQs: ' + error.message 
+      });
+    }
+
+    // Filter RFQs to only show those for products owned by sellers
+    // In a real implementation, we would have a more sophisticated way to determine this
+    const filteredRFQs = rfqs.filter(rfq => {
+      // For now, we'll show all RFQs to the captain
+      return true;
+    });
+
+    // Format RFQs data
+    const formattedRFQs = filteredRFQs.map(rfq => {
+      // Find the latest quotation if any
+      let latestQuotation = null;
+      if (rfq.dpqs && rfq.dpqs.length > 0) {
+        // Sort by created_at to get the latest
+        const sorted = rfq.dpqs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        latestQuotation = sorted[0];
+      }
+      
+      return {
+        id: rfq.id,
+        buyerId: rfq.buyer_id,
+        productId: rfq.product_id,
+        product: rfq.products?.name || 'Unknown Product',
+        buyer: rfq.users?.vendor_code || 'Unknown Buyer',
+        title: rfq.title,
+        description: rfq.description,
+        quantity: rfq.quantity,
+        budgetRangeMin: rfq.budget_range_min,
+        budgetRangeMax: rfq.budget_range_max,
+        responseDeadline: rfq.response_deadline,
+        status: rfq.status,
+        createdAt: rfq.created_at,
+        updatedAt: rfq.updated_at,
+        latestQuotation: latestQuotation ? {
+          id: latestQuotation.id,
+          status: latestQuotation.status,
+          unitPrice: latestQuotation.unit_price,
+          currency: latestQuotation.currencies?.code || 'USD'
+        } : null
+      };
+    });
+
+    // Sort RFQs: open RFQs first (open, pending, active), then closed RFQs (closed, fulfilled, completed)
+    const sortedRFQs = formattedRFQs.sort((a, b) => {
+      const openStatuses = ['open', 'pending', 'active'];
+      const isAOpen = openStatuses.includes(a.status?.toLowerCase());
+      const isBOpen = openStatuses.includes(b.status?.toLowerCase());
+      
+      // If one is open and the other is closed, open comes first
+      if (isAOpen && !isBOpen) return -1;
+      if (!isAOpen && isBOpen) return 1;
+      
+      // If both are open or both are closed, sort by created date (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    console.log(`Successfully fetched ${sortedRFQs.length} RFQs from Supabase`);
+    res.json(sortedRFQs || []);
+  } catch (error) {
+    console.error('Error in captain RFQs endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching RFQs: ' + error.message 
+    });
+  }
+});
+
+// Captain RFQ response endpoint - respond to buyer RFQs
+app.post('/api/captain/rfqs/:id/respond', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { response, action } = req.body; // action can be 'negotiate', 'doq', 'accept', 'reject'
+    const captainId = req.user.id;
+    
+    // Validate required fields
+    if (!id || !response || !action) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'RFQ ID, response, and action are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the RFQ to get buyer information
+    const { data: rfq, error: rfqError } = await supabase
+      .from('rfqs')
+      .select('buyer_id, title, status')
+      .eq('id', id)
+      .single();
+    
+    if (rfqError) {
+      console.error('Error fetching RFQ:', rfqError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching RFQ: ' + rfqError.message 
+      });
+    }
+    
+    if (!rfq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'RFQ not found' 
+      });
+    }
+    
+    // Update RFQ status based on captain's action
+    let newStatus = rfq.status;
+    switch (action) {
+      case 'negotiate':
+        newStatus = 'negotiation_requested';
+        break;
+      case 'doq':
+        newStatus = 'doq_provided';
+        break;
+      case 'accept':
+        newStatus = 'accepted';
+        break;
+      case 'reject':
+        newStatus = 'rejected';
+        break;
+      default:
+        newStatus = 'responded';
+    }
+    
+    // Update RFQ status in the database
+    const { error: updateError } = await supabase
+      .from('rfqs')
+      .update({ 
+        status: newStatus,
+        updated_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Error updating RFQ status:', updateError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating RFQ status: ' + updateError.message 
+      });
+    }
+    
+    // Create notification for the buyer
+    let notificationTitle = '';
+    let notificationMessage = '';
+    
+    switch (action) {
+      case 'negotiate':
+        notificationTitle = 'RFQ Negotiation Requested';
+        notificationMessage = `Captain has requested negotiation for your RFQ "${rfq.title}": ${response}`;
+        break;
+      case 'doq':
+        notificationTitle = 'Document of Quotation Provided';
+        notificationMessage = `Captain has provided a Document of Quotation for your RFQ "${rfq.title}": ${response}`;
+        break;
+      case 'accept':
+        notificationTitle = 'RFQ Accepted';
+        notificationMessage = `Captain has accepted your RFQ "${rfq.title}": ${response}`;
+        break;
+      case 'reject':
+        notificationTitle = 'RFQ Rejected';
+        notificationMessage = `Captain has rejected your RFQ "${rfq.title}": ${response}`;
+        break;
+      default:
+        notificationTitle = 'RFQ Response';
+        notificationMessage = `Captain has responded to your RFQ "${rfq.title}": ${response}`;
+    }
+    
+    const { data: notification, error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: rfq.buyer_id,
+        title: notificationTitle,
+        message: notificationMessage,
+        related_entity_type: 'rfq',
+        related_entity_id: id
+      })
+      .select()
+      .single();
+    
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error creating notification: ' + notificationError.message 
+      });
+    }
+    
+    console.log('Successfully created notification for RFQ response');
+    res.json({ 
+      success: true, 
+      message: 'RFQ response submitted successfully',
+      notification,
+      rfq: {
+        id: id,
+        status: newStatus
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain RFQ response endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error responding to RFQ: ' + error.message 
     });
   }
 });
@@ -2883,25 +4131,25 @@ app.put('/api/seller/products/:productId', authenticateToken, async (req, res) =
   }
 });
 
-// Seller notifications endpoint - fetch seller's notifications
-app.get('/api/seller/notifications', authenticateToken, async (req, res) => {
+// Buyer notifications endpoint - fetch buyer's notifications
+app.get('/api/buyer/notifications', authenticateToken, async (req, res) => {
   try {
     // Always fetch from Supabase - no mock data fallback
-    console.log('Fetching seller notifications from Supabase');
+    console.log('Fetching buyer notifications from Supabase');
     
-    // Get the seller ID from the authenticated user
-    const sellerId = req.user.id;
+    // Get the buyer ID from the authenticated user
+    const buyerId = req.user.id;
     
     // Fetch notifications from Supabase
     const { data: notifications, error } = await supabase
       .from('notifications')
       .select('id, title, message, is_read, created_at')
-      .eq('user_id', sellerId)
+      .eq('user_id', buyerId)
       .order('created_at', { ascending: false })
       .limit(10); // Limit to last 10 notifications
 
     if (error) {
-      console.error('Error fetching seller notifications from Supabase:', error.message);
+      console.error('Error fetching buyer notifications from Supabase:', error.message);
       console.error('Error details:', error);
       return res.status(500).json({ 
         success: false,
@@ -2912,7 +4160,7 @@ app.get('/api/seller/notifications', authenticateToken, async (req, res) => {
     console.log(`Successfully fetched ${notifications.length} notifications from Supabase`);
     res.json(notifications || []);
   } catch (error) {
-    console.error('Error in seller notifications endpoint:', error.message);
+    console.error('Error in buyer notifications endpoint:', error.message);
     console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false,
@@ -2922,7 +4170,7 @@ app.get('/api/seller/notifications', authenticateToken, async (req, res) => {
 });
 
 // Mark notification as read endpoint
-app.put('/api/seller/notifications/:id/read', authenticateToken, async (req, res) => {
+app.put('/api/buyer/notifications/:id/read', authenticateToken, async (req, res) => {
   try {
     console.log('Mark notification as read endpoint called');
     console.log('Notification ID from params:', req.params.id);
@@ -2977,8 +4225,66 @@ app.put('/api/seller/notifications/:id/read', authenticateToken, async (req, res
   }
 });
 
+// Captain roles endpoint - fetch all roles with user counts
+app.get('/api/captain/roles', authenticateToken, async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch all roles with user counts
+    const { data: roles, error } = await supabase
+      .from('roles')
+      .select(`
+        id,
+        name,
+        code,
+        description,
+        is_active,
+        created_at,
+        user_roles (
+          id
+        )
+      `)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching roles from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching roles: ' + error.message 
+      });
+    }
+
+    // Format roles data with user counts
+    const formattedRoles = roles.map(role => ({
+      id: role.id,
+      name: role.name,
+      code: role.code,
+      description: role.description,
+      isActive: role.is_active,
+      userCount: role.user_roles ? role.user_roles.length : 0,
+      createdAt: role.created_at
+    }));
+
+    console.log(`Successfully fetched ${formattedRoles.length} roles from Supabase`);
+    res.json(formattedRoles || []);
+  } catch (error) {
+    console.error('Error in captain roles endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching roles: ' + error.message 
+    });
+  }
+});
+
 // Mark all notifications as read endpoint
-app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res) => {
+app.put('/api/buyer/notifications/read-all', authenticateToken, async (req, res) => {
   try {
     console.log('Mark all notifications as read endpoint called');
     console.log('User ID from token:', req.user.id);
