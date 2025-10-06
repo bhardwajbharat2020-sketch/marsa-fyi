@@ -3,7 +3,7 @@ const http = require('http');
 // Test the /api/products endpoint
 const options = {
   hostname: 'localhost',
-  port: 5001,
+  port: 5000,
   path: '/api/products',
   method: 'GET'
 };
