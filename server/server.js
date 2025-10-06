@@ -2953,22 +2953,71 @@ app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res
   }
 });
 
+// Test route to verify static file serving
+app.get('/test-static-file', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const staticPath = path.join(__dirname, '../client/build');
+  const jsFilePath = path.join(staticPath, 'static/js/main.8b5b0229.js');
+  
+  console.log('Testing static file serving:');
+  console.log('Static path:', staticPath);
+  console.log('JS file path:', jsFilePath);
+  console.log('Static path exists:', fs.existsSync(staticPath));
+  console.log('JS file exists:', fs.existsSync(jsFilePath));
+  
+  if (fs.existsSync(jsFilePath)) {
+    res.sendFile(jsFilePath);
+  } else {
+    res.status(404).json({
+      error: 'JS file not found',
+      staticPath,
+      jsFilePath,
+      staticPathExists: fs.existsSync(staticPath),
+      jsFileExists: fs.existsSync(jsFilePath)
+    });
+  }
+});
+
 // Serve static files from the React app build directory
 // This must come before the catch-all route
 const staticPath = path.join(__dirname, '../client/build');
 console.log('Serving static files from:', staticPath);
+console.log('Static path exists:', require('fs').existsSync(staticPath));
+
+// Explicitly serve static files with correct paths
+app.use('/static/js', express.static(path.join(staticPath, 'static/js')));
+app.use('/static/css', express.static(path.join(staticPath, 'static/css')));
+app.use('/static/media', express.static(path.join(staticPath, 'static/media')));
+app.use('/static', express.static(path.join(staticPath, 'static')));
+
+// Serve other static assets (including index.html, favicon.ico, etc.)
 app.use(express.static(staticPath));
 
 // Catch all handler: send back React's index.html file for any non-API routes
 // This MUST be the last route to avoid interfering with API routes or static files
 app.get('*', (req, res) => {
+  console.log('Catch-all route hit for path:', req.path);
+  console.log('Request headers:', req.headers);
+  
   // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
+    console.log('API route not found for:', req.path);
     return res.status(404).send('API route not found');
   }
   
+  // Don't serve index.html for static assets
+  if (req.path.startsWith('/static/')) {
+    console.log('Static asset not found for:', req.path);
+    return res.status(404).send('Static asset not found');
+  }
+  
+  const staticPath = path.join(__dirname, '../client/build');
+  const indexPath = path.join(staticPath, 'index.html');
+  console.log('Serving index.html from:', indexPath);
+  
   // Serve the React app for all other routes
-  res.sendFile(path.join(staticPath, 'index.html'));
+  res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {
