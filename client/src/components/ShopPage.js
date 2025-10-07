@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, ChevronRight, Star, Heart, CheckCircle, Ship, ShieldCheck, Globe, User, MapPin } from 'lucide-react';
 import RFQForm from './RFQForm';
+import WhatsAppButton from './WhatsAppButton';
 import '../App.css';
 
 const heroSlides = [
@@ -892,6 +893,7 @@ const ShopPage = () => {
       )}
 
       </footer>
+      <WhatsAppButton />
     </div>
   );
 };

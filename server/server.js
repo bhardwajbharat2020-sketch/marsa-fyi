@@ -72,6 +72,8 @@ const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
   
+  console.log('Auth middleware called. Token:', token ? 'present' : 'missing');
+  
   if (!token) {
     return res.status(401).json({ 
       success: false, 
@@ -82,6 +84,7 @@ const authenticateToken = async (req, res, next) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('Token verified. User:', decoded);
     req.user = decoded;
     next();
   } catch (error) {
@@ -1963,8 +1966,8 @@ app.put('/api/captain/roles/:id', authenticateToken, async (req, res) => {
         name: name,
         code: code.toUpperCase(),
         description: description || '',
-        is_active: is_active !== undefined ? is_active : true,
-        updated_at: new Date()
+        is_active: is_active !== undefined ? is_active : true
+        // Removed updated_at since it's not in the schema
       })
       .eq('id', roleId)
       .select()
@@ -2542,41 +2545,723 @@ app.post('/api/captain/products/approve', async (req, res) => {
       });
     }
     
-    // Send notification to seller
-    if (product && product.seller_id) {
-      try {
-        const { error: notificationError } = await supabase
-          .from('notifications')
-          .insert({
-            user_id: product.seller_id,
-            title: 'Product Approved',
-            message: `Your product "${product.name}" has been approved by the captain and is now live.`,
-            is_read: false,
-            created_at: new Date()
-          });
-        
-        if (notificationError) {
-          console.error('Error sending approval notification to seller:', notificationError.message);
-        } else {
-          console.log('Approval notification sent to seller');
-        }
-      } catch (notificationErr) {
-        console.error('Error sending approval notification to seller:', notificationErr.message);
-      }
-    }
-    
     console.log('Successfully approved product in Supabase');
     res.json({ 
-      success: true, 
+      success: true,
       message: 'Product approved successfully',
-      product
+      product: {
+        id: product.id,
+        name: product.name,
+        sellerId: product.seller_id
+      }
     });
   } catch (error) {
-    console.error('Error in approve product endpoint:', error.message);
+    console.error('Error in captain approve product endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error approving product: ' + error.message 
+    });
+  }
+});
+
+// Captain reject product endpoint
+app.post('/api/captain/products/reject', async (req, res) => {
+  try {
+    const { productId } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Update product status to rejected
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'rejected',
+        is_verified: false,
+        is_active: false,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select('id, name, seller_id')
+      .single();
+
+    if (error) {
+      console.error('Error rejecting product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error rejecting product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    console.log('Successfully rejected product in Supabase');
+    res.json({ 
+      success: true,
+      message: 'Product rejected successfully',
+      product: {
+        id: product.id,
+        name: product.name,
+        sellerId: product.seller_id
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain reject product endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error rejecting product: ' + error.message 
+    });
+  }
+});
+
+// Captain add role endpoint
+app.post('/api/captain/roles', authenticateToken, async (req, res) => {
+  try {
+    const { name, code } = req.body;
+    
+    // Validate required fields
+    if (!name || !code) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Role name and code are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Save the role to the database
+    const { data: role, error } = await supabase
+      .from('roles')
+      .insert({
+        name,
+        code
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating role in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error creating role: ' + error.message 
+      });
+    }
+    
+    console.log('Successfully created role in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Role created successfully',
+      role: {
+        id: role.id,
+        name: role.name,
+        code: role.code
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain add role endpoint:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error creating role: ' + error.message 
+    });
+  }
+});
+
+// Captain delete role endpoint
+app.delete('/api/captain/roles/:id', authenticateToken, async (req, res) => {
+  try {
+    const roleId = req.params.id;
+    
+    // Validate required fields
+    if (!roleId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Role ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Delete the role from the database
+    const { error } = await supabase
+      .from('roles')
+      .delete()
+      .eq('id', roleId);
+
+    if (error) {
+      console.error('Error deleting role in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error deleting role: ' + error.message 
+      });
+    }
+    
+    console.log('Successfully deleted role in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Role deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in captain delete role endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error deleting role: ' + error.message 
+    });
+  }
+});
+
+// Captain fetch all users endpoint
+app.get('/api/captain/users', authenticateToken, async (req, res) => {
+  try {
+    console.log('Captain users endpoint called');
+    console.log('User from token:', req.user);
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // First, try a simple query to test if Supabase is working
+    const { data: testUsers, error: testError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email')
+      .limit(5);
+
+    if (testError) {
+      console.error('Test query failed:', testError.message);
+      console.error('Test error details:', testError);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Test query failed: ' + testError.message 
+      });
+    }
+
+    console.log('Test query successful. Users count:', testUsers ? testUsers.length : 0);
+    console.log('Test users data:', testUsers);
+
+    // Now fetch all users with their roles
+    const { data: users, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        vendor_code,
+        phone,
+        is_verified,
+        user_roles (
+          role_id,
+          roles (
+            name,
+            code
+          )
+        )
+      `)
+      .order('first_name');
+
+    if (error) {
+      console.error('Error fetching users from Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching users: ' + error.message 
+      });
+    }
+
+    console.log('Users fetched from Supabase:', users ? users.length : 0);
+
+    // Format users data
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      vendor_code: user.vendor_code,
+      phone: user.phone,
+      is_verified: user.is_verified,
+      current_role: user.user_roles && user.user_roles.length > 0 
+        ? user.user_roles[0].roles?.name 
+        : null
+    }));
+
+    console.log(`Successfully fetched ${formattedUsers.length} users from Supabase`);
+    res.json({ 
+      success: true,
+      users: formattedUsers
+    });
+  } catch (error) {
+    console.error('Error in captain users endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching users: ' + error.message 
+    });
+  }
+});
+
+// Captain fetch user details endpoint
+app.get('/api/captain/users/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch user details
+    const { data: user, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        vendor_code,
+        phone,
+        is_verified,
+        user_roles (
+          role_id,
+          roles (
+            name,
+            code
+          )
+        )
+      `)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error fetching user details from Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching user details: ' + error.message 
+      });
+    }
+
+    if (!user || user.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      });
+    }
+
+    console.log('User details fetched from Supabase:', user);
+
+    // Format user data
+    const formattedUser = {
+      id: user[0].id,
+      first_name: user[0].first_name,
+      last_name: user[0].last_name,
+      email: user[0].email,
+      vendor_code: user[0].vendor_code,
+      phone: user[0].phone,
+      is_verified: user[0].is_verified,
+      current_role: user[0].user_roles && user[0].user_roles.length > 0 
+        ? user[0].user_roles[0].roles?.name 
+        : null
+    };
+
+    console.log('Successfully fetched user details from Supabase');
+    res.json({ 
+      success: true,
+      user: formattedUser
+    });
+  } catch (error) {
+    console.error('Error in captain user details endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching user details: ' + error.message 
+    });
+  }
+});
+
+// Captain fetch users by role endpoint
+app.get('/api/captain/roles/:id/users', authenticateToken, async (req, res) => {
+  try {
+    const roleId = req.params.id;
+    console.log('Captain users by role endpoint called. Role ID:', roleId);
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // First, fetch user_role mappings for this role
+    const { data: userRoles, error: userRolesError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role_id', roleId);
+      
+    console.log('User roles mapping for role ID:', roleId, 'Count:', userRoles ? userRoles.length : 0, 'Error:', userRolesError);
+    
+    if (userRolesError) {
+      console.error('Error fetching user roles mapping:', userRolesError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching user roles mapping: ' + userRolesError.message 
+      });
+    }
+    
+    // If no users have this role, return empty array
+    if (!userRoles || userRoles.length === 0) {
+      console.log('No users found with role ID:', roleId);
+      return res.json({ 
+        success: true,
+        users: []
+      });
+    }
+    
+    // Extract user IDs
+    const userIds = userRoles.map(ur => ur.user_id);
+    console.log('User IDs with role:', userIds);
+    
+    // Fetch users with the specified IDs
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        vendor_code,
+        phone,
+        is_verified
+      `)
+      .in('id', userIds);
+      
+    console.log('Users fetched by IDs. Count:', users ? users.length : 0, 'Error:', usersError);
+
+    if (usersError) {
+      console.error('Error fetching users by IDs from Supabase:', usersError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching users: ' + usersError.message 
+      });
+    }
+
+    // Fetch user roles and their associated role names for current role info
+    const { data: usersWithRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select(`
+        user_id,
+        roles (
+          name,
+          code
+        )
+      `)
+      .in('user_id', userIds)
+      .eq('role_id', roleId);
+      
+    console.log('User roles fetched. Count:', usersWithRoles ? usersWithRoles.length : 0, 'Error:', rolesError);
+
+    if (rolesError) {
+      console.error('Error fetching user roles from Supabase:', rolesError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching user roles: ' + rolesError.message 
+      });
+    }
+
+    // Combine user data with role information
+    const formattedUsers = users.map(user => {
+      const userRole = usersWithRoles.find(ur => ur.user_id === user.id);
+      return {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        vendor_code: user.vendor_code,
+        phone: user.phone,
+        is_verified: user.is_verified,
+        current_role: userRole && userRole.roles ? userRole.roles.name : null
+      };
+    });
+
+    console.log(`Successfully fetched ${formattedUsers.length} users with role from Supabase`);
+    res.json({ 
+      success: true,
+      users: formattedUsers
+    });
+  } catch (error) {
+    console.error('Error in captain users by role endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching users: ' + error.message 
+    });
+  }
+});
+
+// Captain assign role to user endpoint
+app.post('/api/captain/users/assign-role', authenticateToken, async (req, res) => {
+  try {
+    const { userId, roleId } = req.body;
+    
+    // Validate required fields
+    if (!userId || !roleId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User ID and Role ID are required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // First, remove any existing primary role for this user
+    const { error: deleteError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('is_primary', true);
+    
+    if (deleteError) {
+      console.error('Error removing existing primary role:', deleteError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error assigning role: ' + deleteError.message 
+      });
+    }
+    
+    // Assign the new role as primary
+    const { data: userRole, error: insertError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role_id: roleId,
+        is_primary: true,
+        assigned_at: new Date()
+      })
+      .select(`
+        id,
+        user_id,
+        role_id,
+        is_primary,
+        roles (
+          name,
+          code
+        )
+      `)
+      .single();
+
+    if (insertError) {
+      console.error('Error assigning role to user in Supabase:', insertError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error assigning role: ' + insertError.message 
+      });
+    }
+    
+    // Send notification to user
+    try {
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title: 'Role Assigned',
+          message: `You have been assigned the role of ${userRole.roles.name}.`,
+          is_read: false,
+          created_at: new Date()
+        });
+      
+      if (notificationError) {
+        console.error('Error sending role assignment notification to user:', notificationError.message);
+      } else {
+        console.log('Role assignment notification sent to user');
+      }
+    } catch (notificationErr) {
+      console.error('Error sending role assignment notification to user:', notificationErr.message);
+    }
+    
+    console.log('Successfully assigned role to user in Supabase');
+    res.json({ 
+      success: true, 
+      message: 'Role assigned successfully',
+      userRole
+    });
+  } catch (error) {
+    console.error('Error in assign role to user endpoint:', error.message);
     console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false, 
-      error: 'Server error approving product: ' + error.message 
+      error: 'Server error assigning role: ' + error.message 
+    });
+  }
+});
+
+// Captain fetch users by role endpoint
+app.get('/api/captain/roles/:id/users', authenticateToken, async (req, res) => {
+  try {
+    const roleId = req.params.id;
+    console.log('Captain users by role endpoint called. Role ID:', roleId);
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // First, fetch user_role mappings for this role
+    const { data: userRoles, error: userRolesError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role_id', roleId);
+      
+    console.log('User roles mapping for role ID:', roleId, 'Count:', userRoles ? userRoles.length : 0, 'Error:', userRolesError);
+    
+    if (userRolesError) {
+      console.error('Error fetching user roles mapping:', userRolesError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching user roles mapping: ' + userRolesError.message 
+      });
+    }
+    
+    // If no users have this role, return empty array
+    if (!userRoles || userRoles.length === 0) {
+      console.log('No users found with role ID:', roleId);
+      return res.json({ 
+        success: true,
+        users: []
+      });
+    }
+    
+    // Extract user IDs
+    const userIds = userRoles.map(ur => ur.user_id);
+    console.log('User IDs with role:', userIds);
+    
+    // Fetch users with the specified IDs
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        vendor_code,
+        phone,
+        is_verified
+      `)
+      .in('id', userIds);
+      
+    console.log('Users fetched by IDs. Count:', users ? users.length : 0, 'Error:', usersError);
+
+    if (usersError) {
+      console.error('Error fetching users by IDs from Supabase:', usersError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching users: ' + usersError.message 
+      });
+    }
+
+    // Fetch user roles and their associated role names for current role info
+    const { data: usersWithRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select(`
+        user_id,
+        roles (
+          name,
+          code
+        )
+      `)
+      .in('user_id', userIds)
+      .eq('role_id', roleId);
+      
+    console.log('User roles fetched. Count:', usersWithRoles ? usersWithRoles.length : 0, 'Error:', rolesError);
+
+    if (rolesError) {
+      console.error('Error fetching user roles from Supabase:', rolesError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching user roles: ' + rolesError.message 
+      });
+    }
+
+    // Combine user data with role information
+    const formattedUsers = users.map(user => {
+      const userRole = usersWithRoles.find(ur => ur.user_id === user.id);
+      return {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        vendor_code: user.vendor_code,
+        phone: user.phone,
+        is_verified: user.is_verified,
+        current_role: userRole && userRole.roles ? userRole.roles.name : null
+      };
+    });
+
+    console.log(`Successfully fetched ${formattedUsers.length} users with role from Supabase`);
+    res.json({ 
+      success: true,
+      users: formattedUsers
+    });
+  } catch (error) {
+    console.error('Error in captain users by role endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching users: ' + error.message 
     });
   }
 });

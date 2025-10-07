@@ -15,6 +15,7 @@ import {
   Phone,
   Clock,
 } from "lucide-react";
+import WhatsAppButton from './WhatsAppButton';
 
 /*
   Theme colors used inline via hex:
@@ -489,6 +490,7 @@ const ContactPage = () => {
       {/* ======================================================================================= */}
       {/* ========= UNTOUCHED FOOTER END ======================================================== */}
       {/* ======================================================================================= */}
+      <WhatsAppButton />
     </div>
   );
 };

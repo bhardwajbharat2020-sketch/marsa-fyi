@@ -12,6 +12,7 @@ import {
   User,
   MapPin,
 } from "lucide-react";
+import WhatsAppButton from './WhatsAppButton';
 
 /*
   Theme colors used inline via hex:
@@ -504,6 +505,7 @@ const AboutPage = () => {
           </div>
         </div>
       </footer>
+      <WhatsAppButton />
     </div>
   );
 };

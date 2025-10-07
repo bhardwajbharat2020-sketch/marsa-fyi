@@ -18,6 +18,24 @@ const CaptainDashboard = () => {
   const [rejectionReason, setRejectionReason] = useState(''); // For rejection modal
   const [productToReject, setProductToReject] = useState(null); // For rejection modal
   
+  // State for role management
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [showEditRoleModal, setShowEditRoleModal] = useState(false);
+  const [editingRole, setEditingRole] = useState(null);
+  const [roleFormData, setRoleFormData] = useState({
+    name: '',
+    code: '',
+    description: ''
+  });
+  
+  // State for user role assignment
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+  const [userDetails, setUserDetails] = useState(null);
+  const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
+  const [usersByRole, setUsersByRole] = useState([]); // New state for users by role
+
   // State for editing product
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -102,159 +120,736 @@ const CaptainDashboard = () => {
   const creamCard = "#efe6d9";
   const darkText = "#5a4632";
 
-  // Fetch real data from Supabase
-  useEffect(() => {
-    const fetchData = async () => {
+  // Function to fetch all dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null); // Clear any previous errors
+      
+      // Fetch roles
       try {
-        setLoading(true);
-        setError(null); // Clear any previous errors
-        
-        // Fetch roles
-        try {
-          const rolesResponse = await fetch('/api/captain/roles', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const rolesData = await rolesResponse.json();
-          
-          if (rolesResponse.ok) {
-            setRoles(rolesData);
-          } else {
-            console.error('Error fetching roles:', rolesData.error);
-            // Don't set global error, just log it
+        const rolesResponse = await fetch('/api/captain/roles', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
           }
-        } catch (err) {
-          console.error('Error fetching roles:', err);
-        }
+        });
+        const rolesData = await rolesResponse.json();
         
-        // Fetch catalogs
-        try {
-          const catalogsResponse = await fetch('/api/captain/catalogs', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const catalogsData = await catalogsResponse.json();
-          
-          if (catalogsResponse.ok) {
-            setCatalogs(catalogsData);
-          } else {
-            console.error('Error fetching catalogs:', catalogsData.error);
-            // Don't set global error, just log it
-          }
-        } catch (err) {
-          console.error('Error fetching catalogs:', err);
-        }
-        
-        // Fetch RFQs
-        try {
-          const rfqsResponse = await fetch('/api/captain/rfqs', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const rfqsData = await rfqsResponse.json();
-          
-          if (rfqsResponse.ok) {
-            setRfqs(rfqsData);
-            console.log('Successfully fetched RFQs:', rfqsData);
-          } else {
-            console.error('Error fetching RFQs:', rfqsData.error);
-            // Don't set global error, just log it
-          }
-        } catch (err) {
-          console.error('Error fetching RFQs:', err);
-        }
-        
-        // Fetch DPQs
-        try {
-          const dpqsResponse = await fetch('/api/captain/dpqs', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const dpqsData = await dpqsResponse.json();
-          
-          if (dpqsResponse.ok) {
-            setDpqs(dpqsData);
-          } else {
-            console.error('Error fetching DPQs:', dpqsData.error);
-            // Don't set global error, just log it
-          }
-        } catch (err) {
-          console.error('Error fetching DPQs:', err);
-        }
-        
-        // Fetch DPOs
-        try {
-          const dposResponse = await fetch('/api/captain/dpos', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const dposData = await dposResponse.json();
-          
-          if (dposResponse.ok) {
-            setDpos(dposData);
-          } else {
-            console.error('Error fetching DPOs:', dposData.error);
-            // Don't set global error, just log it
-          }
-        } catch (err) {
-          console.error('Error fetching DPOs:', err);
-        }
-        
-        // Fetch disputes
-        try {
-          const disputesResponse = await fetch('/api/captain/disputes', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const disputesData = await disputesResponse.json();
-          
-          if (disputesResponse.ok) {
-            setDisputes(disputesData);
-          } else {
-            console.error('Error fetching disputes:', disputesData.error);
-            // Don't set global error, just log it
-          }
-        } catch (err) {
-          console.error('Error fetching disputes:', err);
-        }
-        
-        // Fetch products pending approval
-        try {
-          const productsResponse = await fetch('/api/captain/products', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          const productsData = await productsResponse.json();
-          
-          if (productsResponse.ok) {
-            setProducts(productsData);
-          } else {
-            console.error('Error fetching products:', productsData.error);
-            // Don't set global error, just log it
-          }
-        } catch (err) {
-          console.error('Error fetching products:', err);
+        if (rolesResponse.ok) {
+          setRoles(rolesData);
+        } else {
+          console.error('Error fetching roles:', rolesData.error);
           // Don't set global error, just log it
         }
       } catch (err) {
-        console.error('Unexpected error in dashboard data fetching:', err);
-        setError('Failed to fetch dashboard data');
-      } finally {
-        setLoading(false);
+        console.error('Error fetching roles:', err);
       }
-    };
+      
+      // Fetch catalogs
+      try {
+        const catalogsResponse = await fetch('/api/captain/catalogs', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const catalogsData = await catalogsResponse.json();
+        
+        if (catalogsResponse.ok) {
+          setCatalogs(catalogsData);
+        } else {
+          console.error('Error fetching catalogs:', catalogsData.error);
+          // Don't set global error, just log it
+        }
+      } catch (err) {
+        console.error('Error fetching catalogs:', err);
+      }
+      
+      // Fetch RFQs
+      try {
+        const rfqsResponse = await fetch('/api/captain/rfqs', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const rfqsData = await rfqsResponse.json();
+        
+        if (rfqsResponse.ok) {
+          setRfqs(rfqsData);
+          console.log('Successfully fetched RFQs:', rfqsData);
+        } else {
+          console.error('Error fetching RFQs:', rfqsData.error);
+          // Don't set global error, just log it
+        }
+      } catch (err) {
+        console.error('Error fetching RFQs:', err);
+      }
+      
+      // Fetch DPQs
+      try {
+        const dpqsResponse = await fetch('/api/captain/dpqs', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const dpqsData = await dpqsResponse.json();
+        
+        if (dpqsResponse.ok) {
+          setDpqs(dpqsData);
+        } else {
+          console.error('Error fetching DPQs:', dpqsData.error);
+          // Don't set global error, just log it
+        }
+      } catch (err) {
+        console.error('Error fetching DPQs:', err);
+      }
+      
+      // Fetch DPOs
+      try {
+        const dposResponse = await fetch('/api/captain/dpos', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const dposData = await dposResponse.json();
+        
+        if (dposResponse.ok) {
+          setDpos(dposData);
+        } else {
+          console.error('Error fetching DPOs:', dposData.error);
+          // Don't set global error, just log it
+        }
+      } catch (err) {
+        console.error('Error fetching DPOs:', err);
+      }
+      
+      // Fetch disputes
+      try {
+        const disputesResponse = await fetch('/api/captain/disputes', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const disputesData = await disputesResponse.json();
+        
+        if (disputesResponse.ok) {
+          setDisputes(disputesData);
+        } else {
+          console.error('Error fetching disputes:', disputesData.error);
+          // Don't set global error, just log it
+        }
+      } catch (err) {
+        console.error('Error fetching disputes:', err);
+      }
+      
+      // Fetch products pending approval
+      try {
+        const productsResponse = await fetch('/api/captain/products', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        const productsData = await productsResponse.json();
+        
+        if (productsResponse.ok) {
+          setProducts(productsData);
+        } else {
+          console.error('Error fetching products:', productsData.error);
+          // Don't set global error, just log it
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        // Don't set global error, just log it
+      }
+    } catch (err) {
+      console.error('Unexpected error in dashboard data fetching:', err);
+      setError('Failed to fetch dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch real data from Supabase
+  useEffect(() => {
     if (authToken) {
-      fetchData();
+      fetchDashboardData();
     }
   }, [authToken]);
+
+  // Fetch users by role when editing role changes
+  useEffect(() => {
+    console.log('useEffect triggered. showEditRoleModal:', showEditRoleModal, 'editingRole:', editingRole);
+    if (showEditRoleModal && editingRole) {
+      console.log('Fetching users for role ID in useEffect:', editingRole.id);
+      // Add a small delay to ensure the modal is fully rendered
+      const timer = setTimeout(() => {
+        fetchUsersByRole(editingRole.id);
+      }, 100);
+      
+      // Clean up the timer
+      return () => clearTimeout(timer);
+    }
+  }, [showEditRoleModal, editingRole, authToken]);
+
+  // Function to fetch user details
+  const fetchUserDetails = async (userId) => {
+    try {
+      const response = await fetch(`/api/captain/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const result = await response.json();
+      
+      if (response.ok) {
+        setUserDetails(result.user);
+      } else {
+        console.error('Error fetching user details:', result.error);
+        setUserDetails(null);
+      }
+    } catch (err) {
+      console.error('Error fetching user details:', err);
+      setUserDetails(null);
+    }
+  };
+
+  // Function to fetch all users
+  const fetchUsers = async () => {
+    try {
+      console.log('Fetching users with authToken:', authToken);
+      
+      // Check if authToken exists
+      if (!authToken) {
+        console.error('No auth token available');
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+      
+      const response = await fetch('/api/captain/users', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      console.log('Users API response status:', response.status);
+      
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        console.error('Response not OK. Status:', response.status);
+        console.error('Response text:', await response.text());
+        alert('Failed to fetch users. Server returned status: ' + response.status);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('Users API response data:', result);
+      
+      // Check if result has success property (new format) or is directly the users array (old format)
+      if (result.success !== undefined) {
+        // New format with success property
+        if (result.success) {
+          console.log('Setting users state with:', result.users || []);
+          setUsers(result.users || []);
+        } else {
+          console.error('Error fetching users:', result.error);
+          alert('Failed to fetch users: ' + result.error);
+        }
+      } else {
+        // Old format - result is directly the users array
+        console.log('Setting users state with:', result || []);
+        setUsers(result || []);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      // Show error to user
+      alert('Failed to fetch users. Please try again. Error: ' + err.message);
+    }
+  };
+
+  // Function to fetch users by role
+  const fetchUsersByRole = async (roleId) => {
+    try {
+      console.log('Fetching users with role ID:', roleId);
+      
+      // Check if authToken exists
+      if (!authToken) {
+        console.error('No auth token available');
+        return [];
+      }
+      
+      const response = await fetch(`/api/captain/roles/${roleId}/users`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      console.log('Users by role API response status:', response.status);
+      
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        console.error('Response not OK. Status:', response.status);
+        console.error('Response text:', await response.text());
+        return [];
+      }
+      
+      const result = await response.json();
+      console.log('Users by role API response data:', result);
+      
+      // Check if result has success property
+      if (result.success !== undefined) {
+        // New format with success property
+        if (result.success) {
+          console.log('Setting users by role state with:', result.users || []);
+          setUsersByRole(result.users || []);
+          return result.users || [];
+        } else {
+          console.error('Error fetching users by role:', result.error);
+          return [];
+        }
+      } else {
+        // Old format - result is directly the users array
+        console.log('Setting users by role state with:', result || []);
+        setUsersByRole(result || []);
+        return result || [];
+      }
+    } catch (err) {
+      console.error('Error fetching users by role:', err);
+      return [];
+    }
+  };
+
+  // Function to assign role to user
+  const assignRoleToUser = async (userId, roleId) => {
+    try {
+      const response = await fetch('/api/captain/users/assign-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ userId, roleId }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        alert('Role assigned successfully!');
+        // Refresh user details
+        fetchUserDetails(userId);
+        return true;
+      } else {
+        alert('Failed to assign role: ' + result.error);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error assigning role:', err);
+      alert('Failed to assign role. Please try again.');
+      return false;
+    }
+  };
+
+  // Function to create a new role
+  const createRole = async (roleData) => {
+    try {
+      const response = await fetch('/api/captain/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(roleData),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Add the new role to the roles state
+        setRoles(prevRoles => [...prevRoles, result.role]);
+        alert('Role created successfully!');
+        return true;
+      } else {
+        alert('Failed to create role: ' + result.error);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error creating role:', err);
+      alert('Failed to create role. Please try again.');
+      return false;
+    }
+  };
+
+  // Function to update a role
+  const updateRole = async (roleId, roleData) => {
+    try {
+      const response = await fetch(`/api/captain/roles/${roleId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(roleData),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the role in the roles state
+        setRoles(prevRoles => 
+          prevRoles.map(role => 
+            role.id === roleId ? result.role : role
+          )
+        );
+        alert('Role updated successfully!');
+        return true;
+      } else {
+        alert('Failed to update role: ' + result.error);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error updating role:', err);
+      alert('Failed to update role. Please try again.');
+      return false;
+    }
+  };
+
+  // Function to delete a role
+  const deleteRole = async (roleId, roleName) => {
+    if (!window.confirm(`Are you sure you want to delete the role "${roleName}"?`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/roles/${roleId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Remove the role from the roles state
+        setRoles(prevRoles => prevRoles.filter(role => role.id !== roleId));
+        alert('Role deleted successfully!');
+      } else {
+        alert('Failed to delete role: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error deleting role:', err);
+      alert('Failed to delete role. Please try again.');
+    }
+  };
+
+  // Function to change user role to buyer
+  const changeUserToBuyer = async (userId) => {
+    try {
+      console.log('Changing user role to buyer. User ID:', userId);
+      
+      // First, get the buyer role ID
+      const buyerRoleResponse = await fetch('/api/captain/roles', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (!buyerRoleResponse.ok) {
+        const errorText = await buyerRoleResponse.text();
+        console.error('Failed to fetch roles. Status:', buyerRoleResponse.status, 'Error:', errorText);
+        throw new Error('Failed to fetch roles: ' + errorText);
+      }
+      
+      const rolesData = await buyerRoleResponse.json();
+      console.log('Fetched roles data:', rolesData);
+      
+      const buyerRole = rolesData.find(role => role.code === 'BUY');
+      console.log('Buyer role found:', buyerRole);
+      
+      if (!buyerRole) {
+        throw new Error('Buyer role not found');
+      }
+      
+      // Assign buyer role to user
+      const response = await fetch('/api/captain/users/assign-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ 
+          userId: userId, 
+          roleId: buyerRole.id 
+        }),
+      });
+      
+      const result = await response.json();
+      console.log('Assign role response:', result);
+      
+      if (response.ok && result.success) {
+        alert('User role changed to buyer successfully!');
+        // Refresh users by role list
+        if (editingRole) {
+          fetchUsersByRole(editingRole.id);
+        }
+        return true;
+      } else {
+        const errorMessage = result.error || 'Unknown error';
+        console.error('Failed to change user role:', errorMessage);
+        alert('Failed to change user role: ' + errorMessage);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error changing user to buyer:', err);
+      alert('Failed to change user role. Please try again. Error: ' + err.message);
+      return false;
+    }
+  };
+
+  // Handle input changes for role form
+  const handleRoleFormChange = (e) => {
+    const { name, value } = e.target;
+    setRoleFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle role form submission for create
+  const handleCreateRole = async (e) => {
+    e.preventDefault();
+    
+    const success = await createRole(roleFormData);
+    if (success) {
+      // Reset form and close modal
+      setRoleFormData({
+        name: '',
+        code: '',
+        description: ''
+      });
+      setShowAddRoleModal(false);
+    }
+  };
+
+  // Handle role form submission for update
+  const handleUpdateRole = async (e) => {
+    e.preventDefault();
+    
+    const success = await updateRole(editingRole.id, roleFormData);
+    if (success) {
+      // Reset form and close modal
+      setRoleFormData({
+        name: '',
+        code: '',
+        description: ''
+      });
+      setShowEditRoleModal(false);
+    }
+  };
+
+  // Handle role form submission for delete
+  const handleDeleteRole = async (e) => {
+    e.preventDefault();
+    
+    const success = await deleteRole(editingRole.id, editingRole.name);
+    if (success) {
+      // Reset form and close modal
+      setRoleFormData({
+        name: '',
+        code: '',
+        description: ''
+      });
+      setShowEditRoleModal(false);
+    }
+  };
+
+  // Handle user selection change
+  const handleUserSelectionChange = (e) => {
+    setSelectedUser(e.target.value);
+    fetchUserDetails(e.target.value);
+  };
+
+  // Handle role selection change
+  const handleRoleSelectionChange = (e) => {
+    setSelectedRole(e.target.value);
+  };
+
+  // Handle user role assignment
+  const handleAssignRole = async () => {
+    if (!selectedUser || !selectedRole) {
+      alert('Please select a user and a role.');
+      return;
+    }
+    
+    const success = await assignRoleToUser(selectedUser, selectedRole);
+    if (success) {
+      // Reset form and close modal
+      setSelectedUser('');
+      setSelectedRole('');
+      setShowAssignRoleModal(false);
+    }
+  };
+
+  // Handle product rejection
+  const handleProductRejection = async () => {
+    if (!productToReject || !rejectionReason) {
+      alert('Please select a product and provide a rejection reason.');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/products/${productToReject.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Remove the product from the products state
+        setProducts(prevProducts => prevProducts.filter(product => product.id !== productToReject.id));
+        alert('Product rejected successfully!');
+      } else {
+        alert('Failed to reject product: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error rejecting product:', err);
+      alert('Failed to reject product. Please try again.');
+    }
+  };
+
+  // Handle RFQ response
+  const handleRFQResponse = async () => {
+    if (!selectedRFQ || !rfqResponse.action) {
+      alert('Please select an RFQ and provide a response.');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/rfqs/${selectedRFQ.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(rfqResponse),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the RFQ in the rfqs state
+        setRfqs(prevRfqs => 
+          prevRfqs.map(rfq => 
+            rfq.id === selectedRFQ.id ? result.rfq : rfq
+          )
+        );
+        alert('RFQ response submitted successfully!');
+      } else {
+        alert('Failed to submit RFQ response: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error submitting RFQ response:', err);
+      alert('Failed to submit RFQ response. Please try again.');
+    }
+  };
+
+  // Handle RFQ details modal open
+  const handleOpenRFQDetails = (rfq) => {
+    setSelectedRFQDetails(rfq);
+    setShowRFQDetailsModal(true);
+  };
+
+  // Handle RFQ details modal close
+  const handleCloseRFQDetails = () => {
+    setSelectedRFQDetails(null);
+    setShowRFQDetailsModal(false);
+  };
+
+  // Handle product details modal open
+  const handleOpenProductDetails = (product) => {
+    setProductDetails(product);
+    setShowRFQDetailsModal(true);
+  };
+
+  // Handle product details modal close
+  const handleCloseProductDetails = () => {
+    setProductDetails(null);
+    setShowRFQDetailsModal(false);
+  };
+
+  // Handle edit product modal open
+  const handleOpenEditProductModal = (product) => {
+    setEditingProduct(product);
+    setEditProductData({
+      name: product.name,
+      category: product.category,
+      branded: product.branded,
+      description: product.description,
+      moq: product.moq,
+      moqUom: product.moqUom,
+      quantity: product.quantity,
+      quantityUom: product.quantityUom,
+      price: product.price,
+      currency: product.currency,
+      priceType: product.priceType,
+      reLabeling: product.reLabeling,
+      validityDate: product.validityDate,
+      validityTime: product.validityTime
+    });
+    setShowEditProductModal(true);
+  };
+
+  // Handle edit product modal close
+  const handleCloseEditProductModal = () => {
+    setEditingProduct(null);
+    setEditProductData({
+      name: '',
+      category: '',
+      branded: 'branded',
+      description: '',
+      moq: '',
+      moqUom: 'pcs',
+      quantity: '',
+      quantityUom: 'pcs',
+      price: '',
+      currency: 'USD',
+      priceType: 'EXW',
+      reLabeling: 'no',
+      validityDate: '',
+      validityTime: ''
+    });
+    setShowEditProductModal(false);
+  };
+
+
+
+  // Function to open edit role modal
+  const openEditRoleModal = (role) => {
+    console.log('Opening edit role modal for role:', role);
+    setEditingRole(role);
+    setRoleFormData({
+      name: role.name,
+      code: role.code,
+      description: role.description || ''
+    });
+    // Clear previous users by role data
+    setUsersByRole([]);
+    setShowEditRoleModal(true);
+    // Fetch users with this role after a small delay to ensure state is updated
+    setTimeout(() => {
+      console.log('Fetching users for role ID:', role.id);
+      fetchUsersByRole(role.id);
+    }, 100);
+  };
+
+  // Function to open add role modal
+  const openAddRoleModal = () => {
+    setRoleFormData({
+      name: '',
+      code: '',
+      description: ''
+    });
+    setShowAddRoleModal(true);
+  };
 
   // Function to approve a catalog
   const approveCatalog = async (catalogId) => {
@@ -594,18 +1189,17 @@ const CaptainDashboard = () => {
       completed: { backgroundColor: '#d4edda', color: '#155724' },
       open: { backgroundColor: '#fff3cd', color: '#856404' },
       resolved: { backgroundColor: '#d4edda', color: '#155724' },
-      submitted: { backgroundColor: '#cce5ff', color: '#004085' },
-      resubmitted: { backgroundColor: '#e2d0f5', color: '#4b2e83' }
+      submitted: { backgroundColor: '#cce5ff', color: '#004085' }
     };
     
     const style = statusStyles[status.toLowerCase()] || statusStyles.pending;
     
     return (
       <span 
-        className="px-2 py-1 rounded-full text-xs font-medium"
+        className="px-3 py-1 rounded-full text-xs font-semibold"
         style={style}
       >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status}
       </span>
     );
   };
@@ -712,12 +1306,25 @@ const CaptainDashboard = () => {
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <h2 className="text-2xl font-bold" style={{ color: darkText }}>Role Management</h2>
-                  <button 
-                    className="px-4 py-2 rounded-lg font-semibold"
-                    style={{ backgroundColor: bhagwa, color: "#fff" }}
-                  >
-                    Add New Role
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      className="px-4 py-2 rounded-lg font-semibold"
+                      style={{ backgroundColor: "#3498db", color: "#fff" }}
+                      onClick={() => {
+                        setShowAssignRoleModal(true);
+                        fetchUsers();
+                      }}
+                    >
+                      Assign Role to User
+                    </button>
+                    <button 
+                      className="px-4 py-2 rounded-lg font-semibold"
+                      style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      onClick={openAddRoleModal}
+                    >
+                      Add New Role
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="overflow-x-auto">
@@ -725,6 +1332,7 @@ const CaptainDashboard = () => {
                     <thead>
                       <tr style={{ backgroundColor: creamCard }}>
                         <th className="text-left p-3" style={{ color: darkText }}>Role Name</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Code</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Description</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Users Count</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
@@ -734,6 +1342,7 @@ const CaptainDashboard = () => {
                       {roles.length > 0 ? roles.map(role => (
                         <tr key={role.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
                           <td className="p-3" style={{ color: darkText }}>{role.name}</td>
+                          <td className="p-3" style={{ color: darkText }}>{role.code}</td>
                           <td className="p-3" style={{ color: darkText }}>{role.description}</td>
                           <td className="p-3" style={{ color: darkText }}>{role.userCount}</td>
                           <td className="p-3">
@@ -741,12 +1350,14 @@ const CaptainDashboard = () => {
                               <button 
                                 className="px-3 py-1 rounded text-sm"
                                 style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                onClick={() => openEditRoleModal(role)}
                               >
                                 Edit
                               </button>
                               <button 
                                 className="px-3 py-1 rounded text-sm"
                                 style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                                onClick={() => deleteRole(role.id, role.name)}
                               >
                                 Delete
                               </button>
@@ -755,7 +1366,7 @@ const CaptainDashboard = () => {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="4" className="text-center py-10" style={{ color: darkText }}>
+                          <td colSpan="5" className="text-center py-10" style={{ color: darkText }}>
                             No roles found.
                           </td>
                         </tr>
@@ -927,6 +1538,61 @@ const CaptainDashboard = () => {
                   <h2 className="text-2xl font-bold" style={{ color: darkText }}>RFQ Management</h2>
                 </div>
                 
+                {/* Need Action Section - for all RFQs with status other than "open" */}
+                {rfqs.filter(rfq => rfq.status?.toLowerCase() !== 'open').length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Need Action</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr style={{ backgroundColor: creamCard }}>
+                            <th className="text-left p-3" style={{ color: darkText }}>RFQ ID</th>
+                            <th className="text-left p-3" style={{ color: darkText }}>Product</th>
+                            <th className="text-left p-3" style={{ color: darkText }}>Buyer</th>
+                            <th className="text-left p-3" style={{ color: darkText }}>Quantity</th>
+                            <th className="text-left p-3" style={{ color: darkText }}>Status</th>
+                            <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rfqs
+                            .filter(rfq => rfq.status?.toLowerCase() !== 'open')
+                            .map(rfq => (
+                            <tr key={rfq.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
+                              <td className="p-3" style={{ color: darkText }}>{rfq.id}</td>
+                              <td className="p-3" style={{ color: darkText }}>{rfq.title}</td>
+                              <td className="p-3" style={{ color: darkText }}>{rfq.buyer}</td>
+                              <td className="p-3" style={{ color: darkText }}>{rfq.quantity}</td>
+                              <td className="p-3">
+                                <StatusBadge status={rfq.status} />
+                              </td>
+                              <td className="p-3">
+                                <div className="flex flex-wrap gap-2">
+                                  <button 
+                                    className="px-3 py-1 rounded text-sm"
+                                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                    onClick={() => fetchRFQDetails(rfq.id)}
+                                  >
+                                    See Details
+                                  </button>
+                                  <button 
+                                    className="px-3 py-1 rounded text-sm"
+                                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                    onClick={() => openRFQResponseModal(rfq)}
+                                  >
+                                    Respond
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                
+                {/* All RFQs Section - only "open" RFQs */}
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -940,46 +1606,49 @@ const CaptainDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {rfqs.length > 0 ? rfqs.map(rfq => (
-                        <tr key={rfq.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
-                          <td className="p-3" style={{ color: darkText }}>{rfq.id}</td>
-                          <td className="p-3" style={{ color: darkText }}>{rfq.title}</td>
-                          <td className="p-3" style={{ color: darkText }}>{rfq.buyer}</td>
-                          <td className="p-3" style={{ color: darkText }}>{rfq.quantity}</td>
-                          <td className="p-3">
-                            <StatusBadge status={rfq.status} />
-                          </td>
-                          <td className="p-3">
-                            <div className="flex flex-wrap gap-2">
-                              <button 
-                                className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                                onClick={() => fetchRFQDetails(rfq.id)}
-                              >
-                                See Details
-                              </button>
-                              <button 
-                                className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                                onClick={() => openRFQResponseModal(rfq)}
-                              >
-                                Respond
-                              </button>
-                              {rfq.status?.toLowerCase() === 'open' && (
+                      {rfqs
+                        .filter(rfq => rfq.status?.toLowerCase() === 'open')
+                        .length > 0 ? 
+                        rfqs
+                          .filter(rfq => rfq.status?.toLowerCase() === 'open')
+                          .map(rfq => (
+                          <tr key={rfq.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
+                            <td className="p-3" style={{ color: darkText }}>{rfq.id}</td>
+                            <td className="p-3" style={{ color: darkText }}>{rfq.title}</td>
+                            <td className="p-3" style={{ color: darkText }}>{rfq.buyer}</td>
+                            <td className="p-3" style={{ color: darkText }}>{rfq.quantity}</td>
+                            <td className="p-3">
+                              <StatusBadge status={rfq.status} />
+                            </td>
+                            <td className="p-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                  onClick={() => fetchRFQDetails(rfq.id)}
+                                >
+                                  See Details
+                                </button>
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                  onClick={() => openRFQResponseModal(rfq)}
+                                >
+                                  Respond
+                                </button>
                                 <button 
                                   className="px-3 py-1 rounded text-sm"
                                   style={{ backgroundColor: "#2ecc71", color: "#fff" }}
                                 >
                                   Assign
                                 </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )) : (
+                              </div>
+                            </td>
+                          </tr>
+                        )) : (
                         <tr>
                           <td colSpan="6" className="text-center py-10" style={{ color: darkText }}>
-                            No RFQs found.
+                            No open RFQs found.
                           </td>
                         </tr>
                       )}
@@ -1172,687 +1841,1023 @@ const CaptainDashboard = () => {
               </div>
             </div>
           )}
-        </>
-      )}
 
-      {/* Rejection Reason Modal */}
-      {productToReject && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div 
-            className="rounded-xl w-full max-w-md"
-            style={{ backgroundColor: "#fff" }}
-          >
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Reject Product</h3>
-              <p className="mb-4" style={{ color: darkText }}>
-                Please provide a reason for rejecting the product "{productToReject.name}":
-              </p>
-              <textarea
-                className="w-full p-3 rounded-lg border mb-4"
-                style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                rows="4"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter rejection reason..."
-              ></textarea>
-              <div className="flex justify-end gap-3">
-                <button 
-                  className="px-4 py-2 rounded-lg font-medium"
-                  onClick={() => {
-                    setProductToReject(null);
-                    setRejectionReason('');
-                  }}
-                  style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="px-4 py-2 rounded-lg font-medium"
-                  onClick={rejectProduct}
-                  style={{ backgroundColor: "#e74c3c", color: "#fff" }}
-                >
-                  Reject Product
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Product Modal */}
-      {showEditProductModal && editingProduct && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div 
-            className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            style={{ backgroundColor: "#fff" }}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold" style={{ color: darkText }}>Edit Product</h3>
-                <button 
-                  className="p-2 rounded-full"
-                  onClick={() => setShowEditProductModal(false)}
-                  style={{ backgroundColor: creamCard }}
-                >
-                  <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
-                </button>
-              </div>
-              <form onSubmit={handleEditProduct}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  {/* Product Name */}
-                  <div className="md:col-span-2">
-                    <label htmlFor="edit-name" className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Product Name/Version *
-                    </label>
-                    <input
-                      type="text"
-                      id="edit-name"
-                      name="name"
-                      className="w-full p-3 rounded-lg border"
-                      style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                      value={editProductData.name}
-                      onChange={handleEditProductInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  {/* Category */}
-                  <div>
-                    <label htmlFor="edit-category" className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Product Category *
-                    </label>
-                    <select
-                      id="edit-category"
-                      name="category"
-                      className="w-full p-3 rounded-lg border"
-                      style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                      value={editProductData.category}
-                      onChange={handleEditProductInputChange}
-                      required
+          {/* Add Role Modal */}
+          {showAddRoleModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>Add New Role</h3>
+                    <button 
+                      onClick={() => {
+                        setShowAddRoleModal(false);
+                        setRoleFormData({ name: '', code: '', description: '' });
+                      }}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
                     >
-                      <option value="">Select a category</option>
-                      {categories.map((category, index) => (
-                        <option key={index} value={category}>{category}</option>
-                      ))}
-                    </select>
+                      &times;
+                    </button>
                   </div>
                   
-                  {/* Branded/Unbranded */}
-                  <div>
-                    <label className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Branded/Unbranded *
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="branded"
-                          value="branded"
-                          checked={editProductData.branded === 'branded'}
-                          onChange={handleEditProductInputChange}
-                          className="mr-2"
-                        />
-                        <span style={{ color: darkText }}>Branded</span>
+                  <form onSubmit={handleCreateRole}>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Role Name *
                       </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="branded"
-                          value="unbranded"
-                          checked={editProductData.branded === 'unbranded'}
-                          onChange={handleEditProductInputChange}
-                          className="mr-2"
-                        />
-                        <span style={{ color: darkText }}>Unbranded</span>
-                      </label>
-                    </div>
-                  </div>
-                  
-                  {/* MOQ and UOM */}
-                  <div>
-                    <label htmlFor="edit-moq" className="block mb-2 font-medium" style={{ color: darkText }}>
-                      MOQ
-                    </label>
-                    <div className="flex gap-2">
                       <input
-                        type="number"
-                        id="edit-moq"
-                        name="moq"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.moq}
-                        onChange={handleEditProductInputChange}
-                        min="0"
-                      />
-                      <select
-                        name="moqUom"
-                        className="p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.moqUom}
-                        onChange={handleEditProductInputChange}
-                      >
-                        <option value="pcs">pcs</option>
-                        <option value="kg">kg</option>
-                        <option value="ltr">ltr</option>
-                        <option value="mtr">mtr</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  {/* Available Quantity and UOM */}
-                  <div>
-                    <label htmlFor="edit-quantity" className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Available Quantity
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        id="edit-quantity"
-                        name="quantity"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.quantity}
-                        onChange={handleEditProductInputChange}
-                        min="0"
-                      />
-                      <select
-                        name="quantityUom"
-                        className="p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.quantityUom}
-                        onChange={handleEditProductInputChange}
-                      >
-                        <option value="pcs">pcs</option>
-                        <option value="kg">kg</option>
-                        <option value="ltr">ltr</option>
-                        <option value="mtr">mtr</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  {/* Offer Price and Currency */}
-                  <div>
-                    <label htmlFor="edit-price" className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Offer Price *
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        id="edit-price"
-                        name="price"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.price}
-                        onChange={handleEditProductInputChange}
+                        type="text"
+                        name="name"
+                        value={roleFormData.name}
+                        onChange={handleRoleFormChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: "#d9cfc1" }}
+                        placeholder="Enter role name"
                         required
-                        min="0"
-                        step="0.01"
                       />
-                      <select
-                        name="currency"
-                        className="p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.currency}
-                        onChange={handleEditProductInputChange}
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Role Code *
+                      </label>
+                      <input
+                        type="text"
+                        name="code"
+                        value={roleFormData.code}
+                        onChange={handleRoleFormChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: "#d9cfc1" }}
+                        placeholder="Enter role code (e.g., CAPT, SELL)"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={roleFormData.description}
+                        onChange={handleRoleFormChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: "#d9cfc1" }}
+                        placeholder="Enter role description"
+                        rows="3"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddRoleModal(false);
+                          setRoleFormData({ name: '', code: '', description: '' });
+                        }}
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
                       >
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                        <option value="INR">INR</option>
-                      </select>
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      >
+                        Create Role
+                      </button>
                     </div>
-                  </div>
-                  
-                  {/* Price Type */}
-                  <div>
-                    <label htmlFor="edit-priceType" className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Price Type
-                    </label>
-                    <select
-                      id="edit-priceType"
-                      name="priceType"
-                      className="w-full p-3 rounded-lg border"
-                      style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                      value={editProductData.priceType}
-                      onChange={handleEditProductInputChange}
-                    >
-                      <option value="EXW">EXW</option>
-                      <option value="FOB">FOB</option>
-                      <option value="CIF">CIF</option>
-                      <option value="DDP">DDP</option>
-                    </select>
-                  </div>
-                  
-                  {/* Re-labeling Option */}
-                  <div>
-                    <label className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Re-labeling Option
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="reLabeling"
-                          value="yes"
-                          checked={editProductData.reLabeling === 'yes'}
-                          onChange={handleEditProductInputChange}
-                          className="mr-2"
-                        />
-                        <span style={{ color: darkText }}>Yes</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="reLabeling"
-                          value="no"
-                          checked={editProductData.reLabeling === 'no'}
-                          onChange={handleEditProductInputChange}
-                          className="mr-2"
-                        />
-                        <span style={{ color: darkText }}>No</span>
-                      </label>
-                    </div>
-                  </div>
-                  
-                  {/* Offer Validity */}
-                  <div>
-                    <label className="block mb-2 font-medium" style={{ color: darkText }}>
-                      Offer Validity
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="date"
-                        name="validityDate"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.validityDate}
-                        onChange={handleEditProductInputChange}
-                      />
-                      <input
-                        type="time"
-                        name="validityTime"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        value={editProductData.validityTime}
-                        onChange={handleEditProductInputChange}
-                      />
-                    </div>
-                  </div>
+                  </form>
                 </div>
-                
-                {/* Description */}
-                <div className="mb-4">
-                  <label htmlFor="edit-description" className="block mb-2 font-medium" style={{ color: darkText }}>
-                    Description *
-                  </label>
-                  <textarea
-                    id="edit-description"
-                    name="description"
-                    className="w-full p-3 rounded-lg border"
-                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                    value={editProductData.description}
-                    onChange={handleEditProductInputChange}
-                    rows="4"
-                    required
-                  ></textarea>
-                  <p className="text-sm mt-1" style={{ color: "#7a614a" }}>
-                    * No contact details allowed in description
-                  </p>
-                </div>
-                
-                <div className="flex justify-end gap-3">
-                  <button 
-                    type="button" 
-                    className="px-4 py-2 rounded-lg font-medium"
-                    onClick={() => setShowEditProductModal(false)}
-                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="px-4 py-2 rounded-lg font-medium"
-                    style={{ backgroundColor: bhagwa, color: "#fff" }}
-                  >
-                    Update Product
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* RFQ Response Modal */}
-      {showRFQResponseModal && selectedRFQ && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div 
-            className="rounded-xl w-full max-w-md"
-            style={{ backgroundColor: "#fff" }}
-          >
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Respond to RFQ</h3>
-              <p className="mb-4" style={{ color: darkText }}>
-                Respond to RFQ #{selectedRFQ.id} for "{selectedRFQ.title}"
-              </p>
-              <form onSubmit={handleRFQResponseSubmit}>
-                <div className="mb-4">
-                  <label className="block mb-2 font-medium" style={{ color: darkText }}>
-                    Action
-                  </label>
-                  <select
-                    name="action"
-                    className="w-full p-3 rounded-lg border"
-                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                    value={rfqResponse.action}
-                    onChange={handleRFQResponseChange}
-                  >
-                    <option value="negotiate">Request Negotiation</option>
-                    <option value="doq">Provide Document of Quotation (DOQ)</option>
-                    <option value="accept">Accept RFQ</option>
-                    <option value="reject">Reject RFQ</option>
-                  </select>
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="rfq-response-message" className="block mb-2 font-medium" style={{ color: darkText }}>
-                    Response Message *
-                  </label>
-                  <textarea
-                    id="rfq-response-message"
-                    name="message"
-                    className="w-full p-3 rounded-lg border"
-                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                    rows="4"
-                    value={rfqResponse.message}
-                    onChange={handleRFQResponseChange}
-                    placeholder="Enter your response..."
-                    required
-                  ></textarea>
-                </div>
-                
-                <div className="flex justify-end gap-3">
-                  <button 
-                    type="button"
-                    className="px-4 py-2 rounded-lg font-medium"
-                    onClick={() => {
-                      setShowRFQResponseModal(false);
-                      setSelectedRFQ(null);
-                      setRfqResponse({
-                        action: 'negotiate',
-                        message: ''
-                      });
-                    }}
-                    style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="px-4 py-2 rounded-lg font-medium"
-                    style={{ backgroundColor: bhagwa, color: "#fff" }}
-                  >
-                    Submit Response
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* RFQ Details Modal */}
-      {showRFQDetailsModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div 
-            className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            style={{ backgroundColor: "#fff" }}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold" style={{ color: darkText }}>RFQ Details</h3>
-                <button 
-                  className="p-2 rounded-full"
-                  onClick={closeRFQDetailsModal}
-                  style={{ backgroundColor: creamCard }}
-                >
-                  <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
-                </button>
               </div>
-              
-              {loadingDetails ? (
-                <div className="text-center py-10" style={{ color: darkText }}>
-                  Loading RFQ details...
-                </div>
-              ) : selectedRFQDetails ? (
-                <div>
-                  {/* Buyer RFQ Details */}
-                  <div className="mb-6">
-                    <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
-                      Buyer RFQ Details
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm" style={{ color: "#7a614a" }}>RFQ ID</p>
-                        <p style={{ color: darkText }}>{selectedRFQDetails.id}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm" style={{ color: "#7a614a" }}>Product Title</p>
-                        <p style={{ color: darkText }}>{selectedRFQDetails.title}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm" style={{ color: "#7a614a" }}>Buyer</p>
-                        <p style={{ color: darkText }}>{selectedRFQDetails.buyer.vendorCode}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm" style={{ color: "#7a614a" }}>Quantity</p>
-                        <p style={{ color: darkText }}>{selectedRFQDetails.quantity}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm" style={{ color: "#7a614a" }}>Status</p>
-                        <p style={{ color: darkText }}>
-                          <StatusBadge status={selectedRFQDetails.status} />
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm" style={{ color: "#7a614a" }}>Created At</p>
-                        <p style={{ color: darkText }}>
-                          {new Date(selectedRFQDetails.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      {selectedRFQDetails.budgetRangeMin && (
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Budget Range (Min)</p>
-                          <p style={{ color: darkText }}>${selectedRFQDetails.budgetRangeMin}</p>
+            </div>
+          )}
+
+          {/* Edit Role Modal */}
+          {showEditRoleModal && editingRole && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>Edit Role</h3>
+                    <button 
+                      onClick={() => {
+                        setShowEditRoleModal(false);
+                        setEditingRole(null);
+                        setRoleFormData({ name: '', code: '', description: '' });
+                        setUsersByRole([]); // Clear users by role
+                      }}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleUpdateRole}>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Role Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={roleFormData.name}
+                        onChange={handleRoleFormChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: "#d9cfc1" }}
+                        placeholder="Enter role name"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Role Code *
+                      </label>
+                      <input
+                        type="text"
+                        name="code"
+                        value={roleFormData.code}
+                        onChange={handleRoleFormChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: "#d9cfc1" }}
+                        placeholder="Enter role code"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={roleFormData.description}
+                        onChange={handleRoleFormChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: "#d9cfc1" }}
+                        placeholder="Enter role description"
+                        rows="3"
+                      />
+                    </div>
+                    
+                    {/* Users with this role */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                        Users with this role (Count: {usersByRole.length})
+                      </label>
+                      {usersByRole.length > 0 ? (
+                        <div className="border rounded-lg" style={{ borderColor: "#d9cfc1" }}>
+                          {usersByRole.map((user, index) => (
+                            <div 
+                              key={user.id} 
+                              className={`p-3 flex justify-between items-center ${index < usersByRole.length - 1 ? 'border-b' : ''}`}
+                              style={{ borderColor: "#d9cfc1" }}
+                            >
+                              <div>
+                                <div className="font-medium" style={{ color: darkText }}>
+                                  {user.first_name} {user.last_name}
+                                </div>
+                                <div className="text-sm" style={{ color: "#7a614a" }}>
+                                  {user.email} ({user.vendor_code})
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const success = await changeUserToBuyer(user.id);
+                                  if (success) {
+                                    // Remove user from the list
+                                    setUsersByRole(prevUsers => 
+                                      prevUsers.filter(u => u.id !== user.id)
+                                    );
+                                  }
+                                }}
+                                className="px-3 py-1 rounded text-sm"
+                                style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                              >
+                                Remove role and make buyer
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      {selectedRFQDetails.budgetRangeMax && (
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Budget Range (Max)</p>
-                          <p style={{ color: darkText }}>${selectedRFQDetails.budgetRangeMax}</p>
-                        </div>
-                      )}
-                      {selectedRFQDetails.responseDeadline && (
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Response Deadline</p>
-                          <p style={{ color: darkText }}>
-                            {new Date(selectedRFQDetails.responseDeadline).toLocaleString()}
-                          </p>
+                      ) : (
+                        <div className="p-3 text-center" style={{ color: "#7a614a" }}>
+                          No users have this role
                         </div>
                       )}
                     </div>
                     
-                    {selectedRFQDetails.description && (
-                      <div className="mt-4">
-                        <p className="text-sm" style={{ color: "#7a614a" }}>Description</p>
-                        <p style={{ color: darkText }}>{selectedRFQDetails.description}</p>
-                      </div>
-                    )}
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditRoleModal(false);
+                          setEditingRole(null);
+                          setRoleFormData({ name: '', code: '', description: '' });
+                          setUsersByRole([]); // Clear users by role
+                        }}
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      >
+                        Update Role
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Assign Role to User Modal */}
+          {showAssignRoleModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>Assign Role to User</h3>
+                    <button 
+                      onClick={() => {
+                        setShowAssignRoleModal(false);
+                        setSelectedUser('');
+                        setSelectedRole('');
+                        setUserDetails(null);
+                      }}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
+                    >
+                      &times;
+                    </button>
                   </div>
                   
-                  {/* Product Details (if available) */}
-                  {selectedRFQDetails.productDetails && (
-                    <div className="mb-6">
-                      <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
-                        Seller Product Details
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Product Name</p>
-                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.name}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Category</p>
-                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.category}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Price</p>
-                          <p style={{ color: darkText }}>${selectedRFQDetails.productDetails.price} {selectedRFQDetails.productDetails.currency}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>MOQ</p>
-                          <p style={{ color: darkText }}>
-                            {selectedRFQDetails.productDetails.moq} {selectedRFQDetails.productDetails.moqUom}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Available Quantity</p>
-                          <p style={{ color: darkText }}>
-                            {selectedRFQDetails.productDetails.availableQuantity} {selectedRFQDetails.productDetails.quantityUom}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Price Type</p>
-                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.priceType}</p>
-                        </div>
-                        {selectedRFQDetails.productDetails.offerValidityDate && (
-                          <div>
-                            <p className="text-sm" style={{ color: "#7a614a" }}>Offer Validity</p>
-                            <p style={{ color: darkText }}>
-                              {new Date(selectedRFQDetails.productDetails.offerValidityDate).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Relabeling Allowed</p>
-                          <p style={{ color: darkText }}>
-                            {selectedRFQDetails.productDetails.isRelabelingAllowed ? 'Yes' : 'No'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Product Status</p>
-                          <p style={{ color: darkText }}>
-                            <StatusBadge status={selectedRFQDetails.productDetails.status} />
-                          </p>
-                        </div>
-                        {selectedRFQDetails.productDetails.seller && (
-                          <>
-                            <div>
-                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller</p>
-                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.vendorCode}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller Name</p>
-                              <p style={{ color: darkText }}>
-                                {selectedRFQDetails.productDetails.seller.firstName} {selectedRFQDetails.productDetails.seller.lastName}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller Email</p>
-                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.email}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm" style={{ color: "#7a614a" }}>Seller Phone</p>
-                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.phone}</p>
-                            </div>
-                          </>
-                        )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* User Selection */}
+                    <div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                          Select User *
+                        </label>
+                        <select
+                          value={selectedUser}
+                          onChange={async (e) => {
+                            const userId = e.target.value;
+                            console.log('Selected user ID:', userId);
+                            setSelectedUser(userId);
+                            if (userId) {
+                              await fetchUserDetails(userId);
+                            } else {
+                              setUserDetails(null);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border rounded-lg"
+                          style={{ borderColor: "#d9cfc1" }}
+                        >
+                          <option value="">Choose a user</option>
+                          {users.length > 0 ? (
+                            users.map(user => (
+                              <option key={user.id} value={user.id}>
+                                {user.first_name} {user.last_name} ({user.vendor_code})
+                              </option>
+                            ))
+                          ) : (
+                            <option value="" disabled>
+                              No users available
+                            </option>
+                          )}
+                        </select>
+                        {console.log('Rendering users dropdown, users count:', users.length)}
                       </div>
                       
-                      {selectedRFQDetails.productDetails.description && (
-                        <div className="mt-4">
-                          <p className="text-sm" style={{ color: "#7a614a" }}>Product Description</p>
-                          <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.description}</p>
+                      {/* User Details */}
+                      {userDetails && (
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                          <h4 className="font-medium mb-2" style={{ color: darkText }}>User Details</h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-sm" style={{ color: "#7a614a" }}>Name:</span>
+                              <span style={{ color: darkText }}>
+                                {userDetails.first_name} {userDetails.last_name}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm" style={{ color: "#7a614a" }}>Vendor Code:</span>
+                              <span style={{ color: darkText }}>{userDetails.vendor_code}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm" style={{ color: "#7a614a" }}>Email:</span>
+                              <span style={{ color: darkText }}>{userDetails.email}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm" style={{ color: "#7a614a" }}>Phone:</span>
+                              <span style={{ color: darkText }}>{userDetails.phone}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm" style={{ color: "#7a614a" }}>Current Role:</span>
+                              <span style={{ color: darkText }}>
+                                {userDetails.current_role || 'No role assigned'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
-                  )}
-                  
-                  {/* Resubmission Details (if status is resubmitted) */}
-                  {selectedRFQDetails.status === 'resubmitted' && selectedRFQDetails.productDetails && (
-                    <div className="mb-6">
-                      <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
-                        Resubmission Details
-                      </h4>
-                      <div className="p-4 rounded-lg border" style={{ backgroundColor: "#fff", borderColor: "#d9cfc1" }}>
-                        <p style={{ color: darkText }}>
-                          Buyer has resubmitted this RFQ with updated details. Please review the current product information above and provide your response.
-                        </p>
+                    
+                    {/* Role Selection */}
+                    <div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
+                          Select Role *
+                        </label>
+                        <select
+                          value={selectedRole}
+                          onChange={(e) => setSelectedRole(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg"
+                          style={{ borderColor: "#d9cfc1" }}
+                        >
+                          <option value="">Choose a role</option>
+                          {roles.map(role => (
+                            <option key={role.id} value={role.id}>
+                              {role.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* All Messages/Notifications */}
-                  {selectedRFQDetails.notifications && selectedRFQDetails.notifications.length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
-                        All Messages
-                      </h4>
-                      <div className="space-y-4">
-                        {selectedRFQDetails.notifications.map(notification => (
-                          <div 
-                            key={notification.id} 
-                            className="p-4 rounded-lg border"
-                            style={{ 
-                              backgroundColor: "#fff",
-                              borderColor: "#d9cfc1"
-                            }}
-                          >
-                            <h5 className="font-bold" style={{ color: darkText }}>
-                              {notification.title}
-                            </h5>
-                            <p className="mt-2" style={{ color: darkText }}>
-                              {notification.message}
-                            </p>
-                            <p className="text-sm mt-2" style={{ color: "#7a614a" }}>
-                              {new Date(notification.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                        ))}
+                      
+                      {/* Role Details */}
+                      {selectedRole && (
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                          <h4 className="font-medium mb-2" style={{ color: darkText }}>Role Details</h4>
+                          {(() => {
+                            const role = roles.find(r => r.id === selectedRole);
+                            return role ? (
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-sm" style={{ color: "#7a614a" }}>Name:</span>
+                                  <span style={{ color: darkText }}>{role.name}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm" style={{ color: "#7a614a" }}>Code:</span>
+                                  <span style={{ color: darkText }}>{role.code}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm" style={{ color: "#7a614a" }}>Description:</span>
+                                  <span style={{ color: darkText }}>{role.description || 'No description'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm" style={{ color: "#7a614a" }}>Users Assigned:</span>
+                                  <span style={{ color: darkText }}>{role.userCount}</span>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+                      
+                      {/* Assign Button */}
+                      <div className="mt-6">
+                        <button
+                          onClick={async () => {
+                            if (selectedUser && selectedRole) {
+                              const success = await assignRoleToUser(selectedUser, selectedRole);
+                              if (success) {
+                                setShowAssignRoleModal(false);
+                                setSelectedUser('');
+                                setSelectedRole('');
+                                setUserDetails(null);
+                                // Refresh roles data
+                                fetchDashboardData();
+                              }
+                            } else {
+                              alert('Please select both a user and a role');
+                            }
+                          }}
+                          disabled={!selectedUser || !selectedRole}
+                          className="w-full px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                          style={{ 
+                            backgroundColor: selectedUser && selectedRole ? bhagwa : '#ccc', 
+                            color: selectedUser && selectedRole ? "#fff" : "#666" 
+                          }}
+                        >
+                          Assign Role to User
+                        </button>
                       </div>
                     </div>
-                  )}
-                  
-                  <div className="flex justify-end">
+                  </div>
+                </div>
+              </div>
+            
+          )}
+
+          {/* Rejection Reason Modal */}
+          {productToReject && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-md"
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Reject Product</h3>
+                  <p className="mb-4" style={{ color: darkText }}>
+                    Please provide a reason for rejecting the product "{productToReject.name}":
+                  </p>
+                  <textarea
+                    className="w-full p-3 rounded-lg border mb-4"
+                    style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                    rows="4"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter rejection reason..."
+                  ></textarea>
+                  <div className="flex justify-end gap-3">
                     <button 
                       className="px-4 py-2 rounded-lg font-medium"
-                      onClick={closeRFQDetailsModal}
-                      style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      onClick={() => {
+                        setProductToReject(null);
+                        setRejectionReason('');
+                      }}
+                      style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
                     >
-                      Close
+                      Cancel
+                    </button>
+                    <button 
+                      className="px-4 py-2 rounded-lg font-medium"
+                      onClick={rejectProduct}
+                      style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                    >
+                      Reject Product
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-10" style={{ color: darkText }}>
-                  No details available
-                </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* Edit Product Modal */}
+          {showEditProductModal && editingProduct && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>Edit Product</h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={() => setShowEditProductModal(false)}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  <form onSubmit={handleEditProduct}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Product Name */}
+                      <div className="md:col-span-2">
+                        <label htmlFor="edit-name" className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Product Name/Version *
+                        </label>
+                        <input
+                          type="text"
+                          id="edit-name"
+                          name="name"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={editProductData.name}
+                          onChange={handleEditProductInputChange}
+                          required
+                        />
+                      </div>
+                      
+                      {/* Category */}
+                      <div>
+                        <label htmlFor="edit-category" className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Product Category *
+                        </label>
+                        <select
+                          id="edit-category"
+                          name="category"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={editProductData.category}
+                          onChange={handleEditProductInputChange}
+                          required
+                        >
+                          <option value="">Select a category</option>
+                          {categories.map((category, index) => (
+                            <option key={index} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* Branded/Unbranded */}
+                      <div>
+                        <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Branded/Unbranded *
+                        </label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center">
+                            <input
+                              type="radio"
+                              name="branded"
+                              value="branded"
+                              checked={editProductData.branded === 'branded'}
+                              onChange={handleEditProductInputChange}
+                              className="mr-2"
+                            />
+                            <span style={{ color: darkText }}>Branded</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="radio"
+                              name="branded"
+                              value="unbranded"
+                              checked={editProductData.branded === 'unbranded'}
+                              onChange={handleEditProductInputChange}
+                              className="mr-2"
+                            />
+                            <span style={{ color: darkText }}>Unbranded</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      {/* MOQ and UOM */}
+                      <div>
+                        <label htmlFor="edit-moq" className="block mb-2 font-medium" style={{ color: darkText }}>
+                          MOQ
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            id="edit-moq"
+                            name="moq"
+                            className="w-full p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.moq}
+                            onChange={handleEditProductInputChange}
+                            min="0"
+                          />
+                          <select
+                            name="moqUom"
+                            className="p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.moqUom}
+                            onChange={handleEditProductInputChange}
+                          >
+                            <option value="pcs">pcs</option>
+                            <option value="kg">kg</option>
+                            <option value="ltr">ltr</option>
+                            <option value="mtr">mtr</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      {/* Available Quantity and UOM */}
+                      <div>
+                        <label htmlFor="edit-quantity" className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Available Quantity
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            id="edit-quantity"
+                            name="quantity"
+                            className="w-full p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.quantity}
+                            onChange={handleEditProductInputChange}
+                            min="0"
+                          />
+                          <select
+                            name="quantityUom"
+                            className="p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.quantityUom}
+                            onChange={handleEditProductInputChange}
+                          >
+                            <option value="pcs">pcs</option>
+                            <option value="kg">kg</option>
+                            <option value="ltr">ltr</option>
+                            <option value="mtr">mtr</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      {/* Offer Price and Currency */}
+                      <div>
+                        <label htmlFor="edit-price" className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Offer Price *
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            id="edit-price"
+                            name="price"
+                            className="w-full p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.price}
+                            onChange={handleEditProductInputChange}
+                            required
+                            min="0"
+                            step="0.01"
+                          />
+                          <select
+                            name="currency"
+                            className="p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.currency}
+                            onChange={handleEditProductInputChange}
+                          >
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="INR">INR</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      {/* Price Type */}
+                      <div>
+                        <label htmlFor="edit-priceType" className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Price Type
+                        </label>
+                        <select
+                          id="edit-priceType"
+                          name="priceType"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={editProductData.priceType}
+                          onChange={handleEditProductInputChange}
+                        >
+                          <option value="EXW">EXW</option>
+                          <option value="FOB">FOB</option>
+                          <option value="CIF">CIF</option>
+                          <option value="DDP">DDP</option>
+                        </select>
+                      </div>
+                      
+                      {/* Re-labeling Option */}
+                      <div>
+                        <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Re-labeling Option
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            name="validityDate"
+                            className="w-full p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.validityDate}
+                            onChange={handleEditProductInputChange}
+                          />
+                          <input
+                            type="time"
+                            name="validityTime"
+                            className="w-full p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            value={editProductData.validityTime}
+                            onChange={handleEditProductInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Description */}
+                    <div className="mb-4">
+                      <label htmlFor="edit-description" className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Description *
+                      </label>
+                      <textarea
+                        id="edit-description"
+                        name="description"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={editProductData.description}
+                        onChange={handleEditProductInputChange}
+                        rows="4"
+                        required
+                      ></textarea>
+                      <p className="text-sm mt-1" style={{ color: "#7a614a" }}>
+                        * No contact details allowed in description
+                      </p>
+                    </div>
+                    
+                    <div className="flex justify-end gap-3">
+                      <button 
+                        type="button" 
+                        className="px-4 py-2 rounded-lg font-medium"
+                        onClick={() => setShowEditProductModal(false)}
+                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      >
+                        Update Product
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RFQ Response Modal */}
+          {showRFQResponseModal && selectedRFQ && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-md"
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Respond to RFQ</h3>
+                  <p className="mb-4" style={{ color: darkText }}>
+                    Respond to RFQ #{selectedRFQ.id} for "{selectedRFQ.title}"
+                  </p>
+                  <form onSubmit={handleRFQResponseSubmit}>
+                    <div className="mb-4">
+                      <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Action
+                      </label>
+                      <select
+                        name="action"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={rfqResponse.action}
+                        onChange={handleRFQResponseChange}
+                      >
+                        <option value="negotiate">Request Negotiation</option>
+                        <option value="doq">Provide Document of Quotation (DOQ)</option>
+                        <option value="accept">Accept RFQ</option>
+                        <option value="reject">Reject RFQ</option>
+                      </select>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label htmlFor="rfq-response-message" className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Response Message *
+                      </label>
+                      <textarea
+                        id="rfq-response-message"
+                        name="message"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        rows="4"
+                        value={rfqResponse.message}
+                        onChange={handleRFQResponseChange}
+                        placeholder="Enter your response..."
+                        required
+                      ></textarea>
+                    </div>
+                    
+                    <div className="flex justify-end gap-3">
+                      <button 
+                        type="button"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        onClick={() => {
+                          setShowRFQResponseModal(false);
+                          setSelectedRFQ(null);
+                          setRfqResponse({
+                            action: 'negotiate',
+                            message: ''
+                          });
+                        }}
+                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      >
+                        Submit Response
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* RFQ Details Modal */}
+          {showRFQDetailsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" 
+                 style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+              <div className="rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" 
+                   style={{ backgroundColor: "#fff" }}>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>
+                      RFQ Details
+                    </h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={closeRFQDetailsModal}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  
+                  {loadingDetails ? (
+                    <div className="text-center py-10" style={{ color: darkText }}>
+                      Loading RFQ details...
+                    </div>
+                  ) : selectedRFQDetails ? (
+                    <div>
+                      {/* Buyer RFQ Details */}
+                      <div className="mb-6">
+                        <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
+                          Buyer RFQ Details
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>RFQ ID</p>
+                            <p style={{ color: darkText }}>{selectedRFQDetails.id}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Product Title</p>
+                            <p style={{ color: darkText }}>{selectedRFQDetails.title}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Buyer</p>
+                            <p style={{ color: darkText }}>{selectedRFQDetails.buyer.vendorCode}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Quantity</p>
+                            <p style={{ color: darkText }}>{selectedRFQDetails.quantity}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Status</p>
+                            <p style={{ color: darkText }}>
+                              <StatusBadge status={selectedRFQDetails.status} />
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Created At</p>
+                            <p style={{ color: darkText }}>
+                              {new Date(selectedRFQDetails.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          {selectedRFQDetails.budgetRangeMin && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Budget Range (Min)</p>
+                              <p style={{ color: darkText }}>${selectedRFQDetails.budgetRangeMin}</p>
+                            </div>
+                          )}
+                          {selectedRFQDetails.budgetRangeMax && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Budget Range (Max)</p>
+                              <p style={{ color: darkText }}>${selectedRFQDetails.budgetRangeMax}</p>
+                            </div>
+                          )}
+                          {selectedRFQDetails.responseDeadline && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Response Deadline</p>
+                              <p style={{ color: darkText }}>
+                                {new Date(selectedRFQDetails.responseDeadline).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {selectedRFQDetails.description && (
+                          <div className="mt-4">
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Description</p>
+                            <p style={{ color: darkText }}>{selectedRFQDetails.description}</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Product Details (if available) */}
+                      {selectedRFQDetails.productDetails && (
+                        <div className="mb-6">
+                          <h4 className="text-lg font-bold mb-3" style={{ color: darkText, borderBottom: `1px solid ${creamCard}`, paddingBottom: '8px' }}>
+                            Seller Product Details
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Product Name</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.name}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Category</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.category}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Price</p>
+                              <p style={{ color: darkText }}>${selectedRFQDetails.productDetails.price} {selectedRFQDetails.productDetails.currency}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>MOQ</p>
+                              <p style={{ color: darkText }}>
+                                {selectedRFQDetails.productDetails.moq} {selectedRFQDetails.productDetails.moqUom}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Available Quantity</p>
+                              <p style={{ color: darkText }}>
+                                {selectedRFQDetails.productDetails.availableQuantity} {selectedRFQDetails.productDetails.quantityUom}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Price Type</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.priceType}</p>
+                            </div>
+                            {selectedRFQDetails.productDetails.offerValidityDate && (
+                              <div>
+                                <p className="text-sm" style={{ color: "#7a614a" }}>Offer Validity</p>
+                                <p style={{ color: darkText }}>
+                                  {new Date(selectedRFQDetails.productDetails.offerValidityDate).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Relabeling Allowed</p>
+                              <p style={{ color: darkText }}>
+                                {selectedRFQDetails.productDetails.isRelabelingAllowed ? 'Yes' : 'No'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Product Status</p>
+                              <p style={{ color: darkText }}>
+                                <StatusBadge status={selectedRFQDetails.productDetails.status} />
+                              </p>
+                            </div>
+                            {selectedRFQDetails.productDetails.seller && (
+                              <>
+                                <div>
+                                  <p className="text-sm" style={{ color: "#7a614a" }}>Seller</p>
+                                  <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.vendorCode}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm" style={{ color: "#7a614a" }}>Seller Name</p>
+                                  <p style={{ color: darkText }}>
+                                    {selectedRFQDetails.productDetails.seller.firstName} {selectedRFQDetails.productDetails.seller.lastName}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm" style={{ color: "#7a614a" }}>Seller Email</p>
+                                  <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.email}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm" style={{ color: "#7a614a" }}>Seller Phone</p>
+                                  <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.seller.phone}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          
+                          {selectedRFQDetails.productDetails.description && (
+                            <div className="mt-4">
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Product Description</p>
+                              <p style={{ color: darkText }}>{selectedRFQDetails.productDetails.description}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end">
+                        <button 
+                          className="px-4 py-2 rounded-lg font-medium"
+                          onClick={closeRFQDetailsModal}
+                          style={{ backgroundColor: bhagwa, color: "#fff" }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-10" style={{ color: darkText }}>
+                      No details available
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </DashboardLayout>
   );
