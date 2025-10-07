@@ -8,6 +8,7 @@ const HrDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [pendingDocuments, setPendingDocuments] = useState([]);
   const [contactRequests, setContactRequests] = useState([]);
+  const [contactFormSubmissions, setContactFormSubmissions] = useState([]); // New state for contact form submissions
   const [userIssues, setUserIssues] = useState([]);
   const [users, setUsers] = useState([]); // For user management
   const [newUsers, setNewUsers] = useState([]); // For new user registrations
@@ -103,6 +104,13 @@ const HrDashboard = () => {
     }
   }, [activeTab, authToken]);
 
+  // Separate useEffect for contact form submissions
+  useEffect(() => {
+    if (authToken && activeTab === 'contact-forms') {
+      fetchContactFormSubmissions();
+    }
+  }, [activeTab, authToken]);
+
   // Function to fetch users (for user management tab)
   const fetchUsers = async () => {
     try {
@@ -169,6 +177,60 @@ const HrDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching roles:', err);
+    }
+  };
+
+  // Function to fetch contact form submissions
+  const fetchContactFormSubmissions = async () => {
+    try {
+      const response = await fetch('/api/hr/contact-form-submissions', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        setContactFormSubmissions(data);
+      } else {
+        console.error('Error fetching contact form submissions:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching contact form submissions:', err);
+    }
+  };
+
+  // Function to update contact form submission status
+  const updateContactFormSubmissionStatus = async (submissionId, status) => {
+    try {
+      const response = await fetch(`/api/hr/contact-form-submissions/${submissionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ status }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the contact form submissions state to reflect the status change
+        setContactFormSubmissions(prevSubmissions => 
+          prevSubmissions.map(submission => 
+            submission.id === submissionId 
+              ? { ...submission, status } 
+              : submission
+          )
+        );
+        
+        alert(`Contact form submission marked as ${status}!`);
+      } else {
+        alert('Failed to update contact form submission: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error updating contact form submission:', err);
+      alert('Failed to update contact form submission. Please try again.');
     }
   };
 
@@ -515,7 +577,8 @@ const HrDashboard = () => {
     totalUsers: users.length || 0, // Use actual user count
     activeUsers: users.filter(user => user.status === 'Active').length,
     blockedUsers: users.filter(user => user.status === 'Temporarily Blocked' || user.status === 'Permanently Blocked').length,
-    newUsers: newUsers.length || 0 // New users count
+    newUsers: newUsers.length || 0, // New users count
+    contactFormSubmissions: contactFormSubmissions.filter(sub => sub.status === 'pending').length // New stat
   };
 
   return (
@@ -538,6 +601,14 @@ const HrDashboard = () => {
           onClick={() => setActiveTab('contacts')}
         >
           Contact Requests
+        </button>
+        <button 
+          className={`tab ${activeTab === 'contact-forms' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('contact-forms');
+          }}
+        >
+          Website Contact Forms
         </button>
         <button 
           className={`tab ${activeTab === 'new-users' ? 'active' : ''}`}
@@ -646,6 +717,18 @@ const HrDashboard = () => {
                     <div>
                       <p className="text-gray-500 text-sm">New Registrations</p>
                       <p className="text-2xl font-bold">{stats.newUsers}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-indigo-100 text-indigo-600 mr-4">
+                      <span className="text-xl">📧</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-sm">Contact Forms</p>
+                      <p className="text-2xl font-bold">{stats.contactFormSubmissions}</p>
                     </div>
                   </div>
                 </div>
@@ -898,6 +981,88 @@ const HrDashboard = () => {
                                   </button>
                                   <button className="btn btn-danger btn-small">Reject</button>
                                 </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'contact-forms' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">Website Contact Form Submissions</h2>
+                  <div className="flex space-x-2">
+                    <input 
+                      type="text" 
+                      placeholder="Search submissions..." 
+                      className="form-control"
+                    />
+                    <select className="form-control">
+                      <option>All Statuses</option>
+                      <option>Pending</option>
+                      <option>Reviewed</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Subject</th>
+                        <th>Message</th>
+                        <th>Submitted Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contactFormSubmissions.map(submission => (
+                        <tr key={submission.id}>
+                          <td>
+                            <div className="font-medium">{submission.name}</div>
+                          </td>
+                          <td>{submission.phone || '-'}</td>
+                          <td>{submission.email}</td>
+                          <td>{submission.subject}</td>
+                          <td>
+                            <div className="max-w-xs truncate" title={submission.message}>
+                              {submission.message}
+                            </div>
+                          </td>
+                          <td>{new Date(submission.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <span className={`status-badge status-${submission.status}`}>
+                              {submission.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flex space-x-2">
+                              {submission.status === 'pending' && (
+                                <button 
+                                  className="btn btn-success btn-small"
+                                  onClick={() => updateContactFormSubmissionStatus(submission.id, 'reviewed')}
+                                >
+                                  Mark as Reviewed
+                                </button>
+                              )}
+                              {submission.status === 'reviewed' && (
+                                <button 
+                                  className="btn btn-secondary btn-small"
+                                  onClick={() => updateContactFormSubmissionStatus(submission.id, 'pending')}
+                                >
+                                  Mark as Pending
+                                </button>
                               )}
                             </div>
                           </td>

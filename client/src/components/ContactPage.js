@@ -29,6 +29,7 @@ const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "S
 const ContactPage = () => {
   const [formData, setFormData] = useState({
     name: '',
+    phone: '',
     email: '',
     subject: '',
     message: ''
@@ -50,12 +51,33 @@ const ContactPage = () => {
     e.preventDefault();
     setSubmitStatus({ type: 'loading', message: 'Sending...' });
 
-    // Simulate form submission
-    setTimeout(() => {
-      setSubmitStatus({ type: 'success', message: 'Thank you for your message! We will get back to you soon.' });
-      setFormData({ name: '', email: '', subject: '', message: '' });
-      setTimeout(() => setSubmitStatus(null), 5000); // Clear status after 5 seconds
-    }, 1500);
+    // Submit to the new contact form endpoint
+    fetch('/api/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message
+      }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        setSubmitStatus({ type: 'success', message: data.message });
+        setFormData({ name: '', phone: '', email: '', subject: '', message: '' });
+      } else {
+        setSubmitStatus({ type: 'error', message: data.error || 'Failed to send message. Please try again.' });
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      setSubmitStatus({ type: 'error', message: 'Failed to send message. Please try again.' });
+    });
   };
 
   // small helper for theme colors in inline style
@@ -273,6 +295,22 @@ const ContactPage = () => {
 
               <div className="relative animate-slide-in-up" style={{ animationDelay: '600ms' }}>
                 <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder=" "
+                  className="input-field block w-full px-4 py-3 bg-transparent border-b-2 border-gray-200 focus:outline-none focus:border-orange-500 transition-colors peer"
+                  style={{ color: darkText }}
+                />
+                <label htmlFor="phone" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
+                  Phone Number (Optional)
+                </label>
+              </div>
+
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '700ms' }}>
+                <input
                   type="email"
                   id="email"
                   name="email"
@@ -288,7 +326,7 @@ const ContactPage = () => {
                 </label>
               </div>
 
-              <div className="relative animate-slide-in-up" style={{ animationDelay: '700ms' }}>
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '800ms' }}>
                 <input
                   type="text"
                   id="subject"
@@ -305,7 +343,7 @@ const ContactPage = () => {
                 </label>
               </div>
 
-              <div className="relative animate-slide-in-up" style={{ animationDelay: '800ms' }}>
+              <div className="relative animate-slide-in-up" style={{ animationDelay: '900ms' }}>
                 <textarea
                   id="message"
                   name="message"
@@ -431,15 +469,15 @@ const ContactPage = () => {
       {/* ======================================================================================= */}
       
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
-        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="flex flex-col items-center">
+        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-5 gap-8">
+          <div className="md:col-span-1 flex flex-col items-center md:items-start">
             <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
 
             <div className="flex gap-3">
               {/* Instagram */}
               <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
               </a>
 
               {/* Facebook */}
@@ -454,35 +492,55 @@ const ContactPage = () => {
 
               {/* YouTube */}
               <a href="https://youtube.com/marsafyi" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="YouTube">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1-1.8-1 .6-.7.8-2.3.8-2.3s.2-1.8.2-3.6v-1.4C23 8 22.5 6.2 22.5 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1 1.8-1 .6-.7.8-2.3.8-2.3s.2-1.8.2-3.6v-1.4C23 8 22.5 6.2 22.5 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
               </a>
             </div>
           </div>
 
-          <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Buyers</div>
-            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Submit RFQ</li>
-              <li>Search Suppliers</li>
-              <li>Trade Assurance</li>
-              <li>Payment Options</li>
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">For Buyers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/login")} className="hover:text-white">Submit RFQ</button></li>
+              <li><button onClick={() => navigate("/shop")} className="hover:text-white">Search Suppliers</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Trade Assurance</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Payment Options</button></li>
             </ul>
           </div>
 
-          <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Suppliers</div>
-            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Display Products</li>
-              <li>Supplier Membership</li>
-              <li>Learning Center</li>
-              <li>Success Stories</li>
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">For Suppliers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/login")} className="hover:text-white">Display Products</button></li>
+              <li><button onClick={() => navigate("/register")} className="hover:text-white">Supplier Membership</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Learning Center</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Success Stories</button></li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">Company</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">About Us</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Contact Us</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Careers</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Press</button></li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">Support</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Help Center</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Submit a Request</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Terms of Service</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Privacy Policy</button></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
+            © {new Date().getFullYear()} MarsaFyi • All rights reserved
           </div>
         </div>
       </footer>

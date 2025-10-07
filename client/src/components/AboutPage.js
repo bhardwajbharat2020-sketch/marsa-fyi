@@ -450,10 +450,10 @@ const AboutPage = () => {
 
       {/* Footer */}
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
-        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="flex flex-col items-center">
+        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-5 gap-8">
+          <div className="md:col-span-1 flex flex-col items-center md:items-start">
             <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
 
             <div className="flex gap-3">
               {/* Instagram */}
@@ -478,30 +478,50 @@ const AboutPage = () => {
             </div>
           </div>
 
-          <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Buyers</div>
-            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Submit RFQ</li>
-              <li>Search Suppliers</li>
-              <li>Trade Assurance</li>
-              <li>Payment Options</li>
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">For Buyers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/login")} className="hover:text-white">Submit RFQ</button></li>
+              <li><button onClick={() => navigate("/shop")} className="hover:text-white">Search Suppliers</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Trade Assurance</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Payment Options</button></li>
             </ul>
           </div>
 
-          <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Suppliers</div>
-            <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Display Products</li>
-              <li>Supplier Membership</li>
-              <li>Learning Center</li>
-              <li>Success Stories</li>
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">For Suppliers</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/login")} className="hover:text-white">Display Products</button></li>
+              <li><button onClick={() => navigate("/register")} className="hover:text-white">Supplier Membership</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Learning Center</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Success Stories</button></li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">Company</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">About Us</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Contact Us</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Careers</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Press</button></li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="font-semibold mb-3 text-lg">Support</div>
+            <ul className="text-sm text-[#e6d8c6] space-y-2">
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Help Center</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Submit a Request</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Terms of Service</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white">Privacy Policy</button></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
+            © {new Date().getFullYear()} MarsaFyi • All rights reserved
           </div>
         </div>
       </footer>
