@@ -480,6 +480,31 @@ CREATE TABLE contact_requests (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 27.1. CONTACT_FORM_SUBMISSIONS TABLE
+-- General contact form submissions from the website
+CREATE TABLE contact_form_submissions (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    email VARCHAR(255) NOT NULL,
+    subject VARCHAR(255),
+    message TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending', -- pending, reviewed
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_contact_form_submissions_status ON contact_form_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_contact_form_submissions_created_at ON contact_form_submissions(created_at);
+CREATE INDEX IF NOT EXISTS idx_contact_form_submissions_phone ON contact_form_submissions(phone);
+
+-- Add a comment to document the table
+COMMENT ON TABLE contact_form_submissions IS 'Stores contact form submissions from the website for HR review';
+
+-- Enable Row Level Security (RLS) for the table
+ALTER TABLE contact_form_submissions ENABLE ROW LEVEL SECURITY;
+
 -- 28. USER_ISSUES TABLE
 -- User-reported issues
 CREATE TABLE user_issues (
@@ -715,6 +740,12 @@ CREATE TRIGGER update_contact_requests_updated_at BEFORE UPDATE ON contact_reque
 
 CREATE TRIGGER update_user_issues_updated_at BEFORE UPDATE ON user_issues
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Add trigger for contact_form_submissions table
+CREATE TRIGGER update_contact_form_submissions_updated_at 
+    BEFORE UPDATE ON contact_form_submissions
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- Sample data for testing
 -- Sample categories (already inserted above)

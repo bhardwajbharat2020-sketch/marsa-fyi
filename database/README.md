@@ -33,6 +33,10 @@ This PostgreSQL database schema is designed for the Marsa FYI B2B trading platfo
 19. **messages** - Internal messaging
 20. **notifications** - User notifications
 
+### Contact Management
+21. **contact_requests** - User-to-user contact requests
+22. **contact_form_submissions** - Website contact form submissions
+
 ## Sample Data Included
 - 12 users (one for each role)
 - 3 companies with verification documents
@@ -59,6 +63,11 @@ This PostgreSQL database schema is designed for the Marsa FYI B2B trading platfo
    ```bash
    psql -U your_username -d marsa_fyi -f schema.sql
    ```
+
+## Incremental Updates
+
+For existing databases, apply incremental schema updates from the `database` directory:
+- `incremental_contact_form_schema.sql` - Adds contact form submissions table with phone number field
 
 ## Key Features
 

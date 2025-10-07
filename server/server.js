@@ -2862,6 +2862,150 @@ app.post('/api/hr/issues/resolve', authenticateToken, async (req, res) => {
   }
 });
 
+// Public contact form submission endpoint
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, phone, email, subject, message } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name, email, and message are required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    // Store contact form submission in database
+    const { data, error } = await supabase
+      .from('contact_form_submissions')
+      .insert([
+        {
+          name,
+          phone: phone || '', // Store empty string instead of null if phone is not provided
+          email,
+          subject: subject || 'Contact Form Submission',
+          message,
+          status: 'pending'
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error('Error storing contact form submission:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error storing contact form submission: ' + error.message
+      });
+    }
+
+    res.json({ success: true, message: 'Thank you for your message! We will get back to you soon.' });
+  } catch (error) {
+    console.error('Error processing contact form submission:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error processing contact form submission: ' + error.message
+    });
+  }
+});
+
+// HR endpoint to fetch contact form submissions
+app.get('/api/hr/contact-form-submissions', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch contact form submissions from Supabase
+    const { data, error } = await supabase
+      .from('contact_form_submissions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching contact form submissions:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching contact form submissions: ' + error.message
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching contact form submissions:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching contact form submissions: ' + error.message
+    });
+  }
+});
+
+// HR endpoint to update contact form submission status
+app.put('/api/hr/contact-form-submissions/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    if (!['pending', 'reviewed'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid status. Must be "pending" or "reviewed"'
+      });
+    }
+
+    // Update contact form submission status
+    const { data, error } = await supabase
+      .from('contact_form_submissions')
+      .update({ status, updated_at: new Date() })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Error updating contact form submission:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error updating contact form submission: ' + error.message
+      });
+    }
+
+    if (data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Contact form submission not found'
+      });
+    }
+
+    res.json({ success: true, message: 'Contact form submission updated successfully', data: data[0] });
+  } catch (error) {
+    console.error('Error updating contact form submission:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error updating contact form submission: ' + error.message
+    });
+  }
+});
+
 // HR update user details endpoint
 app.put('/api/hr/users/update', authenticateToken, async (req, res) => {
   try {
