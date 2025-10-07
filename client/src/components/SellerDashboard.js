@@ -139,72 +139,88 @@ const SellerDashboard = () => {
         }
         
         // Fetch products
-        const productsResponse = await fetch('/api/seller/products', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        });
-        const productsData = await productsResponse.json();
-        
-        if (productsResponse.ok) {
-          // Categorize products based on status
-          const approved = productsData.filter(p => p.status === 'approved');
-          const submitted = productsData.filter(p => p.status === 'submitted');
-          const ineffective = productsData.filter(p => p.status === 'rejected');
+        try {
+          const productsResponse = await fetch('/api/seller/products', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+          const productsData = await productsResponse.json();
           
-          setApprovedProducts(approved);
-          setSubmittedProducts(submitted);
-          setIneffectiveProducts(ineffective);
-        } else {
-          console.error('Error fetching products:', productsData.error);
+          if (productsResponse.ok) {
+            // Categorize products based on status
+            const approved = productsData.filter(p => p.status === 'approved');
+            const submitted = productsData.filter(p => p.status === 'submitted');
+            const ineffective = productsData.filter(p => p.status === 'rejected');
+            
+            setApprovedProducts(approved);
+            setSubmittedProducts(submitted);
+            setIneffectiveProducts(ineffective);
+          } else {
+            console.error('Error fetching products:', productsData.error);
+          }
+        } catch (productsErr) {
+          console.error('Error fetching products:', productsErr);
         }
         
         // Fetch orders
-        const ordersResponse = await fetch('/api/seller/orders', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
+        try {
+          const ordersResponse = await fetch('/api/seller/orders', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+          const ordersData = await ordersResponse.json();
+          
+          if (ordersResponse.ok) {
+            setOrders(ordersData);
+          } else {
+            console.error('Error fetching orders:', ordersData.error);
           }
-        });
-        const ordersData = await ordersResponse.json();
-        
-        if (ordersResponse.ok) {
-          setOrders(ordersData);
-        } else {
-          console.error('Error fetching orders:', ordersData.error);
+        } catch (ordersErr) {
+          console.error('Error fetching orders:', ordersErr);
         }
         
         // Fetch RFQs
-        const rfqsResponse = await fetch('/api/seller/rfqs', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
+        try {
+          const rfqsResponse = await fetch('/api/seller/rfqs', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+          const rfqsData = await rfqsResponse.json();
+          
+          if (rfqsResponse.ok) {
+            setRfqs(rfqsData);
+          } else {
+            console.error('Error fetching RFQs:', rfqsData.error);
           }
-        });
-        const rfqsData = await rfqsResponse.json();
-        
-        if (rfqsResponse.ok) {
-          setRfqs(rfqsData);
-        } else {
-          console.error('Error fetching RFQs:', rfqsData.error);
+        } catch (rfqsErr) {
+          console.error('Error fetching RFQs:', rfqsErr);
         }
         
-        // Fetch notifications
-        const notificationsResponse = await fetch('/api/seller/notifications', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
+        // Fetch notifications (always fetch to get unread count for badge)
+        try {
+          const notificationsResponse = await fetch('/api/seller/notifications', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+          const notificationsData = await notificationsResponse.json();
+          
+          if (notificationsResponse.ok) {
+            setNotifications(notificationsData);
+            // Count unread notifications
+            const unreadCount = notificationsData.filter(n => !n.is_read).length;
+            setUnreadNotificationsCount(unreadCount);
+          } else {
+            console.error('Error fetching notifications:', notificationsData.error);
           }
-        });
-        const notificationsData = await notificationsResponse.json();
-        
-        if (notificationsResponse.ok) {
-          setNotifications(notificationsData);
-          // Count unread notifications
-          const unreadCount = notificationsData.filter(n => !n.is_read).length;
-          setUnreadNotificationsCount(unreadCount);
-        } else {
-          console.error('Error fetching notifications:', notificationsData.error);
+        } catch (notificationsErr) {
+          console.error('Error fetching notifications:', notificationsErr);
         }
       } catch (err) {
-        setError('Failed to fetch dashboard data');
+        // Log the error but don't show it to the user since individual requests are handled above
         console.error('Error fetching dashboard data:', err);
       } finally {
         setLoading(false);
@@ -218,6 +234,8 @@ const SellerDashboard = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       if (activeTab === 'notifications' && authToken) {
+        // Notifications are already fetched in the main useEffect, 
+        // but we can refresh them when the tab is activated if needed
         try {
           const notificationsResponse = await fetch('/api/seller/notifications', {
             headers: {
@@ -228,7 +246,7 @@ const SellerDashboard = () => {
           
           if (notificationsResponse.ok) {
             setNotifications(notificationsData);
-            // Count unread notifications
+            // Update unread count
             const unreadCount = notificationsData.filter(n => !n.is_read).length;
             setUnreadNotificationsCount(unreadCount);
           } else {
@@ -849,7 +867,6 @@ Please check that the server is running and you have network connectivity.`);
       </div>
 
       {loading && <div className="text-center py-10" style={{ color: darkText }}>Loading dashboard data...</div>}
-      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
       
       {activeTab === 'products' && (
         <div>

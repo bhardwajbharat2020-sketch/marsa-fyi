@@ -42,6 +42,9 @@ CREATE TABLE users (
     vendor_code VARCHAR(50) UNIQUE, -- Generated vendor code for each user
     is_verified BOOLEAN DEFAULT FALSE, -- Email/phone verification status
     is_active BOOLEAN DEFAULT TRUE, -- Account activation status
+    is_blocked_temp BOOLEAN DEFAULT FALSE, -- Temporary blocking status
+    is_blocked_perm BOOLEAN DEFAULT FALSE, -- Permanent blocking status
+    blocked_until TIMESTAMP WITH TIME ZONE, -- Temporary blocking expiration
     failed_login_attempts INTEGER DEFAULT 0, -- For account lockout security
     locked_until TIMESTAMP WITH TIME ZONE, -- For account lockout security
     last_login TIMESTAMP WITH TIME ZONE, -- Track last successful login
@@ -550,6 +553,18 @@ CREATE TABLE cha_work_orders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 34. USER_ACTIONS TABLE
+-- User actions logging for HR functionality
+CREATE TABLE user_actions (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    action_by UUID REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(50), -- TEMP_BLOCK, PERM_BLOCK, UNBLOCK
+    reason TEXT,
+    details TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
@@ -563,6 +578,11 @@ CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_disputes_status ON disputes(status);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_users_is_blocked_temp ON users(is_blocked_temp);
+CREATE INDEX idx_users_is_blocked_perm ON users(is_blocked_perm);
+CREATE INDEX idx_users_blocked_until ON users(blocked_until);
+CREATE INDEX idx_user_actions_user_id ON user_actions(user_id);
+CREATE INDEX idx_user_actions_action ON user_actions(action);
 
 -- Enable Row Level Security (RLS) for sensitive tables
 -- Note: You'll need to define policies based on your application's access control requirements

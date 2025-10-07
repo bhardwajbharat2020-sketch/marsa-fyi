@@ -2129,6 +2129,1221 @@ app.get('/api/admin/logs', async (req, res) => {
   }
 });
 
+// Admin products endpoint - fetch products pending approval
+app.get('/api/admin/products', async (req, res) => {
+  try {
+    // Always fetch from Supabase - no mock data fallback
+    console.log('Fetching products pending approval from Supabase');
+    
+    // Fetch products from Supabase with all details
+    const { data: products, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        seller_id,
+        name,
+        description,
+        price,
+        currency_id,
+        category_id,
+        is_active,
+        is_verified,
+        status,
+        moq,
+        moq_uom,
+        available_quantity,
+        quantity_uom,
+        price_type,
+        is_relabeling_allowed,
+        offer_validity_date,
+        image_url,
+        thumbnail_url,
+        categories (name),
+        currencies (code),
+        users (first_name, last_name, vendor_code)
+      `)
+      .eq('status', 'submitted');
+
+    if (error) {
+      console.error('Error fetching products from Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching products: ' + error.message 
+      });
+    }
+
+    // Transform products to match frontend expectations
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      sellerId: product.seller_id,
+      sellerName: product.users?.vendor_code || 'Unknown Seller',
+      name: product.name,
+      description: product.description,
+      category: product.categories?.name || 'Uncategorized',
+      price: product.price,
+      currency: product.currencies?.code || 'USD',
+      status: product.status || 'pending',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      quantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      priceType: product.price_type,
+      reLabeling: product.is_relabeling_allowed ? 'yes' : 'no',
+      validityDate: product.offer_validity_date ? product.offer_validity_date.split('T')[0] : null,
+      validityTime: product.offer_validity_date ? product.offer_validity_date.split('T')[1]?.split('.')[0] : null,
+      imageUrl: product.image_url,
+      thumbnailUrl: product.thumbnail_url
+    }));
+
+    console.log(`Successfully fetched ${formattedProducts.length} products pending approval from Supabase`);
+    res.json(formattedProducts || []);
+  } catch (error) {
+    console.error('Error in admin products endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching products: ' + error.message 
+    });
+  }
+});
+
+// Admin approve product endpoint
+app.post('/api/admin/products/approve', async (req, res) => {
+  try {
+    const { productId } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Update product status to approved
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'approved',
+        is_verified: true,
+        is_active: true,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select('id, name, seller_id')
+      .single();
+
+    if (error) {
+      console.error('Error approving product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error approving product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    console.log('Successfully approved product in Supabase');
+    res.json({ 
+      success: true,
+      message: 'Product approved successfully',
+      product: {
+        id: product.id,
+        name: product.name,
+        sellerId: product.seller_id
+      }
+    });
+  } catch (error) {
+    console.error('Error in admin approve product endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error approving product: ' + error.message 
+    });
+  }
+});
+
+// Admin reject product endpoint
+app.post('/api/admin/products/reject', async (req, res) => {
+  try {
+    const { productId, reason } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Update product status to rejected
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        status: 'rejected',
+        is_verified: false,
+        is_active: false,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select('id, name, seller_id')
+      .single();
+
+    if (error) {
+      console.error('Error rejecting product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error rejecting product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    // Send notification to seller with rejection reason
+    if (product && product.seller_id) {
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: product.seller_id,
+            title: 'Product Rejected',
+            message: `Your product "${product.name}" has been rejected by the admin. Reason: ${reason || 'No reason provided'}`,
+            is_read: false,
+            created_at: new Date()
+          });
+        
+        if (notificationError) {
+          console.error('Error sending rejection notification to seller:', notificationError.message);
+        } else {
+          console.log('Rejection notification sent to seller');
+        }
+      } catch (notificationErr) {
+        console.error('Error sending rejection notification to seller:', notificationErr.message);
+      }
+    }
+    
+    console.log('Successfully rejected product in Supabase');
+    res.json({ 
+      success: true,
+      message: 'Product rejected successfully',
+      product: {
+        id: product.id,
+        name: product.name,
+        sellerId: product.seller_id
+      }
+    });
+  } catch (error) {
+    console.error('Error in admin reject product endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error rejecting product: ' + error.message 
+    });
+  }
+});
+
+// Admin update product endpoint
+app.put('/api/admin/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const {
+      name,
+      category,
+      description,
+      price,
+      currency,
+      moq,
+      moqUom,
+      quantity,
+      quantityUom,
+      priceType,
+      reLabeling,
+      validityDate,
+      validityTime
+    } = req.body;
+    
+    // Validate required fields
+    if (!productId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Product ID is required' 
+      });
+    }
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Get category ID from name
+    let categoryId = null;
+    if (category) {
+      const { data: existingCategory, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', category)
+        .single();
+      
+      if (categoryError) {
+        console.error('Error fetching category:', categoryError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching category: ' + categoryError.message 
+        });
+      }
+      
+      if (existingCategory) {
+        categoryId = existingCategory.id;
+      }
+    }
+    
+    // Get currency ID from code
+    let currencyId = 1; // Default to USD
+    if (currency) {
+      const { data: currencyData, error: currencyError } = await supabase
+        .from('currencies')
+        .select('id')
+        .eq('code', currency)
+        .single();
+      
+      if (currencyError) {
+        console.error('Error fetching currency:', currencyError.message);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error fetching currency: ' + currencyError.message 
+        });
+      }
+      
+      if (currencyData) {
+        currencyId = currencyData.id;
+      }
+    }
+    
+    // Parse validity date and time
+    let offerValidityDate = null;
+    if (validityDate) {
+      const timePart = validityTime || '00:00';
+      offerValidityDate = new Date(`${validityDate}T${timePart}`);
+    }
+    
+    // Update product
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ 
+        name: name,
+        category_id: categoryId,
+        description: description,
+        price: price,
+        currency_id: currencyId,
+        moq: moq ? parseInt(moq) : null,
+        moq_uom: moqUom || null,
+        available_quantity: quantity ? parseInt(quantity) : null,
+        quantity_uom: quantityUom || null,
+        price_type: priceType || 'EXW',
+        is_relabeling_allowed: reLabeling === 'yes',
+        offer_validity_date: offerValidityDate,
+        updated_at: new Date()
+      })
+      .eq('id', productId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating product in Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error updating product: ' + error.message 
+      });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Product not found' 
+      });
+    }
+    
+    console.log('Successfully updated product in Supabase');
+    
+    // Send notification to seller
+    if (product && product.seller_id) {
+      try {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: product.seller_id,
+            title: 'Product Updated',
+            message: `Admin has updated your product "${product.name}". Please check the changes.`,
+            is_read: false,
+            created_at: new Date()
+          });
+        
+        if (notificationError) {
+          console.error('Error sending notification to seller:', notificationError.message);
+        } else {
+          console.log('Notification sent to seller for product update');
+        }
+      } catch (notificationErr) {
+        console.error('Error sending notification to seller:', notificationErr.message);
+      }
+    }
+    
+    res.json({ 
+      success: true,
+      message: 'Product updated successfully',
+      product: {
+        id: product.id,
+        name: product.name,
+        sellerId: product.seller_id
+      }
+    });
+  } catch (error) {
+    console.error('Error in admin update product endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating product: ' + error.message 
+    });
+  }
+});
+
+// Mark all notifications as read endpoint
+app.put('/api/buyer/notifications/read-all', authenticateToken, async (req, res) => {
+  try {
+    console.log('Mark all notifications as read endpoint called');
+    console.log('User ID from token:', req.user.id);
+    
+    const userId = req.user.id;
+    
+    // Update all notifications for this user as read
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true
+      })
+      .eq('user_id', userId)
+      .eq('is_read', false) // Only update unread notifications
+      .select(); // Add select to return the updated data
+
+    if (error) {
+      console.error('Error marking all notifications as read:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating notifications: ' + error.message 
+      });
+    }
+
+    console.log('Successfully marked all notifications as read');
+    res.json({ 
+      success: true,
+      message: 'All notifications marked as read',
+      count: data ? data.length : 0
+    });
+  } catch (error) {
+    console.error('Error in mark all notifications read endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating notifications: ' + error.message 
+    });
+  }
+});
+
+// HR Dashboard endpoints
+
+// HR documents endpoint - fetch pending documents for verification
+app.get('/api/hr/documents', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch pending documents from Supabase
+    const { data, error } = await supabase
+      .from('documents')
+      .select(`
+        id,
+        user_id,
+        document_type,
+        document_url,
+        submitted_date,
+        status,
+        users (first_name, last_name, vendor_code, user_roles(role_id, roles(name)))
+      `)
+      .eq('status', 'pending')
+      .order('submitted_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching documents:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching documents: ' + error.message
+      });
+    }
+
+    // Transform data to match frontend expectations
+    const formattedDocuments = data.map(doc => ({
+      id: doc.id,
+      user_name: `${doc.users.first_name} ${doc.users.last_name}`,
+      vendor_code: doc.users.vendor_code,
+      role: doc.users.user_roles?.[0]?.roles?.name || 'Unknown',
+      document_type: doc.document_type,
+      submitted_date: doc.submitted_date,
+      status: doc.status
+    }));
+
+    res.json(formattedDocuments);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching documents: ' + error.message
+    });
+  }
+});
+
+// HR contacts endpoint - fetch pending contact requests
+app.get('/api/hr/contacts', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch pending contact requests from Supabase
+    const { data, error } = await supabase
+      .from('contact_requests')
+      .select(`
+        id,
+        requester_id,
+        reason,
+        request_date,
+        status,
+        users (first_name, last_name, vendor_code)
+      `)
+      .eq('status', 'pending')
+      .order('request_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching contact requests:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching contact requests: ' + error.message
+      });
+    }
+
+    // Transform data to match frontend expectations
+    const formattedRequests = data.map(request => ({
+      id: request.id,
+      requester_name: `${request.users.first_name} ${request.users.last_name}`,
+      vendor_code: request.users.vendor_code,
+      reason: request.reason,
+      request_date: request.request_date,
+      status: request.status
+    }));
+
+    res.json(formattedRequests);
+  } catch (error) {
+    console.error('Error fetching contact requests:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching contact requests: ' + error.message
+    });
+  }
+});
+
+// HR issues endpoint - fetch user issues
+app.get('/api/hr/issues', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch user issues from Supabase
+    const { data, error } = await supabase
+      .from('user_issues')
+      .select(`
+        id,
+        user_id,
+        issue,
+        description,
+        reported_date,
+        status,
+        users (first_name, last_name, vendor_code)
+      `)
+      .order('reported_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user issues:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching user issues: ' + error.message
+      });
+    }
+
+    // Transform data to match frontend expectations
+    const formattedIssues = data.map(issue => ({
+      id: issue.id,
+      user_name: `${issue.users.first_name} ${issue.users.last_name}`,
+      vendor_code: issue.users.vendor_code,
+      issue: issue.issue,
+      description: issue.description,
+      reported_date: issue.reported_date,
+      status: issue.status
+    }));
+
+    res.json(formattedIssues);
+  } catch (error) {
+    console.error('Error fetching user issues:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching user issues: ' + error.message
+    });
+  }
+});
+
+// HR approve document endpoint
+app.post('/api/hr/documents/approve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { documentId } = req.body;
+
+    // Update document status to approved
+    const { data, error } = await supabase
+      .from('documents')
+      .update({ status: 'approved' })
+      .eq('id', documentId)
+      .select();
+
+    if (error) {
+      console.error('Error approving document:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error approving document: ' + error.message
+      });
+    }
+
+    res.json({ success: true, message: 'Document approved successfully' });
+  } catch (error) {
+    console.error('Error approving document:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error approving document: ' + error.message
+    });
+  }
+});
+
+// HR approve contact request endpoint
+app.post('/api/hr/contacts/approve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { requestId } = req.body;
+
+    // Update contact request status to approved
+    const { data, error } = await supabase
+      .from('contact_requests')
+      .update({ status: 'approved' })
+      .eq('id', requestId)
+      .select();
+
+    if (error) {
+      console.error('Error approving contact request:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error approving contact request: ' + error.message
+      });
+    }
+
+    res.json({ success: true, message: 'Contact request approved successfully' });
+  } catch (error) {
+    console.error('Error approving contact request:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error approving contact request: ' + error.message
+    });
+  }
+});
+
+// HR resolve user issue endpoint
+app.post('/api/hr/issues/resolve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { issueId } = req.body;
+
+    // Update user issue status to resolved
+    const { data, error } = await supabase
+      .from('user_issues')
+      .update({ status: 'resolved' })
+      .eq('id', issueId)
+      .select();
+
+    if (error) {
+      console.error('Error resolving user issue:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error resolving user issue: ' + error.message
+      });
+    }
+
+    res.json({ success: true, message: 'User issue resolved successfully' });
+  } catch (error) {
+    console.error('Error resolving user issue:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error resolving user issue: ' + error.message
+    });
+  }
+});
+
+// HR update user details endpoint
+app.put('/api/hr/users/update', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { userId, first_name, last_name, email, phone, vendor_code, is_active, is_verified, role } = req.body;
+
+    // Start a Supabase transaction
+    const updates = {
+      first_name,
+      last_name,
+      email,
+      phone,
+      vendor_code,
+      is_active,
+      is_verified
+    };
+
+    // Update user details
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select();
+
+    if (userError) {
+      console.error('Error updating user:', userError);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error updating user: ' + userError.message
+      });
+    }
+
+    // If role is provided and different from current role, update user role
+    if (role) {
+      // First, get the user's current role
+      const { data: currentUserRoleData, error: currentUserRoleError } = await supabase
+        .from('user_roles')
+        .select('role_id, roles(code)')
+        .eq('user_id', userId)
+        .single();
+
+      if (currentUserRoleError) {
+        console.error('Error fetching current user role:', currentUserRoleError);
+        // Continue without role update if we can't fetch current role
+      } else {
+        // Get the new role ID
+        const { data: newRoleData, error: newRoleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', role)
+          .single();
+
+        if (newRoleError) {
+          console.error('Error fetching new role:', newRoleError);
+        } else {
+          // Check if the new role is allowed (not restricted)
+          const restrictedRoles = ['ADM', 'HR', 'CAPT', 'ACC', 'ARB'];
+          if (!restrictedRoles.includes(newRoleData.code)) {
+            // Update user role
+            const { error: updateRoleError } = await supabase
+              .from('user_roles')
+              .update({ role_id: newRoleData.id })
+              .eq('user_id', userId)
+              .eq('role_id', currentUserRoleData.role_id);
+
+            if (updateRoleError) {
+              console.error('Error updating user role:', updateRoleError);
+            }
+          } else {
+            console.warn('Attempt to assign restricted role:', role);
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, message: 'User details updated successfully', user: userData[0] });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error updating user: ' + error.message
+    });
+  }
+});
+
+// HR get all users endpoint (for user management)
+app.get('/api/hr/users', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch all users except admin, hr, captain, accountant, and arbitrator
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        vendor_code,
+        is_active,
+        is_blocked_temp,
+        is_blocked_perm,
+        blocked_until,
+        created_at,
+        user_roles(role_id, is_primary, roles(name, code))
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching users:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching users: ' + error.message
+      });
+    }
+
+    // Filter out admin, hr, captain, accountant, and arbitrator users
+    const filteredUsers = data.filter(user => {
+      const userRole = user.user_roles?.[0]?.roles?.code?.toUpperCase();
+      return !['ADM', 'HR', 'CAPT', 'ACC', 'ARB'].includes(userRole);
+    });
+
+    // Transform data to match frontend expectations
+    const formattedUsers = filteredUsers.map(user => ({
+      id: user.id,
+      name: `${user.first_name} ${user.last_name}`,
+      email: user.email,
+      phone: user.phone,
+      vendor_code: user.vendor_code,
+      role: user.user_roles?.[0]?.roles?.name || 'Unknown',
+      status: user.is_blocked_perm ? 'Permanently Blocked' : 
+              user.is_blocked_temp ? 'Temporarily Blocked' : 
+              user.is_active ? 'Active' : 'Inactive',
+      created_at: user.created_at,
+      is_blocked_temp: user.is_blocked_temp,
+      is_blocked_perm: user.is_blocked_perm
+    }));
+
+    res.json(formattedUsers);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching users: ' + error.message
+    });
+  }
+});
+
+// HR get new user registrations endpoint
+app.get('/api/hr/new-users', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch new users (users registered in the last 24 hours) except admin, hr, captain, accountant, and arbitrator
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        vendor_code,
+        is_active,
+        is_blocked_temp,
+        is_blocked_perm,
+        blocked_until,
+        created_at,
+        user_roles(role_id, is_primary, roles(name, code))
+      `)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching new users:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching new users: ' + error.message
+      });
+    }
+
+    // Filter out admin, hr, captain, accountant, and arbitrator users
+    const filteredUsers = data.filter(user => {
+      const userRole = user.user_roles?.[0]?.roles?.code?.toUpperCase();
+      return !['ADM', 'HR', 'CAPT', 'ACC', 'ARB'].includes(userRole);
+    });
+
+    // Transform data to match frontend expectations
+    const formattedUsers = filteredUsers.map(user => ({
+      id: user.id,
+      name: `${user.first_name} ${user.last_name}`,
+      email: user.email,
+      phone: user.phone,
+      vendor_code: user.vendor_code,
+      role: user.user_roles?.[0]?.roles?.name || 'Unknown',
+      status: user.is_blocked_perm ? 'Permanently Blocked' : 
+              user.is_blocked_temp ? 'Temporarily Blocked' : 
+              user.is_active ? 'Active' : 'Pending',
+      created_at: user.created_at,
+      is_blocked_temp: user.is_blocked_temp,
+      is_blocked_perm: user.is_blocked_perm
+    }));
+
+    res.json(formattedUsers);
+  } catch (error) {
+    console.error('Error fetching new users:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching new users: ' + error.message
+    });
+  }
+});
+
+// HR approve new user endpoint
+app.post('/api/hr/new-users/approve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { userId } = req.body;
+
+    // Update user to be active and verified
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_active: true,
+        is_verified: true
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error approving new user:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error approving new user: ' + error.message
+      });
+    }
+
+    res.json({ success: true, message: 'New user approved successfully' });
+  } catch (error) {
+    console.error('Error approving new user:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error approving new user: ' + error.message
+    });
+  }
+});
+
+// HR block user temporarily
+app.post('/api/hr/users/block-temp', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { userId, reason, duration } = req.body;
+
+    // Update user to be temporarily blocked
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_blocked_temp: true,
+        blocked_until: new Date(Date.now() + duration * 24 * 60 * 60 * 1000) // duration in days
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error blocking user temporarily:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error blocking user: ' + error.message
+      });
+    }
+
+    // Log the action
+    await supabase
+      .from('user_actions')
+      .insert({
+        user_id: userId,
+        action_by: req.user.id,
+        action: 'TEMP_BLOCK',
+        reason: reason,
+        details: `Blocked for ${duration} days`
+      });
+
+    res.json({ success: true, message: 'User blocked temporarily successfully' });
+  } catch (error) {
+    console.error('Error blocking user temporarily:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error blocking user: ' + error.message
+    });
+  }
+});
+
+// HR block user permanently
+app.post('/api/hr/users/block-perm', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { userId, reason } = req.body;
+
+    // Update user to be permanently blocked
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_blocked_perm: true,
+        is_active: false
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error blocking user permanently:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error blocking user: ' + error.message
+      });
+    }
+
+    // Log the action
+    await supabase
+      .from('user_actions')
+      .insert({
+        user_id: userId,
+        action_by: req.user.id,
+        action: 'PERM_BLOCK',
+        reason: reason,
+        details: 'Blocked permanently'
+      });
+
+    // Log the action
+    await supabase
+      .from('user_actions')
+      .insert({
+        user_id: userId,
+        action_by: req.user.id,
+        action: 'PERM_BLOCK',
+        reason: reason,
+        details: 'Blocked permanently'
+      });
+
+    res.json({ success: true, message: 'User blocked permanently successfully' });
+  } catch (error) {
+    console.error('Error blocking user permanently:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error blocking user: ' + error.message
+    });
+  }
+});
+
+// HR unblock user
+app.post('/api/hr/users/unblock', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { userId, reason } = req.body;
+
+    // Update user to be unblocked
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_blocked_temp: false,
+        is_blocked_perm: false,
+        is_active: true,
+        blocked_until: null
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error unblocking user:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error unblocking user: ' + error.message
+      });
+    }
+
+    // Log the action
+    await supabase
+      .from('user_actions')
+      .insert({
+        user_id: userId,
+        action_by: req.user.id,
+        action: 'UNBLOCK',
+        reason: reason
+      });
+
+    res.json({ success: true, message: 'User unblocked successfully' });
+  } catch (error) {
+    console.error('Error unblocking user:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error unblocking user: ' + error.message
+    });
+  }
+});
+
+// HR get all roles endpoint (for user management)
+app.get('/api/hr/roles', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch all roles except admin, hr, captain, accountant, and arbitrator
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching roles:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching roles: ' + error.message
+      });
+    }
+
+    // Filter out restricted roles
+    const filteredRoles = data.filter(role => 
+      !['ADM', 'HR', 'CAPT', 'ACC', 'ARB'].includes(role.code)
+    );
+
+    res.json(filteredRoles);
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching roles: ' + error.message
+    });
+  }
+});
+
 // Add user endpoint for admins
 app.post('/api/admin/users', async (req, res) => {
   try {
@@ -5007,6 +6222,255 @@ app.put('/api/buyer/notifications/read-all', authenticateToken, async (req, res)
     res.status(500).json({ 
       success: false,
       error: 'Server error updating notifications: ' + error.message 
+    });
+  }
+});
+
+// Seller notifications endpoint - fetch seller's notifications
+app.get('/api/seller/notifications', authenticateToken, async (req, res) => {
+  try {
+    // Always fetch from Supabase - no mock data fallback
+    console.log('Fetching seller notifications from Supabase');
+    
+    // Get the seller ID from the authenticated user
+    const sellerId = req.user.id;
+    
+    // Fetch notifications from Supabase
+    const { data: notifications, error } = await supabase
+      .from('notifications')
+      .select('id, title, message, is_read, created_at')
+      .eq('user_id', sellerId)
+      .order('created_at', { ascending: false })
+      .limit(10); // Limit to last 10 notifications
+
+    if (error) {
+      console.error('Error fetching seller notifications from Supabase:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching notifications: ' + error.message 
+      });
+    }
+
+    console.log(`Successfully fetched ${notifications.length} notifications from Supabase`);
+    res.json(notifications || []);
+  } catch (error) {
+    console.error('Error in seller notifications endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching notifications: ' + error.message 
+    });
+  }
+});
+
+// Mark notification as read endpoint for seller
+app.put('/api/seller/notifications/:id/read', authenticateToken, async (req, res) => {
+  try {
+    console.log('Mark notification as read endpoint called');
+    console.log('Notification ID from params:', req.params.id);
+    console.log('User ID from token:', req.user.id);
+    
+    const notificationId = parseInt(req.params.id); // Ensure it's an integer
+    const userId = req.user.id;
+    
+    // Validate notification ID
+    if (isNaN(notificationId)) {
+      console.log('Invalid notification ID provided:', req.params.id);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid notification ID' 
+      });
+    }
+    
+    console.log('Attempting to update notification with ID:', notificationId, 'for user:', userId);
+    
+    // Update notification as read
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true
+      })
+      .eq('id', notificationId)
+      .eq('user_id', userId) // Ensure user can only mark their own notifications as read
+      .select(); // Add select to return the updated data
+
+    if (error) {
+      console.error('Error marking notification as read:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating notification: ' + error.message 
+      });
+    }
+
+    console.log('Successfully marked notification as read');
+    res.json({ 
+      success: true,
+      message: 'Notification marked as read',
+      data: data
+    });
+  } catch (error) {
+    console.error('Error in mark notification read endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating notification: ' + error.message 
+    });
+  }
+});
+
+// Mark all notifications as read endpoint for seller
+app.put('/api/seller/notifications/read-all', authenticateToken, async (req, res) => {
+  try {
+    console.log('Mark all notifications as read endpoint called');
+    console.log('User ID from token:', req.user.id);
+    
+    const userId = req.user.id;
+    
+    // Update all notifications for this user as read
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true
+      })
+      .eq('user_id', userId)
+      .eq('is_read', false) // Only update unread notifications
+      .select(); // Add select to return the updated data
+
+    if (error) {
+      console.error('Error marking all notifications as read:', error.message);
+      console.error('Error details:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating notifications: ' + error.message 
+      });
+    }
+
+    console.log('Successfully marked all notifications as read');
+    res.json({ 
+      success: true,
+      message: 'All notifications marked as read',
+      count: data ? data.length : 0
+    });
+  } catch (error) {
+    console.error('Error in mark all notifications read endpoint:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating notifications: ' + error.message 
+    });
+  }
+});
+
+// HR get new user registrations endpoint
+app.get('/api/hr/new-users', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    // Fetch new users (users registered in the last 24 hours) except admin, hr, captain, accountant, and arbitrator
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        vendor_code,
+        is_active,
+        is_blocked_temp,
+        is_blocked_perm,
+        blocked_until,
+        created_at,
+        user_roles(role_id, is_primary, roles(name, code))
+      `)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching new users:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error fetching new users: ' + error.message
+      });
+    }
+
+    // Filter out admin, hr, captain, accountant, and arbitrator users
+    const filteredUsers = data.filter(user => {
+      const userRole = user.user_roles?.[0]?.roles?.code?.toUpperCase();
+      return !['ADM', 'HR', 'CAPT', 'ACC', 'ARB'].includes(userRole);
+    });
+
+    // Transform data to match frontend expectations
+    const formattedUsers = filteredUsers.map(user => ({
+      id: user.id,
+      name: `${user.first_name} ${user.last_name}`,
+      email: user.email,
+      phone: user.phone,
+      vendor_code: user.vendor_code,
+      role: user.user_roles?.[0]?.roles?.name || 'Unknown',
+      status: user.is_blocked_perm ? 'Permanently Blocked' : 
+              user.is_blocked_temp ? 'Temporarily Blocked' : 
+              user.is_active ? 'Active' : 'Pending',
+      created_at: user.created_at,
+      is_blocked_temp: user.is_blocked_temp,
+      is_blocked_perm: user.is_blocked_perm
+    }));
+
+    res.json(formattedUsers);
+  } catch (error) {
+    console.error('Error fetching new users:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error fetching new users: ' + error.message
+    });
+  }
+});
+
+// HR approve new user endpoint
+app.post('/api/hr/new-users/approve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has HR role
+    if (req.user.role !== 'hr') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. HR role required.'
+      });
+    }
+
+    const { userId } = req.body;
+
+    // Update user to be active and verified
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_active: true,
+        is_verified: true
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error approving new user:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Server error approving new user: ' + error.message
+      });
+    }
+
+    res.json({ success: true, message: 'New user approved successfully' });
+  } catch (error) {
+    console.error('Error approving new user:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error approving new user: ' + error.message
     });
   }
 });

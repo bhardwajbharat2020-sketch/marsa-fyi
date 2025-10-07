@@ -1,14 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
 
 const HrDashboard = () => {
+  const { authToken } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [pendingDocuments, setPendingDocuments] = useState([]);
   const [contactRequests, setContactRequests] = useState([]);
   const [userIssues, setUserIssues] = useState([]);
+  const [users, setUsers] = useState([]); // For user management
+  const [newUsers, setNewUsers] = useState([]); // For new user registrations
+  const [roles, setRoles] = useState([]); // For role dropdown
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [blockModal, setBlockModal] = useState({ open: false, user: null, type: 'temp' }); // For block modal
+  const [unblockModal, setUnblockModal] = useState({ open: false, user: null }); // For unblock modal
+  const [editUserModal, setEditUserModal] = useState({ open: false, user: null }); // For edit user modal
+  const [blockReason, setBlockReason] = useState('');
+  const [blockDuration, setBlockDuration] = useState(7); // Default 7 days for temp block
+  const [editUserForm, setEditUserForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    vendor_code: '',
+    is_active: true,
+    is_verified: false,
+    role: '' // Add role field
+  });
 
   // Fetch real data from Supabase
   useEffect(() => {
@@ -17,7 +37,11 @@ const HrDashboard = () => {
         setLoading(true);
         
         // Fetch pending documents
-        const documentsResponse = await fetch('/api/hr/documents');
+        const documentsResponse = await fetch('/api/hr/documents', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
         const documentsData = await documentsResponse.json();
         
         if (documentsResponse.ok) {
@@ -27,7 +51,11 @@ const HrDashboard = () => {
         }
         
         // Fetch contact requests
-        const contactsResponse = await fetch('/api/hr/contacts');
+        const contactsResponse = await fetch('/api/hr/contacts', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
         const contactsData = await contactsResponse.json();
         
         if (contactsResponse.ok) {
@@ -37,7 +65,11 @@ const HrDashboard = () => {
         }
         
         // Fetch user issues
-        const issuesResponse = await fetch('/api/hr/issues');
+        const issuesResponse = await fetch('/api/hr/issues', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
         const issuesData = await issuesResponse.json();
         
         if (issuesResponse.ok) {
@@ -45,6 +77,19 @@ const HrDashboard = () => {
         } else {
           console.error('Error fetching issues:', issuesData.error);
         }
+        
+        // Fetch users for user management (only when on users tab or overview)
+        if (activeTab === 'users' || activeTab === 'overview') {
+          await fetchUsers();
+        }
+        
+        // Fetch new users
+        if (activeTab === 'new-users') {
+          await fetchNewUsers();
+        }
+        
+        // Fetch roles for dropdown
+        await fetchRoles();
       } catch (err) {
         setError('Failed to fetch dashboard data');
         console.error('Error fetching dashboard data:', err);
@@ -53,8 +98,79 @@ const HrDashboard = () => {
       }
     };
 
-    fetchData();
-  }, []);
+    if (authToken) {
+      fetchData();
+    }
+  }, [activeTab, authToken]);
+
+  // Function to fetch users (for user management tab)
+  const fetchUsers = async () => {
+    try {
+      console.log('Fetching users from /api/hr/users');
+      const response = await fetch('/api/hr/users', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const data = await response.json();
+      console.log('Users API response:', response, data);
+      
+      if (response.ok) {
+        console.log('Setting users state with:', data);
+        setUsers(data);
+      } else {
+        console.error('Error fetching users:', data.error);
+        setError('Failed to fetch users: ' + data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError('Failed to fetch users. Please try again.');
+    }
+  };
+
+  // Function to fetch new users
+  const fetchNewUsers = async () => {
+    try {
+      const response = await fetch('/api/hr/new-users', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        setNewUsers(data);
+      } else {
+        console.error('Error fetching new users:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching new users:', err);
+    }
+  };
+
+  // Function to fetch roles for dropdown
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch('/api/hr/roles', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Filter out restricted roles (captain, accountant, arbitrator, hr, admin)
+        const allowedRoles = data.filter(role => 
+          !['CAPT', 'ACC', 'ARB', 'HR', 'ADM'].includes(role.code)
+        );
+        setRoles(allowedRoles);
+      } else {
+        console.error('Error fetching roles:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching roles:', err);
+    }
+  };
 
   // Function to approve a document
   const approveDocument = async (documentId) => {
@@ -63,6 +179,7 @@ const HrDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ documentId }),
       });
@@ -96,6 +213,7 @@ const HrDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ requestId }),
       });
@@ -129,6 +247,7 @@ const HrDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ issueId }),
       });
@@ -155,12 +274,248 @@ const HrDashboard = () => {
     }
   };
 
+  // Function to block a user temporarily
+  const blockUserTemporarily = async () => {
+    try {
+      const response = await fetch('/api/hr/users/block-temp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ 
+          userId: blockModal.user.id, 
+          reason: blockReason,
+          duration: blockDuration
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the users state to reflect the block
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === blockModal.user.id 
+              ? { ...user, status: 'Temporarily Blocked', is_blocked_temp: true } 
+              : user
+          )
+        );
+        
+        alert('User blocked temporarily successfully!');
+        setBlockModal({ open: false, user: null, type: 'temp' });
+        setBlockReason('');
+        setBlockDuration(7);
+      } else {
+        alert('Failed to block user: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error blocking user:', err);
+      alert('Failed to block user. Please try again.');
+    }
+  };
+
+  // Function to block a user permanently
+  const blockUserPermanently = async () => {
+    try {
+      const response = await fetch('/api/hr/users/block-perm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ 
+          userId: blockModal.user.id, 
+          reason: blockReason
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the users state to reflect the block
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === blockModal.user.id 
+              ? { ...user, status: 'Permanently Blocked', is_blocked_perm: true } 
+              : user
+          )
+        );
+        
+        alert('User blocked permanently successfully!');
+        setBlockModal({ open: false, user: null, type: 'perm' });
+        setBlockReason('');
+      } else {
+        alert('Failed to block user: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error blocking user:', err);
+      alert('Failed to block user. Please try again.');
+    }
+  };
+
+  // Function to unblock a user
+  const unblockUser = async () => {
+    try {
+      const response = await fetch('/api/hr/users/unblock', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ 
+          userId: unblockModal.user.id, 
+          reason: blockReason
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the users state to reflect the unblock
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === unblockModal.user.id 
+              ? { ...user, status: 'Active', is_blocked_temp: false, is_blocked_perm: false } 
+              : user
+          )
+        );
+        
+        alert('User unblocked successfully!');
+        setUnblockModal({ open: false, user: null });
+        setBlockReason('');
+      } else {
+        alert('Failed to unblock user: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error unblocking user:', err);
+      alert('Failed to unblock user. Please try again.');
+    }
+  };
+
+  // Function to open edit user modal
+  const openEditUserModal = (user) => {
+    setEditUserModal({ open: true, user });
+    setEditUserForm({
+      first_name: user.name.split(' ')[0] || '',
+      last_name: user.name.split(' ').slice(1).join(' ') || '',
+      email: user.email,
+      phone: user.phone,
+      vendor_code: user.vendor_code,
+      is_active: user.status === 'Active' || user.status === 'Temporarily Blocked' || user.status === 'Permanently Blocked',
+      is_verified: user.status === 'Active' || user.status === 'Temporarily Blocked' || user.status === 'Permanently Blocked',
+      role: user.role // Set the current role
+    });
+  };
+
+  // Function to handle edit user form changes
+  const handleEditUserFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditUserForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Function to update user details
+  const updateUserDetails = async () => {
+    try {
+      const response = await fetch('/api/hr/users/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ 
+          userId: editUserModal.user.id,
+          ...editUserForm
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the users state to reflect the changes
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === editUserModal.user.id 
+              ? { 
+                  ...user, 
+                  name: `${editUserForm.first_name} ${editUserForm.last_name}`,
+                  email: editUserForm.email,
+                  phone: editUserForm.phone,
+                  vendor_code: editUserForm.vendor_code,
+                  status: editUserForm.is_active ? 'Active' : 'Inactive',
+                  role: editUserForm.role
+                } 
+              : user
+          )
+        );
+        
+        // Also update in new users if present
+        setNewUsers(prevNewUsers => 
+          prevNewUsers.map(user => 
+            user.id === editUserModal.user.id 
+              ? { 
+                  ...user, 
+                  name: `${editUserForm.first_name} ${editUserForm.last_name}`,
+                  email: editUserForm.email,
+                  phone: editUserForm.phone,
+                  vendor_code: editUserForm.vendor_code,
+                  status: editUserForm.is_active ? 'Active' : 'Inactive',
+                  role: editUserForm.role
+                } 
+              : user
+          )
+        );
+        
+        alert('User details updated successfully!');
+        setEditUserModal({ open: false, user: null });
+      } else {
+        alert('Failed to update user: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error updating user:', err);
+      alert('Failed to update user. Please try again.');
+    }
+  };
+
+  // Function to approve a new user
+  const approveNewUser = async (userId) => {
+    try {
+      const response = await fetch('/api/hr/new-users/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ userId }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Remove the approved user from new users list
+        setNewUsers(prevNewUsers => prevNewUsers.filter(user => user.id !== userId));
+        alert('New user approved successfully!');
+      } else {
+        alert('Failed to approve new user: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error approving new user:', err);
+      alert('Failed to approve new user. Please try again.');
+    }
+  };
+
   // Calculate stats from real data
   const stats = {
     pendingDocuments: pendingDocuments.filter(doc => doc.status === 'pending').length,
     pendingContacts: contactRequests.filter(req => req.status === 'pending').length,
     openIssues: userIssues.filter(issue => issue.status === 'open').length,
-    totalUsers: pendingDocuments.length + contactRequests.length + userIssues.length
+    totalUsers: users.length || 0, // Use actual user count
+    activeUsers: users.filter(user => user.status === 'Active').length,
+    blockedUsers: users.filter(user => user.status === 'Temporarily Blocked' || user.status === 'Permanently Blocked').length,
+    newUsers: newUsers.length || 0 // New users count
   };
 
   return (
@@ -185,8 +540,18 @@ const HrDashboard = () => {
           Contact Requests
         </button>
         <button 
+          className={`tab ${activeTab === 'new-users' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('new-users');
+          }}
+        >
+          New User Registrations
+        </button>
+        <button 
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
+          onClick={() => {
+            setActiveTab('users');
+          }}
         >
           User Management
         </button>
@@ -245,6 +610,42 @@ const HrDashboard = () => {
                     <div>
                       <p className="text-gray-500 text-sm">Total Users</p>
                       <p className="text-2xl font-bold">{stats.totalUsers}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                      <span className="text-xl">✅</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-sm">Active Users</p>
+                      <p className="text-2xl font-bold">{stats.activeUsers}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-red-100 text-red-600 mr-4">
+                      <span className="text-xl">🚫</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-sm">Blocked Users</p>
+                      <p className="text-2xl font-bold">{stats.blockedUsers}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-indigo-100 text-indigo-600 mr-4">
+                      <span className="text-xl">🆕</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-sm">New Registrations</p>
+                      <p className="text-2xl font-bold">{stats.newUsers}</p>
                     </div>
                   </div>
                 </div>
@@ -323,6 +724,40 @@ const HrDashboard = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+              
+              {/* User Status Distribution */}
+              <div className="card mt-8">
+                <div className="card-header">
+                  <h2 className="card-title">User Status Distribution</h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-blue-800">Active Users</h3>
+                      <p className="text-3xl font-bold text-blue-600">{stats.activeUsers}</p>
+                      <p className="text-sm text-gray-600">{((stats.activeUsers / stats.totalUsers) * 100 || 0).toFixed(1)}% of total</p>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-yellow-800">Temporarily Blocked</h3>
+                      <p className="text-3xl font-bold text-yellow-600">
+                        {users.filter(user => user.status === 'Temporarily Blocked').length}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {((users.filter(user => user.status === 'Temporarily Blocked').length / stats.totalUsers) * 100 || 0).toFixed(1)}% of total
+                      </p>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-red-800">Permanently Blocked</h3>
+                      <p className="text-3xl font-bold text-red-600">
+                        {users.filter(user => user.status === 'Permanently Blocked').length}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {((users.filter(user => user.status === 'Permanently Blocked').length / stats.totalUsers) * 100 || 0).toFixed(1)}% of total
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -475,22 +910,22 @@ const HrDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'users' && (
+          {activeTab === 'new-users' && (
             <div>
               <div className="card">
                 <div className="card-header">
-                  <h2 className="card-title">User Issue Management</h2>
+                  <h2 className="card-title">New User Registrations</h2>
                   <div className="flex space-x-2">
                     <input 
                       type="text" 
-                      placeholder="Search issues..." 
+                      placeholder="Search new users..." 
                       className="form-control"
                     />
                     <select className="form-control">
-                      <option>All Statuses</option>
-                      <option>Open</option>
-                      <option>In Progress</option>
-                      <option>Resolved</option>
+                      <option>All Roles</option>
+                      <option>Seller</option>
+                      <option>Buyer</option>
+                      <option>Supplier</option>
                     </select>
                   </div>
                 </div>
@@ -501,43 +936,166 @@ const HrDashboard = () => {
                       <tr>
                         <th>User</th>
                         <th>Vendor Code</th>
-                        <th>Issue</th>
-                        <th>Reported Date</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Registration Date</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {userIssues.map(issue => (
-                        <tr key={issue.id}>
-                          <td>
-                            <div>
-                              <div className="font-medium">{issue.user_name}</div>
-                            </div>
-                          </td>
-                          <td>{issue.vendor_code}</td>
-                          <td>{issue.issue}</td>
-                          <td>{new Date(issue.reported_date).toLocaleDateString()}</td>
-                          <td>
-                            <span className={`status-badge status-${issue.status}`}>
-                              {issue.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="flex space-x-2">
-                              <button className="btn btn-outline btn-small">View</button>
-                              {issue.status !== 'resolved' && (
+                      {newUsers && newUsers.length > 0 ? (
+                        newUsers.map(user => (
+                          <tr key={user.id}>
+                            <td>
+                              <div>
+                                <div className="font-medium">{user.name}</div>
+                              </div>
+                            </td>
+                            <td>{user.vendor_code}</td>
+                            <td>{user.email}</td>
+                            <td>{user.phone}</td>
+                            <td>{user.role}</td>
+                            <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                            <td>
+                              <span className={`status-badge status-${
+                                user.status === 'Active' ? 'success' :
+                                user.status === 'Pending' ? 'warning' : 'secondary'
+                              }`}>
+                                {user.status}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="flex space-x-2">
                                 <button 
-                                  className="btn btn-primary btn-small"
-                                  onClick={() => resolveUserIssue(issue.id)}
+                                  className="btn btn-success btn-small"
+                                  onClick={() => approveNewUser(user.id)}
                                 >
-                                  Resolve
+                                  Approve
                                 </button>
-                              )}
-                            </div>
+                                <button 
+                                  className="btn btn-info btn-small"
+                                  onClick={() => openEditUserModal(user)}
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="8" className="text-center py-4">
+                            {loading ? 'Loading new users...' : 'No new user registrations found'}
                           </td>
                         </tr>
-                      ))}
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'users' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">User Management</h2>
+                  <div className="flex space-x-2">
+                    <input 
+                      type="text" 
+                      placeholder="Search users..." 
+                      className="form-control"
+                    />
+                    <select className="form-control">
+                      <option>All Statuses</option>
+                      <option>Active</option>
+                      <option>Temporarily Blocked</option>
+                      <option>Permanently Blocked</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Vendor Code</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users && users.length > 0 ? (
+                        users.map(user => (
+                          <tr key={user.id}>
+                            <td>
+                              <div>
+                                <div className="font-medium">{user.name}</div>
+                              </div>
+                            </td>
+                            <td>{user.vendor_code}</td>
+                            <td>{user.email}</td>
+                            <td>{user.phone}</td>
+                            <td>{user.role}</td>
+                            <td>
+                              <span className={`status-badge status-${
+                                user.status === 'Active' ? 'success' :
+                                user.status === 'Temporarily Blocked' ? 'warning' :
+                                user.status === 'Permanently Blocked' ? 'danger' : 'secondary'
+                              }`}>
+                                {user.status}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="flex space-x-2">
+                                <button 
+                                  className="btn btn-info btn-small"
+                                  onClick={() => openEditUserModal(user)}
+                                >
+                                  Edit
+                                </button>
+                                {user.status === 'Active' && (
+                                  <>
+                                    <button 
+                                      className="btn btn-warning btn-small"
+                                      onClick={() => setBlockModal({ open: true, user, type: 'temp' })}
+                                    >
+                                      Temp Block
+                                    </button>
+                                    <button 
+                                      className="btn btn-danger btn-small"
+                                      onClick={() => setBlockModal({ open: true, user, type: 'perm' })}
+                                    >
+                                      Perm Block
+                                    </button>
+                                  </>
+                                )}
+                                {(user.status === 'Temporarily Blocked' || user.status === 'Permanently Blocked') && (
+                                  <button 
+                                    className="btn btn-success btn-small"
+                                    onClick={() => setUnblockModal({ open: true, user })}
+                                  >
+                                    Unblock
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="text-center py-4">
+                            {loading ? 'Loading users...' : 'No users found'}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -545,6 +1103,286 @@ const HrDashboard = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Block User Modal */}
+      {blockModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>{blockModal.type === 'temp' ? 'Temporary Block' : 'Permanent Block'}</h3>
+              <button 
+                className="modal-close" 
+                onClick={() => {
+                  setBlockModal({ open: false, user: null, type: 'temp' });
+                  setBlockReason('');
+                  setBlockDuration(7);
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                Are you sure you want to {blockModal.type === 'temp' ? 'temporarily' : 'permanently'} block 
+                <strong> {blockModal.user?.name}</strong>?
+              </p>
+              
+              <div className="form-group">
+                <label>Reason for blocking:</label>
+                <textarea
+                  className="form-control"
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  placeholder="Enter reason for blocking..."
+                  rows="3"
+                />
+              </div>
+              
+              {blockModal.type === 'temp' && (
+                <div className="form-group">
+                  <label>Duration (days):</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={blockDuration}
+                    onChange={(e) => setBlockDuration(parseInt(e.target.value) || 7)}
+                    min="1"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn btn-outline"
+                onClick={() => {
+                  setBlockModal({ open: false, user: null, type: 'temp' });
+                  setBlockReason('');
+                  setBlockDuration(7);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className={`btn ${blockModal.type === 'temp' ? 'btn-warning' : 'btn-danger'}`}
+                onClick={blockModal.type === 'temp' ? blockUserTemporarily : blockUserPermanently}
+                disabled={!blockReason.trim()}
+              >
+                {blockModal.type === 'temp' ? 'Block Temporarily' : 'Block Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unblock User Modal */}
+      {unblockModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Unblock User</h3>
+              <button 
+                className="modal-close" 
+                onClick={() => {
+                  setUnblockModal({ open: false, user: null });
+                  setBlockReason('');
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                Are you sure you want to unblock <strong>{unblockModal.user?.name}</strong>?
+              </p>
+              
+              <div className="form-group">
+                <label>Reason for unblocking:</label>
+                <textarea
+                  className="form-control"
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  placeholder="Enter reason for unblocking..."
+                  rows="3"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn btn-outline"
+                onClick={() => {
+                  setUnblockModal({ open: false, user: null });
+                  setBlockReason('');
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-success"
+                onClick={unblockUser}
+                disabled={!blockReason.trim()}
+              >
+                Unblock User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editUserModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>Edit User Details</h3>
+              <button 
+                className="modal-close" 
+                onClick={() => {
+                  setEditUserModal({ open: false, user: null });
+                  setEditUserForm({
+                    first_name: '',
+                    last_name: '',
+                    email: '',
+                    phone: '',
+                    vendor_code: '',
+                    is_active: true,
+                    is_verified: false,
+                    role: ''
+                  });
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label>First Name:</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="first_name"
+                    value={editUserForm.first_name}
+                    onChange={handleEditUserFormChange}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Last Name:</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="last_name"
+                    value={editUserForm.last_name}
+                    onChange={handleEditUserFormChange}
+                  />
+                </div>
+                
+                <div className="form-group md:col-span-2">
+                  <label>Email:</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    name="email"
+                    value={editUserForm.email}
+                    onChange={handleEditUserFormChange}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Phone:</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="phone"
+                    value={editUserForm.phone}
+                    onChange={handleEditUserFormChange}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Vendor Code:</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="vendor_code"
+                    value={editUserForm.vendor_code}
+                    onChange={handleEditUserFormChange}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Role:</label>
+                  <select
+                    className="form-control"
+                    name="role"
+                    value={editUserForm.role}
+                    onChange={handleEditUserFormChange}
+                  >
+                    <option value="">Select Role</option>
+                    {roles.map(role => (
+                      <option key={role.id} value={role.name}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="is_active"
+                      checked={editUserForm.is_active}
+                      onChange={handleEditUserFormChange}
+                      className="mr-2"
+                    />
+                    Active User
+                  </label>
+                </div>
+                
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="is_verified"
+                      checked={editUserForm.is_verified}
+                      onChange={handleEditUserFormChange}
+                      className="mr-2"
+                    />
+                    Verified User
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn btn-outline"
+                onClick={() => {
+                  setEditUserModal({ open: false, user: null });
+                  setEditUserForm({
+                    first_name: '',
+                    last_name: '',
+                    email: '',
+                    phone: '',
+                    vendor_code: '',
+                    is_active: true,
+                    is_verified: false,
+                    role: ''
+                  });
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={updateUserDetails}
+              >
+                Update User
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );
