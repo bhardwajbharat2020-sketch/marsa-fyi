@@ -6767,6 +6767,13 @@ app.use(express.static(staticPath, {
   setHeaders: (res, path) => {
     // Add cache control headers to prevent aggressive caching
     res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+    
+    // For index.html, we want to prevent caching so users always get the latest version
+    if (path.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
   }
 }));
 

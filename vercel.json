@@ -13,7 +13,7 @@
     },
     {
       "src": "/static/(.*)",
-      "dest": "/server/server.js"
+      "dest": "/client/build/static/$1"
     },
     {
       "src": "/(.*)",
