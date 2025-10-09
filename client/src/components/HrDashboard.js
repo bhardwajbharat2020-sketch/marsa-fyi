@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from './DashboardLayout';
 import '../App.css';
@@ -30,6 +30,8 @@ const HrDashboard = () => {
     is_verified: false,
     role: '' // Add role field
   });
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch real data from Supabase
   useEffect(() => {
@@ -513,7 +515,7 @@ const HrDashboard = () => {
               : user
           )
         );
-        
+      
         // Also update in new users if present
         setNewUsers(prevNewUsers => 
           prevNewUsers.map(user => 
@@ -530,7 +532,7 @@ const HrDashboard = () => {
               : user
           )
         );
-        
+      
         alert('User details updated successfully!');
         setEditUserModal({ open: false, user: null });
       } else {
@@ -568,6 +570,43 @@ const HrDashboard = () => {
       alert('Failed to approve new user. Please try again.');
     }
   };
+
+  // Filter new users based on search term and role filter
+  const filteredNewUsers = useMemo(() => {
+    if (!newUsers || newUsers.length === 0) return [];
+    
+    return newUsers.filter(user => {
+      // Filter by search term (name, email, vendor code)
+      const matchesSearch = !searchTerm || 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.vendor_code.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filter by role
+      const matchesRole = !selectedRoleFilter || user.role === selectedRoleFilter;
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [newUsers, searchTerm, selectedRoleFilter]);
+
+  // Filter users based on search term and role filter
+  const filteredUsers = useMemo(() => {
+    if (!users || users.length === 0) return [];
+    
+    return users.filter(user => {
+      // Filter by search term (name, email, vendor code, IP address)
+      const matchesSearch = !searchTerm || 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.vendor_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.ip_address && user.ip_address.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // Filter by role
+      const matchesRole = !selectedRoleFilter || user.role === selectedRoleFilter;
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchTerm, selectedRoleFilter]);
 
   // Calculate stats from real data
   const stats = {
@@ -1085,12 +1124,20 @@ const HrDashboard = () => {
                       type="text" 
                       placeholder="Search new users..." 
                       className="form-control"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    <select className="form-control">
-                      <option>All Roles</option>
-                      <option>Seller</option>
-                      <option>Buyer</option>
-                      <option>Supplier</option>
+                    <select 
+                      className="form-control"
+                      value={selectedRoleFilter}
+                      onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                    >
+                      <option value="">All Roles</option>
+                      {roles.map(role => (
+                        <option key={role.id} value={role.name}>
+                          {role.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1104,14 +1151,15 @@ const HrDashboard = () => {
                         <th>Email</th>
                         <th>Phone</th>
                         <th>Role</th>
+                        <th>IP Address</th>
                         <th>Registration Date</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {newUsers && newUsers.length > 0 ? (
-                        newUsers.map(user => (
+                      {filteredNewUsers && filteredNewUsers.length > 0 ? (
+                        filteredNewUsers.map(user => (
                           <tr key={user.id}>
                             <td>
                               <div>
@@ -1122,6 +1170,20 @@ const HrDashboard = () => {
                             <td>{user.email}</td>
                             <td>{user.phone}</td>
                             <td>{user.role}</td>
+                            <td>
+                              {user.ip_address && user.ip_address !== 'Unknown' ? (
+                                <a 
+                                  href={`https://iplocation.com/?ip=${user.ip_address}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  {user.ip_address}
+                                </a>
+                              ) : (
+                                <span className="text-gray-500">Unknown</span>
+                              )}
+                            </td>
                             <td>{new Date(user.created_at).toLocaleDateString()}</td>
                             <td>
                               <span className={`status-badge status-${
@@ -1151,7 +1213,7 @@ const HrDashboard = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" className="text-center py-4">
+                          <td colSpan="9" className="text-center py-4">
                             {loading ? 'Loading new users...' : 'No new user registrations found'}
                           </td>
                         </tr>
@@ -1173,12 +1235,26 @@ const HrDashboard = () => {
                       type="text" 
                       placeholder="Search users..." 
                       className="form-control"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
                     <select className="form-control">
                       <option>All Statuses</option>
                       <option>Active</option>
                       <option>Temporarily Blocked</option>
                       <option>Permanently Blocked</option>
+                    </select>
+                    <select 
+                      className="form-control"
+                      value={selectedRoleFilter}
+                      onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                    >
+                      <option value="">All Roles</option>
+                      {roles.map(role => (
+                        <option key={role.id} value={role.name}>
+                          {role.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1192,13 +1268,14 @@ const HrDashboard = () => {
                         <th>Email</th>
                         <th>Phone</th>
                         <th>Role</th>
+                        <th>IP Address</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {users && users.length > 0 ? (
-                        users.map(user => (
+                      {filteredUsers && filteredUsers.length > 0 ? (
+                        filteredUsers.map(user => (
                           <tr key={user.id}>
                             <td>
                               <div>
@@ -1209,6 +1286,20 @@ const HrDashboard = () => {
                             <td>{user.email}</td>
                             <td>{user.phone}</td>
                             <td>{user.role}</td>
+                            <td>
+                              {user.ip_address && user.ip_address !== 'Unknown' ? (
+                                <a 
+                                  href={`https://iplocation.com/?ip=${user.ip_address}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  {user.ip_address}
+                                </a>
+                              ) : (
+                                <span className="text-gray-500">Unknown</span>
+                              )}
+                            </td>
                             <td>
                               <span className={`status-badge status-${
                                 user.status === 'Active' ? 'success' :
@@ -1256,7 +1347,7 @@ const HrDashboard = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="7" className="text-center py-4">
+                          <td colSpan="8" className="text-center py-4">
                             {loading ? 'Loading users...' : 'No users found'}
                           </td>
                         </tr>

@@ -14,6 +14,10 @@ import {
   MapPin,
 } from "lucide-react";
 import WhatsAppButton from './WhatsAppButton';
+import MusicPlayer from './MusicPlayer';
+import ChatBot from './ChatBot';
+import { useLanguage, useTranslation } from '../contexts/LanguageContext';
+import Translate from './Translate';
 
 /*
   Theme colors used inline via hex:
@@ -27,40 +31,52 @@ const heroSlides = [
     id: 1,
     title: "Revolutionizing Global Trade",
     subtitle: "Connecting businesses across continents with trusted partnerships",
-    image: "/placeholder-hero.jpg",
+    image: "slider3.jpg",
     cta: "Explore Opportunities",
   },
   {
     id: 2,
     title: "Verified Suppliers Worldwide",
     subtitle: "Work with pre-verified partners for secure transactions",
-    image: "/placeholder-hero2.jpg",
+    image: "slider2.jpeg",
     cta: "Find Suppliers",
   },
   {
     id: 3,
     title: "End-to-End Trade Solutions",
     subtitle: "From RFQ to delivery, we've got you covered",
-    image: "/placeholder-hero3.jpg",
+    image: "main.avif",
     cta: "Learn More",
   },
 ];
 
 const categories = [
-  { id: 1, name: "Electronics", icon: "🔌", count: "12,450+" },
-  { id: 2, name: "Machinery", icon: "⚙️", count: "8,760+" },
-  { id: 3, name: "Textiles", icon: "🧵", count: "15,230+" },
-  { id: 4, name: "Chemicals", icon: "⚗️", count: "6,890+" },
-  { id: 5, name: "Food & Beverages", icon: "🍎", count: "9,420+" },
-  { id: 6, name: "Automotive", icon: "🚗", count: "7,560+" },
-  { id: 7, name: "Construction", icon: "🏗️", count: "5,320+" },
-  { id: 8, name: "Healthcare", icon: "⚕️", count: "4,890+" },
+  { id: 1, name: "Land, house flat plot category", icon: "🏠", count: "5,230+" },
+  { id: 2, name: "Electronics", icon: "🔌", count: "12,450+" },
+  { id: 3, name: "Machinery", icon: "⚙️", count: "8,760+" },
+  { id: 4, name: "Textiles", icon: "🧵", count: "15,230+" },
+  { id: 5, name: "Chemicals", icon: "⚗️", count: "6,890+" },
+  { id: 6, name: "Food & Beverages", icon: "🍎", count: "9,420+" },
+  { id: 7, name: "Automotive", icon: "🚗", count: "7,560+" },
+  { id: 8, name: "Construction", icon: "🏗️", count: "5,320+" },
+  { id: 9, name: "Healthcare", icon: "⚕️", count: "4,890+" },
 ];
 
 const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
 
+// Languages for port-centric countries
+const languages = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'ar', name: 'العربية', flag: '🇦🇪' }
+];
+
 const MainDashboard = () => {
   const navigate = useNavigate();
+  const { selectedLanguage, setSelectedLanguage } = useLanguage();
+  const { t } = useTranslation();
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [catalogs, setCatalogs] = useState([]);
@@ -68,6 +84,7 @@ const MainDashboard = () => {
   const [error, setError] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState("Global");
   const [countryOpen, setCountryOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   // Keep your Supabase fetch logic unchanged
   useEffect(() => {
@@ -109,6 +126,33 @@ const MainDashboard = () => {
   const creamCard = "#efe6d9";
   const darkText = "#5a4632";
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside both dropdowns
+      if (countryOpen || languageOpen) {
+        // Don't close if clicking on the dropdown buttons or their content
+        const countryButton = document.querySelector('.country-selector-button');
+        const languageButton = document.querySelector('.language-selector-button');
+        const countryDropdown = document.querySelector('.country-dropdown');
+        const languageDropdown = document.querySelector('.language-dropdown');
+          
+        const isClickOnCountry = countryButton?.contains(event.target) || countryDropdown?.contains(event.target);
+        const isClickOnLanguage = languageButton?.contains(event.target) || languageDropdown?.contains(event.target);
+          
+        if (!isClickOnCountry && !isClickOnLanguage) {
+          setCountryOpen(false);
+          setLanguageOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [countryOpen, languageOpen]);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
       {/* global small style additions (keyframes) */}
@@ -119,11 +163,17 @@ const MainDashboard = () => {
           background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.35));
           backdrop-filter: blur(6px);
         }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `}</style>
 
       {/* Top thin bar */}
       <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
-        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
+        <small><Translate text="portCentricB2B" /></small>
       </div>
 
       {/* Header */}
@@ -131,35 +181,30 @@ const MainDashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              className="cursor-pointer flex items-center gap-2"
               onClick={() => navigate("/")}
-              style={{ backgroundColor: creamCard }}
             >
-              <div
-                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+              <img 
+                src="/logo.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 130, height: 60, borderRadius: 0, border: 'none' }}
                 className="flex items-center justify-center text-white font-bold text-lg"
-              >
-                M
-              </div>
-              <div className="">
-                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
-                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
-              </div>
+              />
             </div>
 
             {/* visible on desktop */}
             <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
-              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
-              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
-              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
-              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]"><Translate text="home" /></button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]"><Translate text="about" /></button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]"><Translate text="shop" /></button>
+              <button onClick={() => navigate("/contact")} className="font-semibold" style={{ color: bhagwa }}><Translate text="contact" /></button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <input
-                placeholder="Find products, suppliers, or ports..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
                 style={{ backgroundColor: "#fff", color: darkText }}
               />
@@ -171,7 +216,8 @@ const MainDashboard = () => {
               className="px-4 py-2 rounded-full font-semibold"
               style={{ backgroundColor: bhagwa, color: "#fff" }}
             >
-              Join / Login
+              <Translate text="joinLogin" />
+
             </button>
 
             <User className="h-6 w-6 text-[#6b503d]" />
@@ -182,37 +228,69 @@ const MainDashboard = () => {
       {/* Country selector */}
       <div className="w-full border-t border-b" style={{ borderColor: "#eadfce" }}>
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="relative" onMouseLeave={() => setCountryOpen(false)}>
-            <button
-              onMouseEnter={() => setCountryOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
-              style={{ backgroundColor: creamCard, color: darkText }}
-            >
-              <MapPin className="h-4 w-4" />
-              <span>{selectedCountry}</span>
-              <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
-                <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <button
+                onClick={() => setCountryOpen(!countryOpen)}
+                className="country-selector-button flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+                style={{ backgroundColor: creamCard, color: darkText }}
+              >
+                <MapPin className="h-4 w-4" />
+                <span>{selectedCountry}</span>
+                <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
 
-            {countryOpen && (
-              <div className="absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
-                {countries.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
-                    style={{ color: darkText }}
-                  >
-                    {c === "Global" ? "🌍 Global" : c}
-                  </button>
-                ))}
-              </div>
-            )}
+              {countryOpen && (
+                <div className="country-dropdown absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
+                  {countries.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
+                      style={{ color: darkText }}
+                    >
+                      {c === "Global" ? "🌍 Global" : c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Language selector */}
+            <div className="relative">
+              <button
+                onClick={() => setLanguageOpen(!languageOpen)}
+                className="language-selector-button flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+                style={{ backgroundColor: creamCard, color: darkText }}
+              >
+                <Globe className="h-4 w-4" />
+                <span>{languages.find(lang => lang.code === selectedLanguage)?.flag} {languages.find(lang => lang.code === selectedLanguage)?.name}</span>
+                <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {languageOpen && (
+                <div className="language-dropdown absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setSelectedLanguage(lang.code); setLanguageOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedLanguage === lang.code ? "font-semibold" : ""}`}
+                      style={{ color: darkText }}
+                    >
+                      <span className="mr-2">{lang.flag}</span> {lang.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="text-sm" style={{ color: "#7a614a" }}>
-            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+            <Translate text="serving" /> <span className="font-semibold">{selectedCountry}</span> • <Translate text="portCentricLogistics" />
           </div>
         </div>
       </div>
@@ -249,16 +327,16 @@ const MainDashboard = () => {
                 className="px-6 py-3 rounded-full font-semibold"
                 style={{ backgroundColor: "rgba(255,255,255,0.9)", color: darkText }}
               >
-                Contact Sales
+                <Translate text="contactSales" />
               </button>
             </div>
           </div>
 
           {/* quick search card */}
           <div className="w-full md:w-96 p-4 rounded-xl shadow-md" style={{ backgroundColor: creamCard }}>
-            <div className="text-sm font-semibold mb-2" style={{ color: darkText }}>Quick RFQ & Search</div>
+            <div className="text-sm font-semibold mb-2" style={{ color: darkText }}><Translate text="quickRfqSearch" /></div>
             <div className="flex gap-2">
-              <input className="flex-1 px-3 py-2 rounded-md border border-transparent focus:outline-none" placeholder="Search products, suppliers, or ports" />
+              <input className="flex-1 px-3 py-2 rounded-md border border-transparent focus:outline-none" placeholder={t('searchProductsSuppliers')} />
               <button className="px-3 rounded-md" style={{ backgroundColor: bhagwa, color: "#fff" }}>
                 <Search />
               </button>
@@ -266,20 +344,20 @@ const MainDashboard = () => {
 
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Port Integration</div>
-                <div className="text-xs text-[#8b6a4f]">Live ETA & berth data</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="portIntegration" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="liveEta" /></div>
               </button>
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Supplier Verification</div>
-                <div className="text-xs text-[#8b6a4f]">KYC & audits</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="supplierVerification" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="kycAudits" /></div>
               </button>
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Customs Support</div>
-                <div className="text-xs text-[#8b6a4f]">Paperwork & clearance</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="customsSupport" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="paperworkClearance" /></div>
               </button>
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Secure Payments</div>
-                <div className="text-xs text-[#8b6a4f]">Escrow & trade assurance</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="securePayments" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="escrowTrade" /></div>
               </button>
             </div>
           </div>
@@ -300,13 +378,23 @@ const MainDashboard = () => {
 
       {/* Categories */}
       <section className="container mx-auto px-4 mt-12">
-        <h2 className="text-2xl font-bold mb-6" style={{ color: darkText }}>Top Categories</h2>
+        <h2 className="text-2xl font-bold mb-6" style={{ color: darkText }}><Translate text="topCategories" /></h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
           {categories.map((cat) => (
-            <div key={cat.id} className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1" style={{ backgroundColor: "#fff" }}>
+            <div key={cat.id} className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1 relative group" style={{ backgroundColor: "#fff" }}>
               <div className="text-4xl">{cat.icon}</div>
-              <div className="mt-2 font-semibold" style={{ color: darkText }}>{cat.name}</div>
+              <div className="mt-2 font-semibold line-clamp-2" style={{ color: darkText }}>{cat.name}</div>
               <div className="text-xs mt-1 text-[#8b6a4f]">{cat.count} products</div>
+              {/* Tooltip for full category name on hover */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black bg-opacity-80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20 whitespace-nowrap">
+                <div className="relative">
+                  <div className="text-center max-w-xs">
+                    {cat.name}
+                  </div>
+                  {/* Tooltip arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-black border-opacity-80"></div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -315,9 +403,9 @@ const MainDashboard = () => {
       {/* Featured Catalogs */}
       <section className="container mx-auto px-4 mt-12">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold" style={{ color: darkText }}>Featured Catalogs</h3>
+          <h3 className="text-2xl font-bold" style={{ color: darkText }}><Translate text="featuredCatalogs" /></h3>
           <button onClick={() => navigate("/shop")} className="flex items-center gap-1 text-sm font-semibold" style={{ color: bhagwa }}>
-            View All <ChevronRight />
+            <Translate text="viewAll" /> <ChevronRight />
           </button>
         </div>
 
@@ -349,7 +437,7 @@ const MainDashboard = () => {
                     </div>
 
                     <button onClick={() => handleRFQ(c.id)} className="px-4 py-2 rounded-full font-semibold" style={{ backgroundColor: bhagwa, color: "#fff" }}>
-                      Request Quote
+                      <Translate text="requestQuote" />
                     </button>
                   </div>
                 </div>
@@ -361,7 +449,7 @@ const MainDashboard = () => {
 
       {/* Port-centric Features */}
       <section className="container mx-auto px-4 mt-12">
-        <h3 className="text-2xl font-bold mb-6" style={{ color: darkText }}>Port-Centric Services</h3>
+        <h3 className="text-2xl font-bold mb-6" style={{ color: darkText }}><Translate text="portCentricServices" /></h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="p-6 rounded-xl" style={{ backgroundColor: creamCard }}>
             <div className="flex items-center gap-3">
@@ -407,23 +495,23 @@ const MainDashboard = () => {
 
       {/* Why choose us */}
       <section className="container mx-auto px-4 mt-12 mb-12">
-        <h3 className="text-2xl font-bold mb-6" style={{ color: darkText }}>Why Choose MarsaFyi</h3>
+        <h3 className="text-2xl font-bold mb-6" style={{ color: darkText }}><Translate text="whyChooseMarsaFyi" /></h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="p-6 rounded-xl" style={{ backgroundColor: "#fff" }}>
-            <div className="font-semibold" style={{ color: darkText }}>Verified Suppliers</div>
-            <p className="text-sm mt-2 text-[#7a614a]">Rigorous checks and continuous audits to keep the network trusted.</p>
+            <div className="font-semibold" style={{ color: darkText }}><Translate text="verifiedSuppliers" /></div>
+            <p className="text-sm mt-2 text-[#7a614a]"><Translate text="verifiedSuppliersText" /></p>
           </div>
           <div className="p-6 rounded-xl" style={{ backgroundColor: "#fff" }}>
-            <div className="font-semibold" style={{ color: darkText }}>Secure Transactions</div>
-            <p className="text-sm mt-2 text-[#7a614a]">Trade assurances, escrow and secure payments for peace of mind.</p>
+            <div className="font-semibold" style={{ color: darkText }}><Translate text="secureTransactions" /></div>
+            <p className="text-sm mt-2 text-[#7a614a]"><Translate text="secureTransactionsText" /></p>
           </div>
           <div className="p-6 rounded-xl" style={{ backgroundColor: "#fff" }}>
-            <div className="font-semibold" style={{ color: darkText }}>Global Reach</div>
-            <p className="text-sm mt-2 text-[#7a614a]">Port integrations and local logistics partners across geographies.</p>
+            <div className="font-semibold" style={{ color: darkText }}><Translate text="globalReach" /></div>
+            <p className="text-sm mt-2 text-[#7a614a]"><Translate text="globalReachText" /></p>
           </div>
           <div className="p-6 rounded-xl" style={{ backgroundColor: "#fff" }}>
-            <div className="font-semibold" style={{ color: darkText }}>24/7 Support</div>
-            <p className="text-sm mt-2 text-[#7a614a]">Multilingual support teams to help across timezones.</p>
+            <div className="font-semibold" style={{ color: darkText }}><Translate text="support247" /></div>
+            <p className="text-sm mt-2 text-[#7a614a]"><Translate text="support247Text" /></p>
           </div>
         </div>
       </section>
@@ -432,16 +520,16 @@ const MainDashboard = () => {
       <section className="container mx-auto px-4 mb-12">
         <div className="rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between" style={{ backgroundColor: bhagwa }}>
           <div className="text-white">
-            <h4 className="text-2xl font-bold">Ready to scale your cross-border trade?</h4>
-            <p className="mt-2 text-white/90">Join thousands of businesses using MarsaFyi to source, ship and sell worldwide.</p>
+            <h4 className="text-2xl font-bold"><Translate text="readyToScale" /></h4>
+            <p className="mt-2 text-white/90"><Translate text="readyToScaleText" /></p>
           </div>
 
           <div className="mt-6 md:mt-0 flex gap-3">
             <button onClick={() => navigate("/register")} className="px-6 py-3 rounded-full font-bold" style={{ backgroundColor: "#fff", color: bhagwa }}>
-              Register Free
+              <Translate text="registerFree" />
             </button>
             <button onClick={() => navigate("/login")} className="px-6 py-3 rounded-full font-semibold" style={{ backgroundColor: "#00000022", color: "#fff" }}>
-              Login
+              <Translate text="login" />
             </button>
           </div>
         </div>
@@ -451,13 +539,18 @@ const MainDashboard = () => {
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
         <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-5 gap-8">
           <div className="md:col-span-1 flex flex-col items-center md:items-start">
-            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <img 
+              src="/logo2.png" 
+              alt="MarsaFyi Logo" 
+              style={{ width: 170, height: 100, borderRadius: 0, border: 'none' }}
+              className="mb-3"
+            />
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left"><Translate text="portCentricB2B" /></p>
 
             <div className="flex gap-3">
               {/* Instagram */}
               <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
               </a>
 
               {/* Facebook */}
@@ -478,53 +571,55 @@ const MainDashboard = () => {
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">For Buyers</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="forBuyers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/login")} className="hover:text-white">Submit RFQ</button></li>
-              <li><button onClick={() => navigate("/shop")} className="hover:text-white">Search Suppliers</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Trade Assurance</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Payment Options</button></li>
+              <li><button onClick={() => navigate("/login")} className="hover:text-white"><Translate text="submitRfq" /></button></li>
+              <li><button onClick={() => navigate("/shop")} className="hover:text-white"><Translate text="searchSuppliers" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="tradeAssurance" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="paymentOptions" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">For Suppliers</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="forSuppliers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/login")} className="hover:text-white">Display Products</button></li>
-              <li><button onClick={() => navigate("/register")} className="hover:text-white">Supplier Membership</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Learning Center</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Success Stories</button></li>
+              <li><button onClick={() => navigate("/login")} className="hover:text-white"><Translate text="displayProducts" /></button></li>
+              <li><button onClick={() => navigate("/register")} className="hover:text-white"><Translate text="supplierMembership" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="learningCenter" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="successStories" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">Company</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="company" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">About Us</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Contact Us</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Careers</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Press</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="aboutUs" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="contactUs" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="careers" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="press" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">Support</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="support" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Help Center</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Submit a Request</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Terms of Service</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Privacy Policy</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="helpCenter" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="submitRequest" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="termsOfService" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="privacyPolicy" /></button></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved
+            <Translate text="copyrightText" year={new Date().getFullYear()} />
           </div>
         </div>
       </footer>
+      <ChatBot />
       <WhatsAppButton />
+      <MusicPlayer />
     </div>
   );
 };

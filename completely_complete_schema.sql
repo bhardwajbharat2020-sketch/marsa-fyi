@@ -48,6 +48,7 @@ CREATE TABLE users (
     failed_login_attempts INTEGER DEFAULT 0, -- For account lockout security
     locked_until TIMESTAMP WITH TIME ZONE, -- For account lockout security
     last_login TIMESTAMP WITH TIME ZONE, -- Track last successful login
+    ip_address VARCHAR(45), -- Store client IP address during registration
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -97,6 +98,7 @@ CREATE TABLE categories (
 
 -- Insert default categories (39 categories from ShopPage)
 INSERT INTO categories (name, description) VALUES
+('Land, house flat plot category', 'Land, houses, flats, and plots for sale or rent - Featured Category'),
 ('Industrial Plants, Machinery & Equipment', 'Industrial plants, machinery and equipment for various industries'),
 ('Consumer Electronics & Household Appliances', 'Consumer electronics and household appliances'),
 ('Industrial & Engineering Products, Spares and Supplies', 'Industrial and engineering products, spares and supplies'),

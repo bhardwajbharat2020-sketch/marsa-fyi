@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronRight, Star, Heart, CheckCircle, Ship, ShieldCheck, Globe, User, MapPin, ArrowLeft } from 'lucide-react';
 import '../App.css';
+import { useLanguage, useTranslation } from '../contexts/LanguageContext';
+import Translate from './Translate';
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -30,6 +32,7 @@ const Register = () => {
   const [selectedCountry, setSelectedCountry] = useState("Global");
   const [countryOpen, setCountryOpen] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // small helper for theme colors in inline style
   const bhagwa = "#f77f00";
@@ -376,7 +379,7 @@ const Register = () => {
 
       {/* Top thin bar */}
       <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
-        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
+        <small><Translate text="portCentricB2B" /></small>
       </div>
 
       {/* Header */}
@@ -384,35 +387,30 @@ const Register = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              className="cursor-pointer flex items-center gap-2"
               onClick={() => navigate("/")}
-              style={{ backgroundColor: creamCard }}
             >
-              <div
-                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+              <img 
+                src="/logo.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 130, height: 60, borderRadius: 0, border: 'none' }}
                 className="flex items-center justify-center text-white font-bold text-lg"
-              >
-                M
-              </div>
-              <div className="">
-                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
-                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
-              </div>
+              />
             </div>
 
             {/* visible on desktop */}
             <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
-              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
-              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
-              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
-              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]"><Translate text="home" /></button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]"><Translate text="about" /></button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]"><Translate text="shop" /></button>
+              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]"><Translate text="contact" /></button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <input
-                placeholder="Find products, suppliers, or ports..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
                 style={{ backgroundColor: "#fff", color: darkText }}
               />
@@ -424,7 +422,7 @@ const Register = () => {
               className="px-4 py-2 rounded-full font-semibold"
               style={{ backgroundColor: bhagwa, color: "#fff" }}
             >
-              Join / Login
+              <Translate text="joinLogin" />
             </button>
 
             <User className="h-6 w-6 text-[#6b503d]" />
@@ -465,7 +463,7 @@ const Register = () => {
           </div>
 
           <div className="text-sm" style={{ color: "#7a614a" }}>
-            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+            <Translate text="serving" /> <span className="font-semibold">{selectedCountry}</span> • <Translate text="portCentricLogistics" />
           </div>
         </div>
       </div>
@@ -480,14 +478,14 @@ const Register = () => {
             style={{ color: bhagwa }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            <Translate text="back" />
           </button>
 
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
             <div className="p-6 md:p-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold mb-2" style={{ color: darkText }}>Join MarsaFyi</h2>
-                <p className="text-[#7a614a]">Create your account to access our global B2B marketplace</p>
+                <h2 className="text-3xl font-bold mb-2" style={{ color: darkText }}><Translate text="joinMarsaFyi" /></h2>
+                <p className="text-[#7a614a]"><Translate text="createAccount" /></p>
               </div>
               
               {/* Progress Indicator */}
@@ -508,20 +506,20 @@ const Register = () => {
               </div>
               
               {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
-              {loading && <div className="text-center py-4 text-[#7a614a]">Processing registration...</div>}
+              {loading && <div className="text-center py-4 text-[#7a614a]"><Translate text="processingRegistration" /></div>}
               {requiresEmailConfirmation && (
                 <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-6">
-                  A confirmation email has been sent to your email address. Please check your inbox and follow the instructions to complete your registration.
+                  <Translate text="confirmationEmailSent" />
                 </div>
               )}
               
               <form onSubmit={handleSubmit}>
                 {step === 1 && (
                   <div className="registration-step animate-float">
-                    <h3 className="text-xl font-bold mb-6" style={{ color: darkText }}>Personal Information</h3>
+                    <h3 className="text-xl font-bold mb-6" style={{ color: darkText }}><Translate text="personalInformation" /></h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div className="md:col-span-2">
-                        <label htmlFor="name" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Name / Company Name *</label>
+                        <label htmlFor="name" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="nameOrCompanyName" /></label>
                         <input
                           type="text"
                           id="name"
@@ -535,7 +533,7 @@ const Register = () => {
                       </div>
                       
                       <div className="md:col-span-2">
-                        <label htmlFor="email" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Email *</label>
+                        <label htmlFor="email" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="email" /></label>
                         <div className="flex gap-2">
                           <input
                             type="email"
@@ -554,7 +552,7 @@ const Register = () => {
                             onClick={sendEmailOtp}
                             disabled={!formData.email}
                           >
-                            Send OTP
+                            <Translate text="sendOtp" />
                           </button>
                         </div>
                         {emailError && <div className="text-red-500 mt-2">{emailError}</div>}
@@ -562,7 +560,7 @@ const Register = () => {
                           <div className="flex gap-2 mt-3">
                             <input
                               type="text"
-                              placeholder="Enter OTP"
+                              placeholder={t('enterOtp')}
                               className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value={emailOtp}
                               onChange={(e) => setEmailOtp(e.target.value)}
@@ -574,15 +572,15 @@ const Register = () => {
                               style={{ backgroundColor: "#7a614a", color: "#fff" }}
                               onClick={verifyEmailOtp}
                             >
-                              Verify
+                              <Translate text="verify" />
                             </button>
                           </div>
                         )}
-                        {emailVerified && <div className="text-green-600 mt-2 font-semibold">✓ Email Verified</div>}
+                        {emailVerified && <div className="text-green-600 mt-2 font-semibold">✓ <Translate text="emailVerified" /></div>}
                       </div>
                       
                       <div>
-                        <label htmlFor="password" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Password *</label>
+                        <label htmlFor="password" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="password" /></label>
                         <input
                           type="password"
                           id="password"
@@ -597,7 +595,7 @@ const Register = () => {
                       </div>
                       
                       <div>
-                        <label htmlFor="whatsapp" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>WhatsApp Number *</label>
+                        <label htmlFor="whatsapp" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="whatsappNumber" /></label>
                         <div className="flex gap-2">
                           <input
                             type="tel"
@@ -616,14 +614,14 @@ const Register = () => {
                             onClick={sendWhatsappOtp}
                             disabled={!formData.whatsapp}
                           >
-                            Send OTP
+                            <Translate text="sendOtp" />
                           </button>
                         </div>
                         {formData.whatsapp && (
                           <div className="flex gap-2 mt-3">
                             <input
                               type="text"
-                              placeholder="Enter OTP"
+                              placeholder={t('enterOtp')}
                               className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value={whatsappOtp}
                               onChange={(e) => setWhatsappOtp(e.target.value)}
@@ -635,15 +633,15 @@ const Register = () => {
                               style={{ backgroundColor: "#7a614a", color: "#fff" }}
                               onClick={verifyWhatsappOtp}
                             >
-                              Verify
+                              <Translate text="verify" />
                             </button>
                           </div>
                         )}
-                        {whatsappVerified && <div className="text-green-600 mt-2 font-semibold">✓ WhatsApp Verified</div>}
+                        {whatsappVerified && <div className="text-green-600 mt-2 font-semibold">✓ <Translate text="whatsappVerified" /></div>}
                       </div>
                       
                       <div className="md:col-span-2">
-                        <label htmlFor="address" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Address *</label>
+                        <label htmlFor="address" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="address" /></label>
                         <textarea
                           id="address"
                           name="address"
@@ -657,7 +655,7 @@ const Register = () => {
                       </div>
                       
                       <div>
-                        <label htmlFor="zipCode" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Zip Code</label>
+                        <label htmlFor="zipCode" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="pincode" /></label>
                         <input
                           type="text"
                           id="zipCode"
@@ -670,7 +668,7 @@ const Register = () => {
                       </div>
                       
                       <div>
-                        <label htmlFor="port" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Nearest Commercially Active Port *</label>
+                        <label htmlFor="port" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="nearestPort" /></label>
                         <select
                           id="port"
                           name="port"
@@ -680,7 +678,7 @@ const Register = () => {
                           required
                           style={{ backgroundColor: "#fff", color: darkText }}
                         >
-                          <option value="">Select a port</option>
+                          <option value=""><Translate text="selectPort" /></option>
                           {ports.map(port => (
                             <option key={port} value={port}>{port}</option>
                           ))}
@@ -689,23 +687,23 @@ const Register = () => {
                     </div>
                     
                     <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: creamCard }}>
-                      <small className="block font-semibold mb-2" style={{ color: darkText }}>Password Requirements:</small>
+                      <small className="block font-semibold mb-2" style={{ color: darkText }}><Translate text="passwordRequirements" /></small>
                       <ul className="space-y-1">
                         <li className={`flex items-center ${passwordErrors.includes('At least 8 characters') ? 'text-red-500' : 'text-green-600'}`}>
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          <span>At least 8 characters</span>
+                          <span><Translate text="atLeast8Characters" /></span>
                         </li>
                         <li className={`flex items-center ${passwordErrors.includes('One uppercase letter') ? 'text-red-500' : 'text-green-600'}`}>
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          <span>One uppercase letter</span>
+                          <span><Translate text="oneUppercaseLetter" /></span>
                         </li>
                         <li className={`flex items-center ${passwordErrors.includes('One special character') ? 'text-red-500' : 'text-green-600'}`}>
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          <span>One special character</span>
+                          <span><Translate text="oneSpecialCharacter" /></span>
                         </li>
                         <li className={`flex items-center ${passwordErrors.includes('One digit') ? 'text-red-500' : 'text-green-600'}`}>
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          <span>One digit</span>
+                          <span><Translate text="oneDigit" /></span>
                         </li>
                       </ul>
                     </div>
@@ -717,7 +715,7 @@ const Register = () => {
                         style={{ backgroundColor: bhagwa, color: "#fff" }}
                         onClick={handleNextStep1}
                       >
-                        Next
+                        <Translate text="next" />
                       </button>
                     </div>
                   </div>
@@ -725,7 +723,7 @@ const Register = () => {
                 
                 {step === 2 && (
                   <div className="registration-step animate-float">
-                    <h3 className="text-xl font-bold mb-6" style={{ color: darkText }}>Select Work Class *</h3>
+                    <h3 className="text-xl font-bold mb-6" style={{ color: darkText }}><Translate text="selectWorkClass" /></h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
                       {workClasses.map(workClass => (
                         <div 
@@ -741,7 +739,7 @@ const Register = () => {
                     
                     {formData.workClass && (
                       <div className="mb-8">
-                        <label className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Upload Required Documents</label>
+                        <label className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="uploadDocuments" /></label>
                         <input
                           type="file"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -762,7 +760,7 @@ const Register = () => {
                         style={{ backgroundColor: "#e6d9cc", color: darkText }}
                         onClick={() => setStep(1)}
                       >
-                        Previous
+                        <Translate text="previous" />
                       </button>
                       <button 
                         type="button" 
@@ -770,7 +768,7 @@ const Register = () => {
                         style={{ backgroundColor: bhagwa, color: "#fff" }}
                         onClick={handleNextStep2}
                       >
-                        Next
+                        <Translate text="next" />
                       </button>
                     </div>
                   </div>
@@ -778,11 +776,10 @@ const Register = () => {
                 
                 {step === 3 && (
                   <div className="registration-step animate-float">
-                    <h3 className="text-xl font-bold mb-6" style={{ color: darkText }}>Declaration and Consent *</h3>
+                    <h3 className="text-xl font-bold mb-6" style={{ color: darkText }}><Translate text="declarationAndConsent" /></h3>
                     <div className="p-6 rounded-xl mb-8" style={{ backgroundColor: creamCard }}>
                       <p className="mb-4" style={{ color: darkText }}>
-                        I accept the <strong>{getRoleName(formData.workClass)}</strong> agreement and 
-                        uphold the platform and company's privacy policy.
+                        <Translate text="iAcceptThe" /> <strong>{getRoleName(formData.workClass)}</strong> <Translate text="agreementAndPrivacyPolicy" />
                       </p>
                       <div className="flex items-center">
                         <input
@@ -794,7 +791,7 @@ const Register = () => {
                           className="w-5 h-5 mr-3"
                         />
                         <label htmlFor="declaration" className="font-semibold" style={{ color: darkText }}>
-                          I agree to the terms and conditions
+                          <Translate text="agreeToTerms" />
                         </label>
                       </div>
                     </div>
@@ -806,7 +803,7 @@ const Register = () => {
                         style={{ backgroundColor: "#e6d9cc", color: darkText }}
                         onClick={() => setStep(2)}
                       >
-                        Previous
+                        <Translate text="previous" />
                       </button>
                       <button 
                         type="submit" 
@@ -814,7 +811,7 @@ const Register = () => {
                         style={{ backgroundColor: bhagwa, color: "#fff" }}
                         disabled={loading}
                       >
-                        {loading ? 'Submitting...' : 'Submit Registration'}
+                        {loading ? <Translate text="submitting" /> : <Translate text="submitRegistration" />}
                       </button>
                     </div>
                   </div>
@@ -825,12 +822,12 @@ const Register = () => {
           
           <div className="text-center mt-8">
             <p className="text-[#7a614a]">
-              Already have an account?{' '}
+              <Translate text="alreadyHaveAccount" />{' '}
               <button 
                 onClick={() => navigate('/login')}
                 className="font-semibold text-[#f77f00] hover:underline"
               >
-                Login
+                <Translate text="login" />
               </button>
             </p>
           </div>
@@ -841,8 +838,13 @@ const Register = () => {
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
         <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex flex-col items-center">
-            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <img 
+              src="/logo2.png" 
+              alt="MarsaFyi Logo" 
+              style={{ width: 170, height: 100, borderRadius: 0, border: 'none' }}
+              className="mb-3"
+            />
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center"><Translate text="portCentricB2B" /></p>
 
             <div className="flex gap-3">
               {/* Instagram */}
@@ -868,29 +870,29 @@ const Register = () => {
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Buyers</div>
+            <div className="font-semibold mb-3"><Translate text="forBuyers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Submit RFQ</li>
-              <li>Search Suppliers</li>
-              <li>Trade Assurance</li>
-              <li>Payment Options</li>
+              <li><Translate text="submitRfq" /></li>
+              <li><Translate text="searchSuppliers" /></li>
+              <li><Translate text="tradeAssurance" /></li>
+              <li><Translate text="paymentOptions" /></li>
             </ul>
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Suppliers</div>
+            <div className="font-semibold mb-3"><Translate text="forSuppliers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Display Products</li>
-              <li>Supplier Membership</li>
-              <li>Learning Center</li>
-              <li>Success Stories</li>
+              <li><Translate text="displayProducts" /></li>
+              <li><Translate text="supplierMembership" /></li>
+              <li><Translate text="learningCenter" /></li>
+              <li><Translate text="successStories" /></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
+            <Translate text="copyrightText" year={new Date().getFullYear()} />
           </div>
         </div>
       </footer>

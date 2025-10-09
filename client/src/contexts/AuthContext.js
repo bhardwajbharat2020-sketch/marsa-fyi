@@ -75,6 +75,35 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Function to check if token is still valid
+  function isTokenValid() {
+    if (!authToken) return false;
+    
+    try {
+      // Decode the JWT token to check expiration
+      const payload = JSON.parse(atob(authToken.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      
+      // Check if token is expired
+      if (payload.exp < currentTime) {
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return false;
+    }
+  }
+
+  // Function to refresh token (would call a refresh endpoint if available)
+  async function refreshToken() {
+    // For now, we'll just redirect to login since we don't have a refresh endpoint
+    // In a more advanced implementation, you would call a refresh endpoint here
+    logout();
+    return false;
+  }
+
   function switchRole(newRole) {
     setUserRole(newRole);
     localStorage.setItem('marsafyi_role', newRole);
@@ -132,7 +161,9 @@ export function AuthProvider({ children }) {
     vendorCode,
     login,
     logout,
-    switchRole
+    switchRole,
+    isTokenValid,
+    refreshToken
   };
 
   return (

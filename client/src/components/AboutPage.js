@@ -13,6 +13,8 @@ import {
   MapPin,
 } from "lucide-react";
 import WhatsAppButton from './WhatsAppButton';
+import { useLanguage, useTranslation } from '../contexts/LanguageContext';
+import Translate from './Translate';
 
 /*
   Theme colors used inline via hex:
@@ -24,24 +26,24 @@ import WhatsAppButton from './WhatsAppButton';
 const heroSlides = [
   {
     id: 1,
-    title: "Revolutionizing Global Trade",
-    subtitle: "Connecting businesses across continents with trusted partnerships",
-    image: "/placeholder-hero.jpg",
-    cta: "Explore Opportunities",
+    titleKey: "revolutionizingGlobalTrade",
+    subtitleKey: "connectingBusinesses",
+    image: "image.jpg",
+    ctaKey: "exploreOpportunities",
   },
   {
     id: 2,
-    title: "Verified Suppliers Worldwide",
-    subtitle: "Work with pre-verified partners for secure transactions",
-    image: "/placeholder-hero2.jpg",
-    cta: "Find Suppliers",
+    titleKey: "verifiedSuppliers",
+    subtitleKey: "workWithPartners",
+    image: "about3.jpeg",
+    ctaKey: "findSuppliers",
   },
   {
     id: 3,
-    title: "End-to-End Trade Solutions",
-    subtitle: "From RFQ to delivery, we've got you covered",
-    image: "/placeholder-hero3.jpg",
-    cta: "Learn More",
+    titleKey: "endToEndSolutions",
+    subtitleKey: "rfqToDelivery",
+    image: "about2.jpg",
+    ctaKey: "learnMore",
   },
 ];
 
@@ -58,11 +60,23 @@ const categories = [
 
 const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
 
+// Languages for port-centric countries
+const languages = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'ar', name: 'العربية', flag: '🇦🇪' }
+];
+
 const AboutPage = () => {
   const navigate = useNavigate();
+  const { selectedLanguage, setSelectedLanguage } = useLanguage();
+  const { t } = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [selectedCountry, setSelectedCountry] = useState("Global");
   const [countryOpen, setCountryOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   // hero auto-rotate
   useEffect(() => {
@@ -71,6 +85,33 @@ const AboutPage = () => {
     }, 5500);
     return () => clearInterval(id);
   }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside both dropdowns
+      if (countryOpen || languageOpen) {
+        // Don't close if clicking on the dropdown buttons or their content
+        const countryButton = document.querySelector('.country-selector-button');
+        const languageButton = document.querySelector('.language-selector-button');
+        const countryDropdown = document.querySelector('.country-dropdown');
+        const languageDropdown = document.querySelector('.language-dropdown');
+        
+        const isClickOnCountry = countryButton?.contains(event.target) || countryDropdown?.contains(event.target);
+        const isClickOnLanguage = languageButton?.contains(event.target) || languageDropdown?.contains(event.target);
+        
+        if (!isClickOnCountry && !isClickOnLanguage) {
+          setCountryOpen(false);
+          setLanguageOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [countryOpen, languageOpen]);
 
   // small helper for theme colors in inline style
   const bhagwa = "#f77f00";
@@ -92,7 +133,7 @@ const AboutPage = () => {
 
       {/* Top thin bar */}
       <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
-        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
+        <small><Translate text="portCentricB2B" /></small>
       </div>
 
       {/* Header */}
@@ -100,35 +141,30 @@ const AboutPage = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              className="cursor-pointer flex items-center gap-2"
               onClick={() => navigate("/")}
-              style={{ backgroundColor: creamCard }}
             >
-              <div
-                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+              <img 
+                src="/logo.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 130, height: 60, borderRadius: 0, border: 'none' }}
                 className="flex items-center justify-center text-white font-bold text-lg"
-              >
-                M
-              </div>
-              <div className="">
-                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
-                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
-              </div>
+              />
             </div>
 
             {/* visible on desktop */}
             <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
-              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
-              <button onClick={() => navigate("/about")} className="font-semibold" style={{ color: bhagwa }}>About</button>
-              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
-              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]"><Translate text="home" /></button>
+              <button onClick={() => navigate("/about")} className="font-semibold" style={{ color: bhagwa }}><Translate text="about" /></button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]"><Translate text="shop" /></button>
+              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]"><Translate text="contact" /></button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <input
-                placeholder="Find products, suppliers, or ports..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
                 style={{ backgroundColor: "#fff", color: darkText }}
               />
@@ -140,7 +176,8 @@ const AboutPage = () => {
               className="px-4 py-2 rounded-full font-semibold"
               style={{ backgroundColor: bhagwa, color: "#fff" }}
             >
-              Join / Login
+              <Translate text="joinLogin" />
+
             </button>
 
             <User className="h-6 w-6 text-[#6b503d]" />
@@ -151,37 +188,69 @@ const AboutPage = () => {
       {/* Country selector */}
       <div className="w-full border-t border-b" style={{ borderColor: "#eadfce" }}>
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="relative" onMouseLeave={() => setCountryOpen(false)}>
-            <button
-              onMouseEnter={() => setCountryOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
-              style={{ backgroundColor: creamCard, color: darkText }}
-            >
-              <MapPin className="h-4 w-4" />
-              <span>{selectedCountry}</span>
-              <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
-                <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <button
+                onClick={() => setCountryOpen(!countryOpen)}
+                className="country-selector-button flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+                style={{ backgroundColor: creamCard, color: darkText }}
+              >
+                <MapPin className="h-4 w-4" />
+                <span>{selectedCountry}</span>
+                <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
 
-            {countryOpen && (
-              <div className="absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
-                {countries.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
-                    style={{ color: darkText }}
-                  >
-                    {c === "Global" ? "🌍 Global" : c}
-                  </button>
-                ))}
-              </div>
-            )}
+              {countryOpen && (
+                <div className="country-dropdown absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
+                  {countries.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
+                      style={{ color: darkText }}
+                    >
+                      {c === "Global" ? "🌍 Global" : c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Language selector */}
+            <div className="relative">
+              <button
+                onClick={() => setLanguageOpen(!languageOpen)}
+                className="language-selector-button flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+                style={{ backgroundColor: creamCard, color: darkText }}
+              >
+                <Globe className="h-4 w-4" />
+                <span>{languages.find(lang => lang.code === selectedLanguage)?.flag} {languages.find(lang => lang.code === selectedLanguage)?.name}</span>
+                <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {languageOpen && (
+                <div className="language-dropdown absolute mt-2 left-0 w-44 rounded-md shadow-lg glass overflow-hidden z-40">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setSelectedLanguage(lang.code); setLanguageOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedLanguage === lang.code ? "font-semibold" : ""}`}
+                      style={{ color: darkText }}
+                    >
+                      <span className="mr-2">{lang.flag}</span> {lang.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="text-sm" style={{ color: "#7a614a" }}>
-            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+            <Translate text="serving" /> <span className="font-semibold">{selectedCountry}</span> • <Translate text="portCentricLogistics" />
           </div>
         </div>
       </div>
@@ -201,9 +270,9 @@ const AboutPage = () => {
              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.06))" }}>
           <div className="max-w-2xl text-white animate-float">
             <h1 className="text-4xl md:text-5xl font-extrabold leading-tight" style={{ textShadow: "0 6px 20px rgba(0,0,0,0.5)" }}>
-              About MarsaFyi
+              <Translate text="aboutMarsaFyi" />
             </h1>
-            <p className="mt-4 text-lg md:text-xl text-white/90">Revolutionizing global B2B trade since 2023</p>
+            <p className="mt-4 text-lg md:text-xl text-white/90"><Translate text={heroSlides[currentSlide].subtitleKey} /></p>
 
             <div className="mt-6 flex gap-3">
               <button
@@ -211,23 +280,23 @@ const AboutPage = () => {
                 className="px-6 py-3 rounded-full font-bold"
                 style={{ backgroundColor: bhagwa, color: "#fff" }}
               >
-                Join Now - It's Free
+                <Translate text={heroSlides[currentSlide].ctaKey} />
               </button>
               <button
                 onClick={() => navigate("/contact")}
                 className="px-6 py-3 rounded-full font-semibold"
                 style={{ backgroundColor: "rgba(255,255,255,0.9)", color: darkText }}
               >
-                Contact Sales
+                <Translate text="contact" />
               </button>
             </div>
           </div>
 
           {/* quick search card */}
           <div className="w-full md:w-96 p-4 rounded-xl shadow-md" style={{ backgroundColor: creamCard }}>
-            <div className="text-sm font-semibold mb-2" style={{ color: darkText }}>Quick RFQ & Search</div>
+            <div className="text-sm font-semibold mb-2" style={{ color: darkText }}><Translate text="quickRfqSearch" /></div>
             <div className="flex gap-2">
-              <input className="flex-1 px-3 py-2 rounded-md border border-transparent focus:outline-none" placeholder="Search products, suppliers, or ports" />
+              <input className="flex-1 px-3 py-2 rounded-md border border-transparent focus:outline-none" placeholder={t('searchProductsSuppliers')} />
               <button className="px-3 rounded-md" style={{ backgroundColor: bhagwa, color: "#fff" }}>
                 <Search />
               </button>
@@ -235,20 +304,20 @@ const AboutPage = () => {
 
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Port Integration</div>
-                <div className="text-xs text-[#8b6a4f]">Live ETA & berth data</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="portIntegration" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="liveEta" /></div>
               </button>
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Supplier Verification</div>
-                <div className="text-xs text-[#8b6a4f]">KYC & audits</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="supplierVerification" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="kycAudits" /></div>
               </button>
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Customs Support</div>
-                <div className="text-xs text-[#8b6a4f]">Paperwork & clearance</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="customsSupport" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="paperworkClearance" /></div>
               </button>
               <button className="px-3 py-2 rounded-md text-left" style={{ backgroundColor: "#fff" }}>
-                <div className="font-semibold" style={{ color: darkText }}>Secure Payments</div>
-                <div className="text-xs text-[#8b6a4f]">Escrow & trade assurance</div>
+                <div className="font-semibold" style={{ color: darkText }}><Translate text="securePayments" /></div>
+                <div className="text-xs text-[#8b6a4f]"><Translate text="escrowTrade" /></div>
               </button>
             </div>
           </div>
@@ -272,24 +341,20 @@ const AboutPage = () => {
         <div className="container mx-auto px-4">
           <div className="mission-content">
             <div className="mission-text">
-              <h2 className="text-3xl font-bold mb-6" style={{ color: darkText }}>Our Mission</h2>
+              <h2 className="text-3xl font-bold mb-6" style={{ color: darkText }}><Translate text="ourMission" /></h2>
               <p className="text-lg mb-4" style={{ color: "#7a614a" }}>
-                At MarsaFyi, we are committed to transforming the landscape of international B2B trade by 
-                creating a seamless, secure, and efficient platform that connects businesses worldwide. 
-                Our mission is to eliminate the barriers that have traditionally hindered global commerce, 
-                enabling companies of all sizes to participate in the global marketplace with confidence.
+                <Translate text="missionText1" />
               </p>
               <p className="text-lg" style={{ color: "#7a614a" }}>
-                We believe that every business, regardless of its size or location, deserves access to 
-                high-quality suppliers, competitive pricing, and reliable trade partners. Through innovative 
-                technology and a commitment to transparency, we're building a future where international 
-                trade is accessible to all.
+                <Translate text="missionText2" />
               </p>
             </div>
             <div className="mission-image mt-8">
-              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-64 flex items-center justify-center" style={{ backgroundColor: creamCard }}>
-                <span className="text-gray-500">Our Mission Visualization</span>
-              </div>
+              <img 
+                src="/mission1.jpg" 
+                alt="Our Mission" 
+                className="w-full h-64 object-cover rounded-xl shadow-lg"
+              />
             </div>
           </div>
         </div>
@@ -300,23 +365,19 @@ const AboutPage = () => {
         <div className="container mx-auto px-4">
           <div className="vision-content">
             <div className="vision-image mb-8">
-              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-64 flex items-center justify-center" style={{ backgroundColor: "#e6d9cc" }}>
-                <span className="text-gray-500">Our Vision Visualization</span>
-              </div>
+              <img 
+                src="/mission2.jpg" 
+                alt="Our Vision" 
+                className="w-full h-64 object-cover rounded-xl shadow-lg"
+              />
             </div>
             <div className="vision-text">
-              <h2 className="text-3xl font-bold mb-6" style={{ color: darkText }}>Our Vision</h2>
+              <h2 className="text-3xl font-bold mb-6" style={{ color: darkText }}><Translate text="ourVision" /></h2>
               <p className="text-lg mb-4" style={{ color: "#7a614a" }}>
-                We envision a world where geographical boundaries no longer limit business opportunities. 
-                Our goal is to become the most trusted global B2B platform, facilitating trillions of dollars 
-                in trade transactions annually while maintaining the highest standards of security, 
-                transparency, and user satisfaction.
+                <Translate text="visionText1" />
               </p>
               <p className="text-lg" style={{ color: "#7a614a" }}>
-                Through continuous innovation and strategic partnerships, we aim to create an ecosystem 
-                where businesses can thrive, suppliers can showcase their capabilities, and buyers can 
-                discover the perfect products for their needs. We're not just building a platform; 
-                we're shaping the future of global commerce.
+                <Translate text="visionText2" />
               </p>
             </div>
           </div>
@@ -326,37 +387,37 @@ const AboutPage = () => {
       {/* Values Section */}
       <section className="values-section py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center" style={{ color: darkText }}>Our Core Values</h2>
+          <h2 className="text-3xl font-bold mb-12 text-center" style={{ color: darkText }}><Translate text="coreValues" /></h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="p-6 rounded-xl text-center" style={{ backgroundColor: creamCard }}>
               <div className="value-icon text-4xl mb-4">🔒</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Integrity</h3>
-              <p className="text-[#7a614a]">We conduct all our business with honesty, transparency, and ethical practices.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="integrity" /></h3>
+              <p className="text-[#7a614a]"><Translate text="integrityText" /></p>
             </div>
             <div className="p-6 rounded-xl text-center" style={{ backgroundColor: creamCard }}>
               <div className="value-icon text-4xl mb-4">🚀</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Innovation</h3>
-              <p className="text-[#7a614a]">We continuously strive to improve our platform with cutting-edge technology.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="innovation" /></h3>
+              <p className="text-[#7a614a]"><Translate text="innovationText" /></p>
             </div>
             <div className="p-6 rounded-xl text-center" style={{ backgroundColor: creamCard }}>
               <div className="value-icon text-4xl mb-4">🤝</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Collaboration</h3>
-              <p className="text-[#7a614a]">We believe in the power of partnerships to achieve extraordinary results.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="collaboration" /></h3>
+              <p className="text-[#7a614a]"><Translate text="collaborationText" /></p>
             </div>
             <div className="p-6 rounded-xl text-center" style={{ backgroundColor: creamCard }}>
               <div className="value-icon text-4xl mb-4">🌎</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Global Perspective</h3>
-              <p className="text-[#7a614a]">We celebrate diversity and embrace the opportunities of global commerce.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="globalPerspective" /></h3>
+              <p className="text-[#7a614a]"><Translate text="globalPerspectiveText" /></p>
             </div>
             <div className="p-6 rounded-xl text-center" style={{ backgroundColor: creamCard }}>
               <div className="value-icon text-4xl mb-4">💯</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Excellence</h3>
-              <p className="text-[#7a614a]">We are committed to delivering exceptional value to all our stakeholders.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="excellence" /></h3>
+              <p className="text-[#7a614a]"><Translate text="excellenceText" /></p>
             </div>
             <div className="p-6 rounded-xl text-center" style={{ backgroundColor: creamCard }}>
               <div className="value-icon text-4xl mb-4">💡</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Empowerment</h3>
-              <p className="text-[#7a614a]">We empower businesses to reach their full potential in global markets.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="empowerment" /></h3>
+              <p className="text-[#7a614a]"><Translate text="empowermentText" /></p>
             </div>
           </div>
         </div>
@@ -365,19 +426,20 @@ const AboutPage = () => {
       {/* Leadership Team */}
       <section className="leadership-section py-16" style={{ backgroundColor: "#f0e6d9" }}>
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center" style={{ color: darkText }}>Our Leadership Team</h2>
+          <h2 className="text-3xl font-bold mb-12 text-center" style={{ color: darkText }}><Translate text="leadershipTeam" /></h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="leader-card p-6 rounded-xl text-center" style={{ backgroundColor: "#fff" }}>
               <div className="leader-image mb-4">
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-32 h-32 mx-auto flex items-center justify-center">
-                  <span className="text-gray-500">Leader Photo</span>
-                </div>
+                <img 
+                  src="/Alex.jpeg" 
+                  alt="Alex Johnson" 
+                  className="w-32 h-32 rounded-xl mx-auto object-cover"
+                />
               </div>
               <h3 className="text-xl font-bold" style={{ color: darkText }}>Alex Johnson</h3>
-              <p className="leader-title text-[#f77f00] font-semibold my-2">Founder & CEO</p>
+              <p className="leader-title text-[#f77f00] font-semibold my-2"><Translate text="founderCEO" /></p>
               <p className="leader-bio text-[#7a614a]">
-                Former VP of International Trade at GlobalCommerce Inc. with 15+ years of experience 
-                in B2B marketplaces.
+                <Translate text="alexJohnsonBio" />
               </p>
             </div>
             <div className="leader-card p-6 rounded-xl text-center" style={{ backgroundColor: "#fff" }}>
@@ -387,23 +449,23 @@ const AboutPage = () => {
                 </div>
               </div>
               <h3 className="text-xl font-bold" style={{ color: darkText }}>Sarah Williams</h3>
-              <p className="leader-title text-[#f77f00] font-semibold my-2">Chief Technology Officer</p>
+              <p className="leader-title text-[#f77f00] font-semibold my-2"><Translate text="cto" /></p>
               <p className="leader-bio text-[#7a614a]">
-                Expert in scalable platform architecture with previous roles at TechInnovate and 
-                DigitalSolutions.
+                <Translate text="sarahWilliamsBio" />
               </p>
             </div>
             <div className="leader-card p-6 rounded-xl text-center" style={{ backgroundColor: "#fff" }}>
               <div className="leader-image mb-4">
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-32 h-32 mx-auto flex items-center justify-center">
-                  <span className="text-gray-500">Leader Photo</span>
-                </div>
+                <img 
+                  src="/Michael.jpeg" 
+                  alt="Michael Chen" 
+                  className="w-32 h-32 rounded-xl mx-auto object-cover"
+                />
               </div>
               <h3 className="text-xl font-bold" style={{ color: darkText }}>Michael Chen</h3>
-              <p className="leader-title text-[#f77f00] font-semibold my-2">Chief Operations Officer</p>
+              <p className="leader-title text-[#f77f00] font-semibold my-2"><Translate text="coo" /></p>
               <p className="leader-bio text-[#7a614a]">
-                Operations specialist with extensive experience in logistics and supply chain 
-                management across 30+ countries.
+                <Translate text="michaelChenBio" />
               </p>
             </div>
           </div>
@@ -413,7 +475,7 @@ const AboutPage = () => {
       {/* Milestones Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-16" style={{ color: darkText }}>Our Journey</h2>
+          <h2 className="text-3xl font-bold text-center mb-16" style={{ color: darkText }}><Translate text="ourJourney" /></h2>
           <div className="max-w-4xl mx-auto">
             <div className="relative">
               {/* Timeline line */}
@@ -422,11 +484,11 @@ const AboutPage = () => {
               {/* Timeline items */}
               <div className="relative space-y-12">
                 {[
-                  { year: '2023', title: 'Founded', description: 'MarsaFyi launched with a vision to revolutionize global B2B trade' },
-                  { year: '2023 Q4', title: '10,000 Users', description: 'Reached our first major milestone with 10,000 registered users' },
-                  { year: '2024 Q2', title: 'Global Expansion', description: 'Expanded to 50+ countries with localized support' },
-                  { year: '2024 Q4', title: '100,000 Transactions', description: 'Facilitated over 100,000 successful transactions' },
-                  { year: '2025', title: 'New Horizons', description: 'Launched AI-powered recommendation engine and mobile app' }
+                  { year: '2023', title: <Translate text="founded" />, description: <Translate text="foundedText" /> },
+                  { year: '2023 Q4', title: <Translate text="tenThousandUsers" />, description: <Translate text="tenThousandUsersText" /> },
+                  { year: '2024 Q2', title: <Translate text="globalExpansion" />, description: <Translate text="globalExpansionText" /> },
+                  { year: '2024 Q4', title: <Translate text="hundredThousandTransactions" />, description: <Translate text="hundredThousandTransactionsText" /> },
+                  { year: '2025', title: <Translate text="newHorizons" />, description: <Translate text="newHorizonsText" /> }
                 ].map((milestone, index) => (
                   <div key={index} className={`flex ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-center`}>
                     <div className="w-1/2 px-8">
@@ -452,13 +514,20 @@ const AboutPage = () => {
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
         <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-5 gap-8">
           <div className="md:col-span-1 flex flex-col items-center md:items-start">
-            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <div className="text-2xl font-bold mb-3 flex items-center">
+              <img 
+                src="/logo2.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 170, height: 100, borderRadius: 0, border: 'none' }}
+                className="flex items-center justify-center"
+              />
+            </div>
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left"><Translate text="portCentricB2B" /></p>
 
             <div className="flex gap-3">
               {/* Instagram */}
               <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
               </a>
 
               {/* Facebook */}
@@ -473,55 +542,55 @@ const AboutPage = () => {
 
               {/* YouTube */}
               <a href="https://youtube.com/marsafyi" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="YouTube">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1 1.8-1 .6-.7.8-2.3.8-2.3s.2-1.8.2-3.6v-1.4C23 8 22.5 6.2 22.5 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22.5 6.2s-.2-1.6-.8-2.3c-.7-.9-1.4-.9-1.8-1C16.6 2.5 12 2.5 12 2.5h0s-4.6 0-7.9.4c-.4.1-1.1.1-1.8 1-.6.7-.8 2.3-.8 2.3S1 8 1 9.8v1.4C1 13 1.2 14.7 1.2 14.7s.2 1.6.8 2.3c.7.9 1.6.9 2 1 1.5.2 6.3.4 6.3.4s4.6 0 7.9-.4c.4-.1 1.1-.1 1.8-1 .6-.7.8-2.3.8-2.3S23 8 23 6.2z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 14.5V8.5l5 3-5 3z" fill="#f6efe6"/></svg>
               </a>
             </div>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">For Buyers</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="forBuyers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/login")} className="hover:text-white">Submit RFQ</button></li>
-              <li><button onClick={() => navigate("/shop")} className="hover:text-white">Search Suppliers</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Trade Assurance</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Payment Options</button></li>
+              <li><button onClick={() => navigate("/login")} className="hover:text-white"><Translate text="submitRfq" /></button></li>
+              <li><button onClick={() => navigate("/shop")} className="hover:text-white"><Translate text="searchSuppliers" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="tradeAssurance" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="paymentOptions" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">For Suppliers</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="forSuppliers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/login")} className="hover:text-white">Display Products</button></li>
-              <li><button onClick={() => navigate("/register")} className="hover:text-white">Supplier Membership</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Learning Center</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Success Stories</button></li>
+              <li><button onClick={() => navigate("/login")} className="hover:text-white"><Translate text="displayProducts" /></button></li>
+              <li><button onClick={() => navigate("/register")} className="hover:text-white"><Translate text="supplierMembership" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="learningCenter" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="successStories" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">Company</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="company" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">About Us</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Contact Us</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Careers</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Press</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="aboutUs" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="contactUs" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="careers" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="press" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">Support</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="support" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Help Center</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Submit a Request</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Terms of Service</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Privacy Policy</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="helpCenter" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="submitRequest" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="termsOfService" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="privacyPolicy" /></button></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved
+            <Translate text="copyrightText" year={new Date().getFullYear()} />
           </div>
         </div>
       </footer>

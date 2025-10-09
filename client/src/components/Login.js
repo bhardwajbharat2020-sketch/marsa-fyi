@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, User, MapPin, ArrowLeft } from 'lucide-react';
 import '../App.css';
+import { useLanguage, useTranslation } from '../contexts/LanguageContext';
+import Translate from './Translate';
 
 const Login = () => {
   const [vendorCode, setVendorCode] = useState('');
@@ -11,9 +13,15 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState("Global");
   const [countryOpen, setCountryOpen] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const { t } = useTranslation();
 
   // small helper for theme colors in inline style
   const bhagwa = "#f77f00";
@@ -200,6 +208,48 @@ const Login = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    
+    if (!forgotEmail) {
+      setForgotError('Please enter your email address');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotEmail)) {
+      setForgotError('Please enter a valid email address');
+      return;
+    }
+    
+    setForgotLoading(true);
+    setForgotError('');
+    
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setForgotSuccess(true);
+      } else {
+        setForgotError(data.error || 'Failed to send reset instructions. Please try again.');
+      }
+    } catch (err) {
+      setForgotError('Failed to send reset instructions. Please try again.');
+      console.error('Forgot password error:', err);
+    }
+    
+    setForgotLoading(false);
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
       {/* global small style additions (keyframes) */}
@@ -222,35 +272,30 @@ const Login = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              className="cursor-pointer flex items-center gap-2"
               onClick={() => navigate("/")}
-              style={{ backgroundColor: creamCard }}
             >
-              <div
-                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+              <img 
+                src="/logo.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 130, height: 60, borderRadius: 0, border: 'none' }}
                 className="flex items-center justify-center text-white font-bold text-lg"
-              >
-                M
-              </div>
-              <div className="">
-                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
-                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
-              </div>
+              />
             </div>
 
             {/* visible on desktop */}
             <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
-              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
-              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
-              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
-              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]"><Translate text="home" /></button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]"><Translate text="about" /></button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]"><Translate text="shop" /></button>
+              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]"><Translate text="contact" /></button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <input
-                placeholder="Find products, suppliers, or ports..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
                 style={{ backgroundColor: "#fff", color: darkText }}
               />
@@ -262,7 +307,7 @@ const Login = () => {
               className="px-4 py-2 rounded-full font-semibold"
               style={{ backgroundColor: bhagwa, color: "#fff" }}
             >
-              Join / Login
+              <Translate text="joinLogin" />
             </button>
 
             <User className="h-6 w-6 text-[#6b503d]" />
@@ -303,7 +348,7 @@ const Login = () => {
           </div>
 
           <div className="text-sm" style={{ color: "#7a614a" }}>
-            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+            <Translate text="serving" /> <span className="font-semibold">{selectedCountry}</span> • <Translate text="portCentricLogistics" />
           </div>
         </div>
       </div>
@@ -318,65 +363,135 @@ const Login = () => {
             style={{ color: bhagwa }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            <Translate text="back" />
           </button>
 
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
             <div className="p-8">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold mb-2" style={{ color: darkText }}>Welcome Back</h2>
-                <p className="text-[#7a614a]">Sign in to access your account</p>
-              </div>
-              
-              {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
-              
-              <form onSubmit={handleSubmit}>
-                <div className="mb-6">
-                  <label htmlFor="vendorCode" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Vendor Code or Email</label>
-                  <input
-                    type="text"
-                    id="vendorCode"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={vendorCode}
-                    onChange={(e) => setVendorCode(e.target.value)}
-                    placeholder="Enter your Vendor Code or Email"
-                    required
-                    style={{ backgroundColor: "#fff", color: darkText }}
-                  />
-                </div>
-                
-                <div className="mb-6">
-                  <label htmlFor="password" className="block text-lg font-semibold mb-2" style={{ color: darkText }}>Password</label>
-                  <input
-                    type="password"
-                    id="password"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your Password"
-                    required
-                    style={{ backgroundColor: "#fff", color: darkText }}
-                  />
-                </div>
-                
-                <button 
-                  type="submit" 
-                  className="w-full px-6 py-3 rounded-full font-bold"
-                  style={{ backgroundColor: bhagwa, color: "#fff" }}
-                  disabled={loading}
-                >
-                  {loading ? 'Logging in...' : 'Login'}
-                </button>
-              </form>
-              
-              <div className="text-center mt-6">
-                <button 
-                  onClick={() => navigate('/register')}
-                  className="font-semibold text-[#f77f00] hover:underline"
-                >
-                  Don't have an account? Register
-                </button>
-              </div>
+              {!showForgotPassword ? (
+                <>
+                  <div className="text-center mb-8">
+                    <h2 className="text-3xl font-bold mb-2" style={{ color: darkText }}><Translate text="welcomeBack" /></h2>
+                    <p className="text-[#7a614a]"><Translate text="signInToAccess" /></p>
+                  </div>
+                  
+                  {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
+                  
+                  <form onSubmit={handleSubmit}>
+                    <div className="mb-6">
+                      <label htmlFor="vendorCode" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="vendorCodeOrEmail" /></label>
+                      <input
+                        type="text"
+                        id="vendorCode"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={vendorCode}
+                        onChange={(e) => setVendorCode(e.target.value)}
+                        placeholder={t('enterVendorCodeOrEmail')}
+                        required
+                        style={{ backgroundColor: "#fff", color: darkText }}
+                      />
+                    </div>
+                    
+                    <div className="mb-6">
+                      <label htmlFor="password" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="password" /></label>
+                      <input
+                        type="password"
+                        id="password"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t('enterPassword')}
+                        required
+                        style={{ backgroundColor: "#fff", color: darkText }}
+                      />
+                    </div>
+                    
+                    <button 
+                      type="submit" 
+                      className="w-full px-6 py-3 rounded-full font-bold"
+                      style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      disabled={loading}
+                    >
+                      {loading ? <Translate text="loggingIn" /> : <Translate text="login" />}
+                    </button>
+                  </form>
+                  
+                  <div className="text-center mt-4">
+                    <button 
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm font-semibold text-[#f77f00] hover:underline"
+                    >
+                      <Translate text="forgotPassword" />
+                    </button>
+                  </div>
+                  
+                  <div className="text-center mt-6">
+                    <button 
+                      onClick={() => navigate('/register')}
+                      className="font-semibold text-[#f77f00] hover:underline"
+                    >
+                      <Translate text="dontHaveAccount" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center mb-8">
+                    <h2 className="text-3xl font-bold mb-2" style={{ color: darkText }}><Translate text="resetPassword" /></h2>
+                    <p className="text-[#7a614a]"><Translate text="enterEmailForReset" /></p>
+                  </div>
+                  
+                  {forgotSuccess ? (
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
+                      <p><Translate text="resetInstructionsSent" /></p>
+                      <p className="mt-2 text-sm"><Translate text="checkEmailSpam" /></p>
+                    </div>
+                  ) : (
+                    <>
+                      {forgotError && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">{forgotError}</div>}
+                      
+                      <form onSubmit={handleForgotPassword}>
+                        <div className="mb-6">
+                          <label htmlFor="forgotEmail" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="emailAddress" /></label>
+                          <input
+                            type="email"
+                            id="forgotEmail"
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={forgotEmail}
+                            onChange={(e) => setForgotEmail(e.target.value)}
+                            placeholder={t('enterEmailAddress')}
+                            required
+                            style={{ backgroundColor: "#fff", color: darkText }}
+                          />
+                        </div>
+                        
+                        <button 
+                          type="submit" 
+                          className="w-full px-6 py-3 rounded-full font-bold"
+                          style={{ backgroundColor: bhagwa, color: "#fff" }}
+                          disabled={forgotLoading}
+                        >
+                          {forgotLoading ? <Translate text="sending" /> : <Translate text="sendResetLink" />}
+                        </button>
+                      </form>
+                    </>
+                  )}
+                  
+                  <div className="text-center mt-6">
+                    <button 
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setForgotEmail('');
+                        setForgotError('');
+                        setForgotSuccess(false);
+                      }}
+                      className="font-semibold text-[#f77f00] hover:underline"
+                    >
+                      Back to Login
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           
@@ -395,8 +510,13 @@ const Login = () => {
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
         <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex flex-col items-center">
-            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <img 
+              src="/logo2.png" 
+              alt="MarsaFyi Logo" 
+              style={{ width: 170, height: 100, borderRadius: 0, border: 'none' }}
+              className="mb-3"
+            />
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center"><Translate text="portCentricB2B" /></p>
 
             <div className="flex gap-3">
               {/* Instagram */}
@@ -422,29 +542,29 @@ const Login = () => {
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Buyers</div>
+            <div className="font-semibold mb-3"><Translate text="forBuyers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Submit RFQ</li>
-              <li>Search Suppliers</li>
-              <li>Trade Assurance</li>
-              <li>Payment Options</li>
+              <li><Translate text="submitRfq" /></li>
+              <li><Translate text="searchSuppliers" /></li>
+              <li><Translate text="tradeAssurance" /></li>
+              <li><Translate text="paymentOptions" /></li>
             </ul>
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Suppliers</div>
+            <div className="font-semibold mb-3"><Translate text="forSuppliers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Display Products</li>
-              <li>Supplier Membership</li>
-              <li>Learning Center</li>
-              <li>Success Stories</li>
+              <li><Translate text="displayProducts" /></li>
+              <li><Translate text="supplierMembership" /></li>
+              <li><Translate text="learningCenter" /></li>
+              <li><Translate text="successStories" /></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
+            <Translate text="copyrightText" year={new Date().getFullYear()} />
           </div>
         </div>
       </footer>

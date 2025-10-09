@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Menu, X } from 'lucide-react';
+import ChangePasswordModal from './ChangePasswordModal';
+import { User, LogOut, Menu, X, Key } from 'lucide-react';
 import '../App.css';
 
 const DashboardLayout = ({ children, title, role }) => {
@@ -10,6 +11,7 @@ const DashboardLayout = ({ children, title, role }) => {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Theme colors to match homepage
   const bhagwa = "#f77f00";
@@ -28,6 +30,12 @@ const DashboardLayout = ({ children, title, role }) => {
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handlePasswordChanged = () => {
+    setShowChangePasswordModal(false);
+    // Optionally show a notification or alert
+    alert('Password changed successfully!');
   };
 
   const getMenuItems = () => {
@@ -65,7 +73,8 @@ const DashboardLayout = ({ children, title, role }) => {
     { name: 'Dashboard', path: `/dashboard/${role}`, icon: '📊' },
     { name: 'Profile', path: `/dashboard/${role}/profile`, icon: '👤' },
     { name: 'Notifications', path: `/dashboard/${role}/notifications`, icon: '🔔' },
-    { name: 'Settings', path: `/dashboard/${role}/settings`, icon: '⚙️' }
+    { name: 'Settings', path: `/dashboard/${role}/settings`, icon: '⚙️' },
+    { name: 'Change Password', action: () => setShowChangePasswordModal(true), icon: '🔑' }
   ];
 
   const getSellerMenuItems = () => [
@@ -168,6 +177,13 @@ const DashboardLayout = ({ children, title, role }) => {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
+      {/* Change Password Modal */}
+      <ChangePasswordModal 
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        onPasswordChanged={handlePasswordChanged}
+      />
+      
       {/* Mobile menu button */}
       <div className="md:hidden fixed top-4 left-4 z-50">
         <button
@@ -192,7 +208,13 @@ const DashboardLayout = ({ children, title, role }) => {
             onClick={e => e.stopPropagation()}
           >
             <div className="p-4 border-b" style={{ borderColor: "#3a2b20" }}>
-              <h2 className="text-xl font-bold" style={{ color: "#f8efe3" }}>MarsaFyi</h2>
+              <div className="flex items-center">
+                <img 
+                  src="/logo.png" 
+                  alt="MarsaFyi Logo" 
+                  className="h-12 w-12 mr-2"
+                />
+              </div>
             </div>
             <nav className="p-2">
               {getMenuItems().map((item, index) => (
@@ -202,7 +224,11 @@ const DashboardLayout = ({ children, title, role }) => {
                     location.pathname === item.path ? 'font-semibold' : ''
                   }`}
                   onClick={() => {
-                    navigate(item.path);
+                    if (item.path) {
+                      navigate(item.path);
+                    } else if (item.action) {
+                      item.action();
+                    }
                     setMobileMenuOpen(false);
                   }}
                   style={{ 
@@ -225,7 +251,13 @@ const DashboardLayout = ({ children, title, role }) => {
       }`} style={{ backgroundColor: "#2b2017" }}>
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "#3a2b20" }}>
           {!sidebarCollapsed && (
-            <h2 className="text-xl font-bold" style={{ color: "#f8efe3" }}>MarsaFyi</h2>
+            <div className="flex items-center">
+              <img 
+                src="/logo2.png" 
+                alt="MarsaFyi Logo" 
+                className="h-14 w-33 mr-2"
+              />
+            </div>
           )}
           <button 
             className="p-1 rounded-md"
@@ -242,7 +274,13 @@ const DashboardLayout = ({ children, title, role }) => {
               className={`p-3 rounded-md mb-1 flex items-center cursor-pointer ${
                 location.pathname === item.path ? 'font-semibold' : ''
               }`}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                if (item.path) {
+                  navigate(item.path);
+                } else if (item.action) {
+                  item.action();
+                }
+              }}
               style={{ 
                 backgroundColor: location.pathname === item.path ? "#3a2b20" : "transparent",
                 color: "#f8efe3"
@@ -286,6 +324,15 @@ const DashboardLayout = ({ children, title, role }) => {
                   {getRoleName(userRole)}
                 </div>
               </div>
+              <button 
+                className="flex items-center gap-2 px-4 py-2 rounded-full font-semibold"
+                onClick={() => setShowChangePasswordModal(true)}
+                style={{ backgroundColor: creamCard, color: darkText }}
+                title="Change Password"
+              >
+                <Key size={16} />
+                <span className="hidden sm:inline">Change Password</span>
+              </button>
               <button 
                 className="flex items-center gap-2 px-4 py-2 rounded-full font-semibold"
                 onClick={handleLogout}

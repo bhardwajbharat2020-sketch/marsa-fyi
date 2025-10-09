@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
+import ChangePasswordModal from './ChangePasswordModal';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, X, Edit, Trash2, Eye, Camera, Upload, Bell } from 'lucide-react';
+import { Plus, X, Edit, Trash2, Eye, Bell } from 'lucide-react';
 import '../App.css';
+
 
 const SellerDashboard = () => {
   const { authToken } = useAuth();
@@ -34,9 +36,7 @@ const SellerDashboard = () => {
     validityTime: '',
     surveyTermsAccepted: false,
     sellerAgreementAccepted: false,
-    relabelingTermsAccepted: false,
-    image: null,
-    imageUrl: ''
+    relabelingTermsAccepted: false
   });
 
   // State for edit product modal
@@ -59,9 +59,7 @@ const SellerDashboard = () => {
     validityTime: '',
     surveyTermsAccepted: false,
     sellerAgreementAccepted: false,
-    relabelingTermsAccepted: false,
-    image: null,
-    imageUrl: ''
+    relabelingTermsAccepted: false
   });
 
   // State for product sections
@@ -69,9 +67,7 @@ const SellerDashboard = () => {
   const [submittedProducts, setSubmittedProducts] = useState([]);
   const [ineffectiveProducts, setIneffectiveProducts] = useState([]);
 
-  // State for image upload
-  const [imagePreview, setImagePreview] = useState(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
+
 
   // Define categories list (from ShopPage)
   const categories = [
@@ -337,45 +333,6 @@ const SellerDashboard = () => {
     }));
   };
 
-  // Handle image upload
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setNewProduct(prev => ({
-        ...prev,
-        image: file,
-        imageUrl: URL.createObjectURL(file)
-      }));
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
-
-  // Handle edit image upload
-  const handleEditImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setEditProductData(prev => ({
-        ...prev,
-        image: file,
-        imageUrl: URL.createObjectURL(file)
-      }));
-      // We don't need a separate preview state for edit, we can use the imageUrl directly
-    }
-  };
-
-  // Handle camera capture (simulated)
-  const handleCameraCapture = () => {
-    // In a real app, this would access the device camera
-    // For now, we'll simulate by allowing file upload
-    document.getElementById('imageUpload').click();
-  };
-
-  // Handle edit camera capture (simulated)
-  const handleEditCameraCapture = () => {
-    // In a real app, this would access the device camera
-    // For now, we'll simulate by allowing file upload
-    document.getElementById('editImageUpload').click();
-  };
 
   // Function to open edit product modal
   const openEditProductModal = (product) => {
@@ -398,8 +355,7 @@ const SellerDashboard = () => {
       surveyTermsAccepted: false, // Reset terms for edit
       sellerAgreementAccepted: false,
       relabelingTermsAccepted: false,
-      image: null,
-      imageUrl: product.imageUrl || ''
+
     });
     setShowEditProductModal(true);
   };
@@ -467,9 +423,6 @@ const SellerDashboard = () => {
       formData.append('reLabeling', newProduct.reLabeling || 'no');
       formData.append('validityDate', newProduct.validityDate || '');
       formData.append('validityTime', newProduct.validityTime || '');
-      if (newProduct.image) {
-        formData.append('image', newProduct.image);
-      }
       
       // Debug logging
       console.log('=== FORM DATA ENTRIES ===');
@@ -532,38 +485,17 @@ const SellerDashboard = () => {
           validityTime: '',
           surveyTermsAccepted: false,
           sellerAgreementAccepted: false,
-          relabelingTermsAccepted: false,
-          image: null,
-          imageUrl: ''
+          relabelingTermsAccepted: false
         });
-        setImagePreview(null);
         setShowAddProductModal(false);
         
-        alert('Product submitted successfully for approval!');
+        alert('Product added successfully!');
       } else {
-        // More detailed error handling
-        const errorMessage = result.error || 'Unknown error';
-        console.error('Failed to submit product:', errorMessage);
-        alert(`Failed to submit product: ${errorMessage}\nPlease check all fields and try again.`);
+        throw new Error(result.error || 'Failed to add product');
       }
-    } catch (err) {
-      console.error('Error submitting product:', err);
-      
-      if (err.name === 'AbortError') {
-        alert('Request timeout. The server is taking too long to respond. Please try again.');
-      } else if (err instanceof TypeError) {
-        alert(`Network error: ${err.message}
-
-This could be due to:
-- Server not running
-- Network connectivity issues
-- CORS policy blocking the request
-- Server timeout
-
-Please check that the server is running and you have network connectivity.`);
-      } else {
-        alert(`Error: ${err.message}\nPlease check your connection and try again.\n\nCheck the browser console for more details.`);
-      }
+    } catch (error) {
+      console.error('Error adding product:', error);
+      alert(`Error adding product: ${error.message}`);
     }
   };
 
@@ -571,30 +503,14 @@ Please check that the server is running and you have network connectivity.`);
   const handleEditProduct = async (e) => {
     e.preventDefault();
     
+    if (!editingProduct) return;
+    
     try {
-      // Debug logging
-      console.log('=== PRODUCT UPDATE DEBUG INFO ===');
-      console.log('editingProduct state:', editingProduct);
-      console.log('editProductData state:', editProductData);
-      
-      // Check if required fields are present and valid
+      // Validate required fields
       const requiredFields = ['name', 'category', 'price', 'description'];
       for (const field of requiredFields) {
-        if (!(field in editProductData)) {
-          alert(`Required field '${field}' is missing from form data`);
-          return;
-        }
-        
-        const value = editProductData[field];
-        console.log(`Field '${field}':`, value, '| Type:', typeof value, '| Length:', value ? value.length : 'N/A');
-        
-        if (value === null || value === undefined) {
-          alert(`Field '${field}' is null or undefined`);
-          return;
-        }
-        
-        if (typeof value === 'string' && value.trim() === '') {
-          alert(`Field '${field}' cannot be empty or whitespace only`);
+        if (!editProductData[field] || editProductData[field].toString().trim() === '') {
+          alert(`Field '${field}' cannot be empty`);
           return;
         }
       }
@@ -606,7 +522,7 @@ Please check that the server is running and you have network connectivity.`);
         return;
       }
       
-      // Prepare form data with correct field names
+      // Prepare form data
       const formData = new FormData();
       formData.append('name', editProductData.name.trim());
       formData.append('category', editProductData.category.trim());
@@ -622,61 +538,28 @@ Please check that the server is running and you have network connectivity.`);
       formData.append('reLabeling', editProductData.reLabeling || 'no');
       formData.append('validityDate', editProductData.validityDate || '');
       formData.append('validityTime', editProductData.validityTime || '');
-      if (editProductData.image) {
-        formData.append('image', editProductData.image);
-      }
-      
-      // Debug logging
-      console.log('=== FORM DATA ENTRIES ===');
-      const formDataEntries = {};
-      for (let [key, value] of formData.entries()) {
-        formDataEntries[key] = value;
-        console.log(key, ':', value, '(' + typeof value + ')');
-      }
-      console.log('=== END FORM DATA ===');
-      
-      // Show loading message
-      console.log('Sending request to server...');
-      
-      // Add timeout to fetch request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
       const response = await fetch(`/api/seller/products/${editingProduct.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
-        body: formData,
-        signal: controller.signal
+        body: formData
       });
       
-      clearTimeout(timeoutId);
-      
-      console.log('Received response from server:', response);
-      
-      // Check if response is OK
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText);
-        throw new Error(`Server error: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
       const result = await response.json();
-      console.log('Parsed response:', result);
       
       if (response.ok && result.success) {
-        // Update the product in all product lists
-        const updateProductInList = (productsList) => 
-          productsList.map(product => 
-            product.id === editingProduct.id ? { ...product, ...result.product } : product
-          );
+        // Update the product in all relevant lists
+        const updateProductInList = (list) => 
+          list.map(p => p.id === editingProduct.id ? result.product : p);
         
         setApprovedProducts(prev => updateProductInList(prev));
         setSubmittedProducts(prev => updateProductInList(prev));
         setIneffectiveProducts(prev => updateProductInList(prev));
         
         // Reset form and close modal
+        setEditingProduct(null);
         setEditProductData({
           name: '',
           category: '',
@@ -694,38 +577,17 @@ Please check that the server is running and you have network connectivity.`);
           validityTime: '',
           surveyTermsAccepted: false,
           sellerAgreementAccepted: false,
-          relabelingTermsAccepted: false,
-          image: null,
-          imageUrl: ''
+          relabelingTermsAccepted: false
         });
         setShowEditProductModal(false);
-        setEditingProduct(null);
         
-        alert('Product updated successfully and submitted for approval!');
+        alert('Product updated successfully!');
       } else {
-        // More detailed error handling
-        const errorMessage = result.error || 'Unknown error';
-        console.error('Failed to update product:', errorMessage);
-        alert(`Failed to update product: ${errorMessage}\nPlease check all fields and try again.`);
+        throw new Error(result.error || 'Failed to update product');
       }
-    } catch (err) {
-      console.error('Error updating product:', err);
-      
-      if (err.name === 'AbortError') {
-        alert('Request timeout. The server is taking too long to respond. Please try again.');
-      } else if (err instanceof TypeError) {
-        alert(`Network error: ${err.message}
-
-This could be due to:
-- Server not running
-- Network connectivity issues
-- CORS policy blocking the request
-- Server timeout
-
-Please check that the server is running and you have network connectivity.`);
-      } else {
-        alert(`Error: ${err.message}\nPlease check your connection and try again.\n\nCheck the browser console for more details.`);
-      }
+    } catch (error) {
+      console.error('Error updating product:', error);
+      alert(`Error updating product: ${error.message}`);
     }
   };
 
@@ -1416,67 +1278,6 @@ Please check that the server is running and you have network connectivity.`);
                   </p>
                 </div>
                 
-                {/* Image Upload */}
-                <div className="mb-6">
-                  <label className="block mb-2 font-medium" style={{ color: darkText }}>
-                    Product Image
-                  </label>
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg" 
-                    style={{ borderColor: "#d9cfc1", backgroundColor: creamCard }}>
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg" />
-                        <button 
-                          type="button"
-                          className="absolute top-2 right-2 p-1 rounded-full"
-                          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-                          onClick={() => {
-                            setImagePreview(null);
-                            setNewProduct(prev => ({ ...prev, image: null, imageUrl: '' }));
-                          }}
-                        >
-                          <X size={16} style={{ color: "#fff" }} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <Camera size={48} style={{ color: darkText, marginBottom: '1rem' }} />
-                        <p className="text-center mb-4" style={{ color: darkText }}>
-                          Take a photo or upload an image
-                        </p>
-                        <div className="flex gap-3">
-                          <button 
-                            type="button"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
-                            onClick={handleCameraCapture}
-                            style={{ backgroundColor: bhagwa, color: "#fff" }}
-                          >
-                            <Camera size={16} />
-                            Camera
-                          </button>
-                          <button 
-                            type="button"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
-                            style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                          >
-                            <Upload size={16} />
-                            Upload
-                            <input
-                              id="imageUpload"
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleImageUpload}
-                            />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-sm mt-2" style={{ color: "#7a614a" }}>
-                    Image will be stamped with date/time/latitude/longitude automatically
-                  </p>
-                </div>
                 
                 {/* Terms and Conditions */}
                 <div className="mb-4">
@@ -1832,66 +1633,6 @@ Please check that the server is running and you have network connectivity.`);
                   </p>
                 </div>
                 
-                {/* Image Upload */}
-                <div className="mb-6">
-                  <label className="block mb-2 font-medium" style={{ color: darkText }}>
-                    Product Image
-                  </label>
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg" 
-                    style={{ borderColor: "#d9cfc1", backgroundColor: creamCard }}>
-                    {editProductData.imageUrl ? (
-                      <div className="relative">
-                        <img src={editProductData.imageUrl} alt="Preview" className="max-h-48 rounded-lg" />
-                        <button 
-                          type="button"
-                          className="absolute top-2 right-2 p-1 rounded-full"
-                          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-                          onClick={() => {
-                            setEditProductData(prev => ({ ...prev, image: null, imageUrl: '' }));
-                          }}
-                        >
-                          <X size={16} style={{ color: "#fff" }} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <Camera size={48} style={{ color: darkText, marginBottom: '1rem' }} />
-                        <p className="text-center mb-4" style={{ color: darkText }}>
-                          Take a photo or upload an image
-                        </p>
-                        <div className="flex gap-3">
-                          <button 
-                            type="button"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
-                            onClick={handleEditCameraCapture}
-                            style={{ backgroundColor: bhagwa, color: "#fff" }}
-                          >
-                            <Camera size={16} />
-                            Camera
-                          </button>
-                          <button 
-                            type="button"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
-                            style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                          >
-                            <Upload size={16} />
-                            Upload
-                            <input
-                              id="editImageUpload"
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleEditImageUpload}
-                            />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-sm mt-2" style={{ color: "#7a614a" }}>
-                    Image will be stamped with date/time/latitude/longitude automatically
-                  </p>
-                </div>
                 
                 {/* Terms and Conditions */}
                 <div className="mb-4">

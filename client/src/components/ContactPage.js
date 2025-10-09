@@ -16,6 +16,8 @@ import {
   Clock,
 } from "lucide-react";
 import WhatsAppButton from './WhatsAppButton';
+import { useLanguage, useTranslation } from '../contexts/LanguageContext';
+import Translate from './Translate';
 
 /*
   Theme colors used inline via hex:
@@ -25,6 +27,15 @@ import WhatsAppButton from './WhatsAppButton';
 */
 
 const countries = ["Global", "India", "UAE", "China", "USA", "Germany", "UK", "Singapore"];
+
+// Languages for port-centric countries
+const languages = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'ar', name: 'العربية', flag: '🇦🇪' }
+];
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -36,8 +47,11 @@ const ContactPage = () => {
   });
   const [submitStatus, setSubmitStatus] = useState(null);
   const navigate = useNavigate();
+  const { selectedLanguage, setSelectedLanguage } = useLanguage();
+  const { t } = useTranslation();
   const [selectedCountry, setSelectedCountry] = useState("Global");
   const [countryOpen, setCountryOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -86,6 +100,33 @@ const ContactPage = () => {
   const creamCard = "#efe6d9";
   const darkText = "#5a4632";
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside both dropdowns
+      if (countryOpen || languageOpen) {
+        // Don't close if clicking on the dropdown buttons or their content
+        const countryButton = document.querySelector('.country-selector-button');
+        const languageButton = document.querySelector('.language-selector-button');
+        const countryDropdown = document.querySelector('.country-dropdown');
+        const languageDropdown = document.querySelector('.language-dropdown');
+        
+        const isClickOnCountry = countryButton?.contains(event.target) || countryDropdown?.contains(event.target);
+        const isClickOnLanguage = languageButton?.contains(event.target) || languageDropdown?.contains(event.target);
+        
+        if (!isClickOnCountry && !isClickOnLanguage) {
+          setCountryOpen(false);
+          setLanguageOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [countryOpen, languageOpen]);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: cream, color: darkText }}>
       {/* global small style additions (keyframes) */}
@@ -105,7 +146,7 @@ const ContactPage = () => {
 
       {/* Top thin bar */}
       <div className="w-full text-center py-1" style={{ backgroundColor: "#f4e7d8", color: darkText }}>
-        <small>Trusted port-centric B2B marketplace • Shipments | RFQs | Verified suppliers</small>
+        <small><Translate text="portCentricB2B" /></small>
       </div>
 
       {/* Header */}
@@ -113,35 +154,30 @@ const ContactPage = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              className="cursor-pointer flex items-center gap-2"
               onClick={() => navigate("/")}
-              style={{ backgroundColor: creamCard }}
             >
-              <div
-                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+              <img 
+                src="/logo.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 130, height: 60, borderRadius: 0, border: 'none' }}
                 className="flex items-center justify-center text-white font-bold text-lg"
-              >
-                M
-              </div>
-              <div className="">
-                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
-                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
-              </div>
+              />
             </div>
 
             {/* visible on desktop */}
             <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
-              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
-              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
-              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
-              <button onClick={() => navigate("/contact")} className="font-semibold" style={{ color: bhagwa }}>Contact</button>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]"><Translate text="home" /></button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]"><Translate text="about" /></button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]"><Translate text="shop" /></button>
+              <button onClick={() => navigate("/contact")} className="font-semibold" style={{ color: bhagwa }}><Translate text="contact" /></button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <input
-                placeholder="Find products, suppliers, or ports..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
                 style={{ backgroundColor: "#fff", color: darkText }}
               />
@@ -153,7 +189,8 @@ const ContactPage = () => {
               className="px-4 py-2 rounded-full font-semibold"
               style={{ backgroundColor: bhagwa, color: "#fff" }}
             >
-              Join / Login
+              <Translate text="joinLogin" />
+
             </button>
 
             <User className="h-6 w-6 text-[#6b503d]" />
@@ -164,37 +201,69 @@ const ContactPage = () => {
       {/* Country selector */}
       <div className="w-full border-t border-b" style={{ borderColor: "#eadfce" }}>
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="relative" onMouseLeave={() => setCountryOpen(false)}>
-            <button
-              onMouseEnter={() => setCountryOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
-              style={{ backgroundColor: creamCard, color: darkText }}
-            >
-              <MapPin className="h-4 w-4" />
-              <span>{selectedCountry}</span>
-              <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
-                <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <button
+                onClick={() => setCountryOpen(!countryOpen)}
+                className="country-selector-button flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+                style={{ backgroundColor: creamCard, color: darkText }}
+              >
+                <MapPin className="h-4 w-4" />
+                <span>{selectedCountry}</span>
+                <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
 
-            {countryOpen && (
-              <div className="absolute mt-2 left-0 w-44 rounded-md shadow-lg bg-white/50 backdrop-blur-md overflow-hidden z-40">
-                {countries.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
-                    style={{ color: darkText }}
-                  >
-                    {c === "Global" ? "🌍 Global" : c}
-                  </button>
-                ))}
-              </div>
-            )}
+              {countryOpen && (
+                <div className="country-dropdown absolute mt-2 left-0 w-44 rounded-md shadow-lg bg-white/50 backdrop-blur-md overflow-hidden z-40">
+                  {countries.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => { setSelectedCountry(c); setCountryOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedCountry === c ? "font-semibold" : ""}`}
+                      style={{ color: darkText }}
+                    >
+                      {c === "Global" ? "🌍 Global" : c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Language selector */}
+            <div className="relative">
+              <button
+                onClick={() => setLanguageOpen(!languageOpen)}
+                className="language-selector-button flex items-center gap-2 px-3 py-2 rounded-md font-semibold"
+                style={{ backgroundColor: creamCard, color: darkText }}
+              >
+                <Globe className="h-4 w-4" />
+                <span>{languages.find(lang => lang.code === selectedLanguage)?.flag} {languages.find(lang => lang.code === selectedLanguage)?.name}</span>
+                <svg className="w-3 h-3 ml-1 text-[#6b503d]" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="#6b503d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {languageOpen && (
+                <div className="language-dropdown absolute mt-2 left-0 w-44 rounded-md shadow-lg bg-white/50 backdrop-blur-md overflow-hidden z-40">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setSelectedLanguage(lang.code); setLanguageOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fff2e6] ${selectedLanguage === lang.code ? "font-semibold" : ""}`}
+                      style={{ color: darkText }}
+                    >
+                      <span className="mr-2">{lang.flag}</span> {lang.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="text-sm" style={{ color: "#7a614a" }}>
-            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+            <Translate text="serving" /> <span className="font-semibold">{selectedCountry}</span> • <Translate text="portCentricLogistics" />
           </div>
         </div>
       </div>
@@ -209,16 +278,31 @@ const ContactPage = () => {
       {/* ======================================================================================= */}
       
       {/* Redesigned Hero Section */}
-      <section className="py-20 md:py-32">
-        <div className="container mx-auto px-4 text-center">
-            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight animate-slide-in-down" style={{ color: darkText }}>
-                Let's <span style={{ color: bhagwa }}>Connect</span> & Build Together.
+      <section className="relative h-[560px] container mx-auto px-4 mt-8">
+        <div
+          className="absolute inset-0 rounded-2xl overflow-hidden"
+          style={{
+            backgroundImage: `url(/contact1.avif)`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "brightness(0.6) saturate(0.9)",
+          }}
+        />
+        <div className="relative z-10 rounded-2xl p-8 md:p-16 flex items-center justify-center h-full"
+             style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.06))" }}>
+          <div className="text-center text-white animate-float">
+            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight" style={{ textShadow: "0 6px 20px rgba(0,0,0,0.5)" }}>
+                <Translate text="letsConnectBuildTogether" />
             </h1>
-            <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto animate-slide-in-up" style={{ animationDelay: '200ms', color: "#7a614a" }}>
-                Whether you have a question, a project proposal, or just want to say hello, our team is ready to answer all your questions.
+            <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto animate-slide-in-up" style={{ animationDelay: '200ms', color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
+              <Translate text="contactUsText" />
             </p>
+          </div>
         </div>
       </section>
+
+      {/* Adding extra spacing after the hero section */}
+      <div className="py-16"></div>
 
       {/* Redesigned Contact Section */}
       <section className="container mx-auto px-4 pb-24">
@@ -232,9 +316,9 @@ const ContactPage = () => {
                   <MapPin className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold" style={{ color: darkText }}>Headquarters</h3>
+                  <h3 className="text-xl font-bold" style={{ color: darkText }}><Translate text="headquarters" /></h3>
                   <p className="mt-1 text-[#7a614a]">
-                    123 Global Trade Center<br />Mumbai, Maharashtra 400001, India
+                        House No.1, Meerut Road <br />U.P.- 245206 , India
                   </p>
                 </div>
               </div>
@@ -246,10 +330,10 @@ const ContactPage = () => {
                   <Mail className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold" style={{ color: darkText }}>Email Us</h3>
+                  <h3 className="text-xl font-bold" style={{ color: darkText }}><Translate text="emailUs" /></h3>
                   <p className="mt-1 text-[#7a614a]">
-                    <a href="mailto:support@marsafyi.com" className="hover:underline">support@marsafyi.com</a><br/>
-                    <a href="mailto:sales@marsafyi.com" className="hover:underline">sales@marsafyi.com</a>
+                    <a href="mailto:support@marsafyi.com" className="hover:underline">support@expoimporting.com</a><br/>
+                    <a href="mailto:sales@marsafyi.com" className="hover:underline">info@expoimporting.com</a>
                   </p>
                 </div>
               </div>
@@ -261,9 +345,9 @@ const ContactPage = () => {
                   <Phone className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold" style={{ color: darkText }}>Call Us</h3>
+                  <h3 className="text-xl font-bold" style={{ color: darkText }}><Translate text="callUs" /></h3>
                   <p className="mt-1 text-[#7a614a]">
-                    +91 98765 43210 (India)<br/>
+                    +91 89491 40602 (India)<br/>
                     +1 (555) 123-4567 (International)
                   </p>
                 </div>
@@ -273,7 +357,7 @@ const ContactPage = () => {
 
           {/* Right Column: Animated Form */}
           <div className="lg:col-span-3 bg-white p-8 md:p-12 rounded-3xl shadow-xl">
-            <h2 className="text-4xl font-bold mb-8" style={{ color: darkText }}>Send a Message</h2>
+            <h2 className="text-4xl font-bold mb-8" style={{ color: darkText }}><Translate text="sendAMessage" /></h2>
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Animated Form Fields with Floating Labels */}
               <div className="relative animate-slide-in-up" style={{ animationDelay: '500ms' }}>
@@ -289,7 +373,7 @@ const ContactPage = () => {
                   style={{ color: darkText }}
                 />
                 <label htmlFor="name" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
-                  Full Name
+                  <Translate text="fullName" />
                 </label>
               </div>
 
@@ -305,7 +389,7 @@ const ContactPage = () => {
                   style={{ color: darkText }}
                 />
                 <label htmlFor="phone" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
-                  Phone Number (Optional)
+                  <Translate text="phoneNumberOptional" />
                 </label>
               </div>
 
@@ -322,7 +406,7 @@ const ContactPage = () => {
                    style={{ color: darkText }}
                 />
                 <label htmlFor="email" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
-                  Email Address
+                  <Translate text="emailAddress" />
                 </label>
               </div>
 
@@ -339,7 +423,7 @@ const ContactPage = () => {
                    style={{ color: darkText }}
                 />
                 <label htmlFor="subject" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
-                  Subject
+                  <Translate text="subject" />
                 </label>
               </div>
 
@@ -356,7 +440,7 @@ const ContactPage = () => {
                    style={{ color: darkText }}
                 ></textarea>
                 <label htmlFor="message" className="input-label absolute left-4 top-3 text-gray-500 transition-all duration-300 origin-top-left pointer-events-none">
-                  Your Message
+                  <Translate text="yourMessage" />
                 </label>
               </div>
 
@@ -367,7 +451,7 @@ const ContactPage = () => {
                   style={{ backgroundColor: bhagwa }}
                   disabled={submitStatus && submitStatus.type === 'loading'}
                 >
-                  {submitStatus && submitStatus.type === 'loading' ? 'Sending...' : 'Send Message'}
+                  {submitStatus && submitStatus.type === 'loading' ? <Translate text="loading" /> : <Translate text="sendMessage" />}
                 </button>
               </div>
             </form>
@@ -397,30 +481,30 @@ const ContactPage = () => {
       {/* Support Section */}
       <section className="py-24" style={{ backgroundColor: creamCard }}>
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-16" style={{ color: darkText }}>How Can We Help?</h2>
+          <h2 className="text-4xl font-bold text-center mb-16" style={{ color: darkText }}><Translate text="howCanWeHelp" /></h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
               <div className="text-5xl mb-6">❓</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>General Inquiries</h3>
-              <p className="text-[#7a614a] mb-4 flex-grow">Have questions about our platform or services? Our team is here to help.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="generalInquiries" /></h3>
+              <p className="text-[#7a614a] mb-4 flex-grow"><Translate text="contactUsText" /></p>
               <a href="mailto:info@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>info@marsafyi.com</a>
             </div>
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
               <div className="text-5xl mb-6">🛒</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Buyer Support</h3>
-              <p className="text-[#7a614a] mb-4 flex-grow">Need assistance with purchasing or finding products? Contact our buyer support.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="buyerSupport" /></h3>
+              <p className="text-[#7a614a] mb-4 flex-grow"><Translate text="contactUsText" /></p>
               <a href="mailto:buyers@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>buyers@marsafyi.com</a>
             </div>
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
               <div className="text-5xl mb-6">🏪</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Supplier Support</h3>
-              <p className="text-[#7a614a] mb-4 flex-grow">Looking to sell on our platform? Get help with supplier onboarding.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="supplierSupport" /></h3>
+              <p className="text-[#7a614a] mb-4 flex-grow"><Translate text="contactUsText" /></p>
               <a href="mailto:suppliers@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>suppliers@marsafyi.com</a>
             </div>
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-center flex flex-col items-center">
               <div className="text-5xl mb-6">💼</div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}>Partnerships</h3>
-              <p className="text-[#7a614a] mb-4 flex-grow">Interested in partnering with us? Let's explore opportunities together.</p>
+              <h3 className="text-xl font-bold mb-3" style={{ color: darkText }}><Translate text="partnerships" /></h3>
+              <p className="text-[#7a614a] mb-4 flex-grow"><Translate text="contactUsText" /></p>
               <a href="mailto:partnerships@marsafyi.com" className="font-semibold" style={{ color: bhagwa }}>partnerships@marsafyi.com</a>
             </div>
           </div>
@@ -430,24 +514,24 @@ const ContactPage = () => {
       {/* FAQ Section */}
       <section className="py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-16" style={{ color: darkText }}>Frequently Asked Questions</h2>
+          <h2 className="text-4xl font-bold text-center mb-16" style={{ color: darkText }}><Translate text="frequentlyAskedQuestions" /></h2>
           <div className="max-w-4xl mx-auto space-y-6">
             {[
               {
-                question: "How do I register as a buyer?",
-                answer: "Registration is simple and free. Click on the 'Join / Login' button in the header, select the 'Buyer' role, and follow the step-by-step registration process. You'll need to provide basic business information and verify your email address to get started."
+                question: <Translate text="registrationSimple" />,
+                answer: <Translate text="registrationSimple" />
               },
               {
-                question: "What verification process do suppliers go through?",
-                answer: "All our suppliers undergo a rigorous multi-stage verification that includes business registration checks, operational history, and product quality assessments. Verified suppliers receive a special badge on their profile, giving you confidence in every transaction."
+                question: <Translate text="supplierVerificationProcess" />,
+                answer: <Translate text="supplierVerificationProcess" />
               },
               {
-                question: "How does the quotation and payment process work?",
-                answer: "Once you find a product, you can request a quotation directly from the supplier. After agreeing on terms, all payments are processed through our secure gateway, which includes an escrow service. Funds are only released to the supplier after you confirm successful delivery."
+                question: <Translate text="quotationPaymentProcess" />,
+                answer: <Translate text="quotationPaymentProcess" />
               },
               {
-                question: "Do you offer logistics and customs support?",
-                answer: "Yes, we offer end-to-end logistics solutions. Our platform helps you connect with trusted freight forwarders and customs agents to ensure a smooth shipping and clearance process for your international orders."
+                question: <Translate text="logisticsCustomsSupport" />,
+                answer: <Translate text="logisticsCustomsSupport" />
               }
             ].map((faq, index) => (
               <div key={index} className="border-b pb-6" style={{ borderColor: "#eadfce" }}>
@@ -471,8 +555,13 @@ const ContactPage = () => {
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
         <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-5 gap-8">
           <div className="md:col-span-1 flex flex-col items-center md:items-start">
-            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <img 
+              src="/logo2.png" 
+              alt="MarsaFyi Logo" 
+              style={{ width: 170, height: 100, borderRadius: 0, border: 'none' }}
+              className="mb-3"
+            />
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center md:text-left"><Translate text="portCentricB2B" /></p>
 
             <div className="flex gap-3">
               {/* Instagram */}
@@ -498,49 +587,49 @@ const ContactPage = () => {
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">For Buyers</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="forBuyers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/login")} className="hover:text-white">Submit RFQ</button></li>
-              <li><button onClick={() => navigate("/shop")} className="hover:text-white">Search Suppliers</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Trade Assurance</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Payment Options</button></li>
+              <li><button onClick={() => navigate("/login")} className="hover:text-white"><Translate text="submitRfq" /></button></li>
+              <li><button onClick={() => navigate("/shop")} className="hover:text-white"><Translate text="searchSuppliers" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="tradeAssurance" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="paymentOptions" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">For Suppliers</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="forSuppliers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/login")} className="hover:text-white">Display Products</button></li>
-              <li><button onClick={() => navigate("/register")} className="hover:text-white">Supplier Membership</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Learning Center</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Success Stories</button></li>
+              <li><button onClick={() => navigate("/login")} className="hover:text-white"><Translate text="displayProducts" /></button></li>
+              <li><button onClick={() => navigate("/register")} className="hover:text-white"><Translate text="supplierMembership" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="learningCenter" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="successStories" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">Company</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="company" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">About Us</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Contact Us</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Careers</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Press</button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="aboutUs" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="contactUs" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="careers" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="press" /></button></li>
             </ul>
           </div>
 
           <div className="flex flex-col">
-            <div className="font-semibold mb-3 text-lg">Support</div>
+            <div className="font-semibold mb-3 text-lg"><Translate text="support" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2">
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Help Center</button></li>
-              <li><button onClick={() => navigate("/contact")} className="hover:text-white">Submit a Request</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Terms of Service</button></li>
-              <li><button onClick={() => navigate("/about")} className="hover:text-white">Privacy Policy</button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="helpCenter" /></button></li>
+              <li><button onClick={() => navigate("/contact")} className="hover:text-white"><Translate text="submitRequest" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="termsOfService" /></button></li>
+              <li><button onClick={() => navigate("/about")} className="hover:text-white"><Translate text="privacyPolicy" /></button></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved
+            <Translate text="copyrightText" year={new Date().getFullYear()} />
           </div>
         </div>
       </footer>

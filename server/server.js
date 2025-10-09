@@ -6,9 +6,31 @@ const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+// Configure email transporter for Hostinger with TLS
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+  port: process.env.SMTP_PORT || 587,
+  secure: false, // false for TLS (port 587)
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// Test the email configuration
+transporter.verify((error, success) => {
+  if (error) {
+    console.log('Email configuration error:', error);
+  } else {
+    console.log('Email server is ready to send messages');
+  }
+});
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || (process.env.NODE_ENV === 'development' ? 5002 : 5000);
 
 
 // Configure multer for handling multipart form data
@@ -43,6 +65,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // JWT secret (in production, this should be in environment variables)
 const JWT_SECRET = process.env.JWT_SECRET || 'marsafyi_jwt_secret';
+const SALT_ROUNDS = 10;
 
 // Initialize Supabase client
 // Note: In a production environment, these should be stored in environment variables
@@ -157,6 +180,14 @@ app.post('/api/register', async (req, res) => {
     console.log('Registration endpoint called with data:', req.body);
     const { email, password, firstName, lastName, phone, workClass } = req.body;
     
+    // Get client IP address
+    const clientIP = req.headers['x-forwarded-for'] || 
+                     req.headers['x-real-ip'] || 
+                     req.connection.remoteAddress || 
+                     req.socket.remoteAddress || 
+                     (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+                     'unknown';
+    
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !phone || !workClass) {
       console.log('Registration validation failed: missing required fields');
@@ -242,7 +273,8 @@ app.post('/api/register', async (req, res) => {
         last_name: lastName,
         phone,
         is_verified: false,
-        vendor_code: vendorCode
+        vendor_code: vendorCode,
+        ip_address: clientIP // Store the client IP address
       })
       .select()
       .single();
@@ -281,6 +313,43 @@ app.post('/api/register', async (req, res) => {
     }
     
     console.log('Registration successful for user:', email);
+    
+    // Send welcome email with vendor code
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to: email,
+        subject: 'Welcome to MarsaFyi - Your Vendor Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #f77f00;">Welcome to MarsaFyi!</h2>
+            <p>Hello ${firstName} ${lastName},</p>
+            <p>Thank you for registering with MarsaFyi. We're excited to have you join our port-centric B2B marketplace.</p>
+            <p>Your Vendor Code is: <strong>${vendorCode}</strong></p>
+            <p>Please keep this code safe as you'll need it to log in to your account.</p>
+            <div style="background-color: #f8f8f8; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p style="margin: 0; font-weight: bold;">Registration Details:</p>
+              <p style="margin: 5px 0 0 0;">Name: ${firstName} ${lastName}</p>
+              <p style="margin: 5px 0 0 0;">Email: ${email}</p>
+              <p style="margin: 5px 0 0 0;">Vendor Code: ${vendorCode}</p>
+              <p style="margin: 5px 0 0 0;">Work Class: ${workClass}</p>
+            </div>
+            <p>You can now log in to your account using your email and password.</p>
+            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            <hr style="margin: 30px 0;">
+            <p style="color: #999; font-size: 12px;">
+              This email was sent by MarsaFyi. If you didn't register for an account, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+      
+      console.log('Welcome email sent to:', email);
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError.message);
+      // Don't fail the registration if email sending fails
+    }
+    
     res.json({ 
       success: true, 
       message: 'Registration successful',
@@ -434,31 +503,112 @@ app.get('/api/catalogs', async (req, res) => {
     // Always fetch from Supabase - no mock data fallback
     console.log('Fetching catalogs from Supabase');
     
-    // Fetch featured products from Supabase
-    const { data: products, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        image_url,
-        status,
-        is_verified,
-        seller_id,
-        users (first_name, last_name, vendor_code)
-      `)
-      .eq('is_active', true)
-      .eq('is_verified', true)
-      .limit(6);
+    // First, try to get products from the "Land, house flat plot category"
+    let landCategoryProducts = [];
+    let otherProducts = [];
+    
+    // Get the land category ID
+    const { data: landCategory, error: categoryError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', 'Land, house flat plot category')
+      .single();
 
-    if (error) {
-      console.error('Error fetching catalogs from Supabase:', error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching catalogs: ' + error.message 
-      });
+    if (!categoryError && landCategory) {
+      // Fetch products from the land category
+      const { data: landProducts, error: landError } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          description,
+          image_url,
+          status,
+          is_verified,
+          seller_id,
+          users (first_name, last_name, vendor_code)
+        `)
+        .eq('category_id', landCategory.id)
+        .eq('is_active', true)
+        .eq('is_verified', true)
+        .limit(3); // Get up to 3 land products
+
+      if (!landError && landProducts) {
+        landCategoryProducts = landProducts;
+      }
     }
+
+    // Calculate how many more products we need
+    const remainingSlots = 6 - landCategoryProducts.length;
+    
+    if (remainingSlots > 0) {
+      // Get other products to fill remaining slots
+      let otherProductsQuery = supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          description,
+          image_url,
+          status,
+          is_verified,
+          seller_id,
+          users (first_name, last_name, vendor_code)
+        `)
+        .eq('is_active', true)
+        .eq('is_verified', true);
+      
+      // Exclude land category products if we have any
+      if (landCategory && landCategoryProducts.length > 0) {
+        const landProductIds = landCategoryProducts.map(p => p.id);
+        otherProductsQuery = otherProductsQuery.not('id', 'in', `(${landProductIds.join(',')})`);
+      }
+      
+      const { data: additionalProducts, error: otherError } = await otherProductsQuery
+        .limit(remainingSlots);
+
+      if (!otherError && additionalProducts) {
+        otherProducts = additionalProducts;
+      }
+    }
+
+    // Combine land products with other products
+    let products = [...landCategoryProducts, ...otherProducts];
+    
+    // If we still don't have enough products, fetch any products to fill
+    if (products.length < 6) {
+      const remaining = 6 - products.length;
+      const existingIds = products.map(p => p.id);
+      
+      let fallbackQuery = supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          description,
+          image_url,
+          status,
+          is_verified,
+          seller_id,
+          users (first_name, last_name, vendor_code)
+        `)
+        .eq('is_active', true)
+        .eq('is_verified', true);
+      
+      if (existingIds.length > 0) {
+        fallbackQuery = fallbackQuery.not('id', 'in', `(${existingIds.join(',')})`);
+      }
+      
+      const { data: fallbackProducts, error: fallbackError } = await fallbackQuery
+        .limit(remaining);
+
+      if (!fallbackError && fallbackProducts) {
+        products = [...products, ...fallbackProducts];
+      }
+    }
+
+    // Limit to 6 products max
+    products = products.slice(0, 6);
 
     // Debug: Log the product data to see what we're getting
     console.log('Catalog products data:', JSON.stringify(products, null, 2));
@@ -756,213 +906,6 @@ app.get('/api/seller/products', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Server error fetching seller products: ' + error.message 
-    });
-  }
-});
-
-// Seller orders endpoint - fetch seller's orders
-app.get('/api/seller/orders', async (req, res) => {
-  try {
-    // Always fetch from Supabase - no mock data fallback
-    console.log('Fetching seller orders from Supabase');
-    
-    // Fetch orders from Supabase with correct column names
-    const { data: orders, error } = await supabase
-      .from('orders')
-      .select('id, quantity, status')
-      .eq('seller_id', req.user?.id || 1);
-
-    if (error) {
-      console.error('Error fetching seller orders from Supabase:', error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching seller orders: ' + error.message 
-      });
-    }
-
-    // Add missing fields manually since they don't exist in the schema
-    const ordersWithDetails = orders.map(order => ({
-      ...order,
-      buyer: 'Unknown Buyer',
-      product: 'Unknown Product'
-    }));
-
-    console.log(`Successfully fetched ${ordersWithDetails.length} seller orders from Supabase`);
-    res.json(ordersWithDetails || []);
-  } catch (error) {
-    console.error('Error in seller orders endpoint:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error fetching seller orders: ' + error.message 
-    });
-  }
-});
-
-// Seller RFQs endpoint - fetch seller's RFQs
-app.get('/api/seller/rfqs', async (req, res) => {
-  try {
-    // Always fetch from Supabase - no mock data fallback
-    console.log('Fetching seller RFQs from Supabase');
-    
-    // Fetch RFQs from Supabase with correct column names
-    const { data: rfqs, error } = await supabase
-      .from('rfqs')
-      .select('id, quantity, status')
-      .eq('seller_id', req.user?.id || 1);
-
-    if (error) {
-      console.error('Error fetching seller RFQs from Supabase:', error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching seller RFQs: ' + error.message 
-      });
-    }
-
-    // Add missing fields manually since they don't exist in the schema
-    const rfqsWithDetails = rfqs.map(rfq => ({
-      ...rfq,
-      buyer: 'Unknown Buyer',
-      product: 'Unknown Product'
-    }));
-
-    console.log(`Successfully fetched ${rfqsWithDetails.length} seller RFQs from Supabase`);
-    res.json(rfqsWithDetails || []);
-  } catch (error) {
-    console.error('Error in seller RFQs endpoint:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error fetching seller RFQs: ' + error.message 
-    });
-  }
-});
-
-// Products endpoint - fetch all products
-app.get('/api/products', async (req, res) => {
-  try {
-    console.log('GET /api/products endpoint hit');
-    console.log('Request headers:', req.headers);
-    console.log('Request URL:', req.url);
-    
-    // Always fetch from Supabase - no mock data fallback
-    console.log('Fetching products from Supabase');
-    
-    // Fetch products from Supabase with related data
-    // Only fetch approved and active products
-    const { data: products, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        currency_id,
-        is_verified,
-        is_active,
-        categories (name),
-        users (first_name, last_name, vendor_code)
-      `)
-      .eq('is_active', true)
-      .eq('status', 'approved'); // Only approved products
-
-    if (error) {
-      console.error('Error fetching products from Supabase:', error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching products: ' + error.message 
-      });
-    }
-
-    console.log(`Successfully fetched ${products.length} products from Supabase`);
-    
-    // Transform the data to match the expected format
-    const formattedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      short_description: product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : '',
-      company_name: product.users?.vendor_code || 'Unknown Vendor',
-      origin_port_name: 'Unknown Port', // Ports are not directly related to products in the schema
-      category_name: product.categories?.name || 'Uncategorized',
-      is_verified: product.is_verified,
-      price: product.price,
-      currency: 'USD' // In a real app, this would come from the currencies table
-    }));
-
-    console.log(`Successfully transformed ${formattedProducts.length} products`);
-    res.json(formattedProducts);
-  } catch (error) {
-    console.error('Error in products endpoint:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error fetching products: ' + error.message 
-    });
-  }
-});
-
-// Get products by category (for related products)
-app.get('/api/products/category/:categoryName', async (req, res) => {
-  try {
-    const categoryName = req.params.categoryName;
-    
-    // Always fetch from Supabase - no mock data fallback
-    console.log(`Fetching products for category ${categoryName} from Supabase`);
-    
-    // Fetch products from Supabase with related data
-    // Only fetch approved and active products
-    const { data: products, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        currency_id,
-        is_verified,
-        is_active,
-        categories (name),
-        users (first_name, last_name, vendor_code)
-      `)
-      .eq('is_active', true)
-      .eq('status', 'approved') // Only approved products
-      .limit(4); // Limit to 4 related products
-
-    if (error) {
-      console.error(`Error fetching products for category ${categoryName} from Supabase:`, error.message);
-      console.error('Error details:', error);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching products: ' + error.message 
-      });
-    }
-
-    // Transform the data to match the expected format
-    const formattedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      short_description: product.description ? product.description.substring(0, 100) + (product.description.length > 100 ? '...' : '') : '',
-      company_name: product.users?.vendor_code || 'Unknown Vendor',
-      origin_port_name: 'Unknown Port', // Ports are not directly related to products in the schema
-      category_name: product.categories?.name || 'Uncategorized',
-      is_verified: product.is_verified,
-      price: product.price,
-      currency: 'USD' // In a real app, this would come from the currencies table
-    }));
-
-    console.log(`Successfully fetched ${formattedProducts.length} products for category ${categoryName} from Supabase`);
-    res.json(formattedProducts);
-  } catch (error) {
-    console.error('Error in category products endpoint:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error fetching products: ' + error.message 
     });
   }
 });
@@ -3124,6 +3067,7 @@ app.get('/api/hr/users', authenticateToken, async (req, res) => {
         is_blocked_perm,
         blocked_until,
         created_at,
+        ip_address,
         user_roles(role_id, is_primary, roles(name, code))
       `)
       .order('created_at', { ascending: false });
@@ -3154,6 +3098,7 @@ app.get('/api/hr/users', authenticateToken, async (req, res) => {
               user.is_blocked_temp ? 'Temporarily Blocked' : 
               user.is_active ? 'Active' : 'Inactive',
       created_at: user.created_at,
+      ip_address: user.ip_address || 'Unknown',
       is_blocked_temp: user.is_blocked_temp,
       is_blocked_perm: user.is_blocked_perm
     }));
@@ -3643,136 +3588,14 @@ app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong', timestamp: new Date().toISOString() });
 });
 
-// Login endpoint
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    console.log('Login endpoint called with data:', req.body);
-    const { vendorCode, password } = req.body;
-    
-    // Validate required fields
-    if (!vendorCode || !password) {
-      console.log('Login validation failed: missing required fields');
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Vendor Code/Email and Password are required' 
-      });
-    }
-    
-    // Always use Supabase - no mock data fallback
-    if (!supabase) {
-      console.error('Supabase not initialized');
-      return res.status(500).json({ 
-        success: false,
-        error: 'Database not available' 
-      });
-    }
-
-    // Fetch users from Supabase
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, email, is_verified');
-
-    console.log('Checking user credentials');
-    // Check user credentials by email or vendor code
-    let userQuery = supabase
-      .from('users')
-      .select(`
-        id,
-        username,
-        email,
-        first_name,
-        last_name,
-        phone,
-        is_verified,
-        vendor_code,
-        password_hash,
-        user_roles(role_id, is_primary, roles(name, code))
-      `);
-      
-    // Check if vendorCode is an email or vendor code
-    if (vendorCode.includes('@')) {
-      userQuery = userQuery.eq('email', vendorCode);
-    } else {
-      userQuery = userQuery.eq('vendor_code', vendorCode);
-    }
-    
-    const { data: user, error: userError } = await userQuery.single();
-    
-    if (userError) {
-      console.error('Error fetching user:', userError.message);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid credentials' 
-      });
-    }
-    
-    if (!user) {
-      console.log('User not found with provided credentials');
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid credentials' 
-      });
-    }
-    
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    
-    if (!isPasswordValid) {
-      console.log('Invalid password for user:', user.email);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid credentials' 
-      });
-    }
-    
-    // Get user's primary role
-    let userRole = 'buyer'; // Default role
-    if (user.user_roles && user.user_roles.length > 0) {
-      const primaryRole = user.user_roles.find(role => role.is_primary);
-      if (primaryRole) {
-        userRole = primaryRole.roles.name;
-      } else {
-        // If no primary role, use the first role
-        userRole = user.user_roles[0].roles.name;
-      }
-    }
-    
-    console.log('User login successful for:', user.email, 'with role:', userRole);
-    
-    // Return user data and role
-    const userData = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      phone: user.phone,
-      is_verified: user.is_verified,
-      vendor_code: user.vendor_code,
-      role: userRole
-    };
-    
-    res.json({ 
-      success: true,
-      user: userData,
-      token: 'dummy-token' // In a real app, you would generate a proper JWT token
-    });
-  } catch (error) {
-    console.error('Error in login endpoint:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Server error during login' 
-    });
-  }
-});
-
 // Test endpoint to verify product ID route is working
 app.get('/api/products/test/:id', (req, res) => {
   console.log('Test product ID endpoint hit');
   console.log('Request params:', req.params);
   res.json({ message: 'Product ID route is working', id: req.params.id });
 });
+
+
 
 // Captain products endpoint - fetch products pending approval
 app.get('/api/captain/products', async (req, res) => {
@@ -4197,6 +4020,296 @@ app.get('/api/captain/users', authenticateToken, async (req, res) => {
     });
   }
 });
+
+// Forgot password endpoint
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Validate required fields
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email is required' 
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid email format' 
+      });
+    }
+    
+    // Check if user exists
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name')
+      .eq('email', email)
+      .single();
+    
+    if (userError || !user) {
+      // For security reasons, we don't reveal if the email exists
+      // We still return a success message to prevent email enumeration
+      return res.json({ 
+        success: true, 
+        message: 'If your email is registered with us, you will receive a password reset link shortly.' 
+      });
+    }
+    
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour from now
+    
+    // Store reset token in database
+    const { error: tokenError } = await supabase
+      .from('password_reset_tokens')
+      .insert([
+        {
+          user_id: user.id,
+          token: resetToken,
+          expires_at: resetTokenExpires,
+          used: false
+        }
+      ]);
+    
+    if (tokenError) {
+      console.error('Error storing reset token:', tokenError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error. Please try again.' 
+      });
+    }
+    
+    // Create reset link
+    const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+    
+    // Send email with reset link
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Password Reset Request - MarsaFyi',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #f77f00;">Password Reset Request</h2>
+            <p>Hello ${user.first_name || user.email},</p>
+            <p>We received a request to reset your password for your MarsaFyi account.</p>
+            <p>Click the button below to reset your password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" 
+                 style="background-color: #f77f00; color: white; padding: 12px 24px; 
+                        text-decoration: none; border-radius: 5px; display: inline-block;">
+                Reset Password
+              </a>
+            </div>
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #666;">${resetLink}</p>
+            <p><strong>This link will expire in 1 hour.</strong></p>
+            <p>If you didn't request this password reset, please ignore this email.</p>
+            <hr style="margin: 30px 0;">
+            <p style="color: #999; font-size: 12px;">
+              This email was sent by MarsaFyi. If you have any questions, please contact our support team.
+            </p>
+          </div>
+        `,
+      });
+      
+      console.log('Password reset email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Error sending email:', emailError.message);
+      // Don't return an error to the user, as the token was created successfully
+      // The user will just need to request another reset if email fails
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'If your email is registered with us, you will receive a password reset link shortly.'
+    });
+  } catch (error) {
+    console.error('Error in forgot password endpoint:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error. Please try again.' 
+    });
+  }
+});
+
+// Change password endpoint
+app.put('/api/auth/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+    
+    // Validate required fields
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Current password and new password are required' 
+      });
+    }
+    
+    // Validate new password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'New password does not meet requirements: ' + passwordValidation.errors.join(', ')
+      });
+    }
+    
+    // Check if current password and new password are the same
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'New password must be different from current password' 
+      });
+    }
+    
+    // Fetch user's current password hash
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('password_hash')
+      .eq('id', userId)
+      .single();
+    
+    if (userError) {
+      console.error('Error fetching user for password change:', userError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error. Please try again.' 
+      });
+    }
+    
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Current password is incorrect' 
+      });
+    }
+    
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    
+    // Update user's password
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password_hash: hashedPassword })
+      .eq('id', userId);
+    
+    if (updateError) {
+      console.error('Error updating password:', updateError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error. Please try again.' 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Password has been changed successfully.' 
+    });
+  } catch (error) {
+    console.error('Error in change password endpoint:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error. Please try again.' 
+    });
+  }
+});
+
+// Reset password endpoint
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    // Validate required fields
+    if (!token || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Token and new password are required' 
+      });
+    }
+    
+    // Validate password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Password does not meet requirements: ' + passwordValidation.errors.join(', ')
+      });
+    }
+    
+    // Check if token exists and is valid
+    const { data: resetToken, error: tokenError } = await supabase
+      .from('password_reset_tokens')
+      .select('id, user_id, expires_at, used')
+      .eq('token', token)
+      .single();
+    
+    if (tokenError || !resetToken) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid or expired reset token' 
+      });
+    }
+    
+    // Check if token is expired
+    if (new Date(resetToken.expires_at) < new Date()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Reset token has expired' 
+      });
+    }
+    
+    // Check if token has already been used
+    if (resetToken.used) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Reset token has already been used' 
+      });
+    }
+    
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    
+    // Update user's password
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password_hash: hashedPassword })
+      .eq('id', resetToken.user_id);
+    
+    if (updateError) {
+      console.error('Error updating password:', updateError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Server error. Please try again.' 
+      });
+    }
+    
+    // Mark token as used
+    await supabase
+      .from('password_reset_tokens')
+      .update({ used: true })
+      .eq('id', resetToken.id);
+    
+    res.json({ 
+      success: true, 
+      message: 'Password has been reset successfully. You can now log in with your new password.' 
+    });
+  } catch (error) {
+    console.error('Error in reset password endpoint:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error. Please try again.' 
+    });
+  }
+});
+
 
 // Captain fetch user details endpoint
 app.get('/api/captain/users/:id', authenticateToken, async (req, res) => {
@@ -6533,6 +6646,7 @@ app.get('/api/hr/new-users', authenticateToken, async (req, res) => {
         is_blocked_perm,
         blocked_until,
         created_at,
+        ip_address,
         user_roles(role_id, is_primary, roles(name, code))
       `)
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
@@ -6564,6 +6678,7 @@ app.get('/api/hr/new-users', authenticateToken, async (req, res) => {
               user.is_blocked_temp ? 'Temporarily Blocked' : 
               user.is_active ? 'Active' : 'Pending',
       created_at: user.created_at,
+      ip_address: user.ip_address || 'Unknown',
       is_blocked_temp: user.is_blocked_temp,
       is_blocked_perm: user.is_blocked_perm
     }));
@@ -6618,6 +6733,10 @@ app.post('/api/hr/new-users/approve', authenticateToken, async (req, res) => {
     });
   }
 });
+
+// Chatbot endpoint
+const chatbotRouter = require('./chatbot');
+app.use('/api/chatbot', chatbotRouter);
 
 // Serve static files from the React app build directory
 // This must come before the catch-all route

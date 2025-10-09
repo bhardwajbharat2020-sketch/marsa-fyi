@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Star, Heart, CheckCircle, ChevronLeft, ChevronRight, User, Search, MapPin } from 'lucide-react';
 import '../App.css';
+import { useLanguage, useTranslation } from '../contexts/LanguageContext';
+import Translate from './Translate';
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
@@ -15,6 +17,8 @@ const ProductDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
+
+  const { t } = useTranslation();
 
   // small helper for theme colors in inline style
   const bhagwa = "#f77f00";
@@ -152,35 +156,30 @@ const ProductDetailPage = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
-              className="rounded-lg px-3 py-2 cursor-pointer flex items-center gap-2"
+              className="cursor-pointer flex items-center gap-2"
               onClick={() => navigate("/")}
-              style={{ backgroundColor: creamCard }}
             >
-              <div
-                style={{ width: 44, height: 44, borderRadius: 10, background: bhagwa }}
+              <img 
+                src="/logo.png" 
+                alt="MarsaFyi Logo" 
+                style={{ width: 130, height: 60, borderRadius: 0, border: 'none' }}
                 className="flex items-center justify-center text-white font-bold text-lg"
-              >
-                M
-              </div>
-              <div className="">
-                <div className="text-xl font-bold" style={{ color: darkText }}>Marsa<span style={{ color: bhagwa }}>Fyi</span></div>
-                <div className="text-xs" style={{ color: "#7a614a" }}>Port-centric Trade</div>
-              </div>
+              />
             </div>
 
             {/* visible on desktop */}
             <nav className="hidden lg:flex items-center gap-6 ml-4 text-sm font-medium" style={{ color: "#6b503d" }}>
-              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]">Home</button>
-              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]">About</button>
-              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]">Shop</button>
-              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]">Contact</button>
+              <button onClick={() => navigate("/")} className="hover:text-[#8b5f3b]"><Translate text="home" /></button>
+              <button onClick={() => navigate("/about")} className="hover:text-[#8b5f3b]"><Translate text="about" /></button>
+              <button onClick={() => navigate("/shop")} className="hover:text-[#8b5f3b]"><Translate text="shop" /></button>
+              <button onClick={() => navigate("/contact")} className="hover:text-[#8b5f3b]"><Translate text="contact" /></button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
               <input
-                placeholder="Find products, suppliers, or ports..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-4 pr-10 py-2 rounded-full border border-transparent focus:outline-none focus:ring-2"
                 style={{ backgroundColor: "#fff", color: darkText }}
               />
@@ -192,7 +191,7 @@ const ProductDetailPage = () => {
               className="px-4 py-2 rounded-full font-semibold"
               style={{ backgroundColor: bhagwa, color: "#fff" }}
             >
-              Join / Login
+              <Translate text="joinLogin" />
             </button>
 
             <User className="h-6 w-6 text-[#6b503d]" />
@@ -233,7 +232,7 @@ const ProductDetailPage = () => {
           </div>
 
           <div className="text-sm" style={{ color: "#7a614a" }}>
-            Serving <span className="font-semibold">{selectedCountry}</span> • Port-centric logistics & verified suppliers
+            <Translate text="serving" /> <span className="font-semibold">{selectedCountry}</span> • <Translate text="portCentricLogistics" />
           </div>
         </div>
       </div>
@@ -248,7 +247,7 @@ const ProductDetailPage = () => {
               style={{ color: bhagwa }}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Back
+              <Translate text="back" />
             </button>
             <span className="mx-2">/</span>
             <span>{product.category_name || 'Category'}</span>
@@ -350,7 +349,7 @@ const ProductDetailPage = () => {
                   onClick={handleRFQ}
                   style={{ backgroundColor: bhagwa, color: "#fff" }}
                 >
-                  Request Quotation
+                  <Translate text="requestQuotation" />
                 </button>
                 <button 
                   className="p-3 rounded-lg transition-colors"
@@ -550,13 +549,18 @@ const ProductDetailPage = () => {
       <footer className="mt-8" style={{ backgroundColor: "#2b2017", color: "#f8efe3" }}>
         <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="flex flex-col items-center">
-            <div className="text-2xl font-bold mb-3">MarsaFyi</div>
-            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center">Port-centric B2B marketplace connecting buyers, suppliers, and logistics partners globally.</p>
+            <img 
+              src="/logo2.png" 
+              alt="MarsaFyi Logo" 
+              style={{ width: 170, height: 150, borderRadius: 0, border: 'none' }}
+              className="mb-3"
+            />
+            <p className="text-sm text-[#e6d8c6] max-w-sm mb-4 text-center"><Translate text="portCentricB2B" /></p>
 
             <div className="flex gap-3">
               {/* Instagram */}
               <a href="https://www.instagram.com/marsagroupbusiness?utm_source=qr&igsh=MWcxNWcwZTQzYnJ0" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-md hover:bg-[#3f2b1f]" title="Instagram">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6" strokeWidth="1.2"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z" stroke="#f6efe6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="#f6efe6"/><circle cx="17.5" cy="6.5" r="0.6" fill="#f6efe6"/></svg>
               </a>
 
               {/* Facebook */}
@@ -577,29 +581,29 @@ const ProductDetailPage = () => {
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Buyers</div>
+            <div className="font-semibold mb-3"><Translate text="forBuyers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Submit RFQ</li>
-              <li>Search Suppliers</li>
-              <li>Trade Assurance</li>
-              <li>Payment Options</li>
+              <li><Translate text="submitRfq" /></li>
+              <li><Translate text="searchSuppliers" /></li>
+              <li><Translate text="tradeAssurance" /></li>
+              <li><Translate text="paymentOptions" /></li>
             </ul>
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="font-semibold mb-3">For Suppliers</div>
+            <div className="font-semibold mb-3"><Translate text="forSuppliers" /></div>
             <ul className="text-sm text-[#e6d8c6] space-y-2 text-center">
-              <li>Display Products</li>
-              <li>Supplier Membership</li>
-              <li>Learning Center</li>
-              <li>Success Stories</li>
+              <li><Translate text="displayProducts" /></li>
+              <li><Translate text="supplierMembership" /></li>
+              <li><Translate text="learningCenter" /></li>
+              <li><Translate text="successStories" /></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t" style={{ borderColor: "#3a2b20" }}>
           <div className="container mx-auto px-4 py-4 text-center text-sm text-[#e6d8c6]">
-            © {new Date().getFullYear()} MarsaFyi • All rights reserved • Privacy Policy • Terms
+            <Translate text="copyrightText" year={new Date().getFullYear()} />
           </div>
         </div>
       </footer>
