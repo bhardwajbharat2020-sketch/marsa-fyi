@@ -6742,17 +6742,48 @@ app.use('/api/chatbot', chatbotRouter);
 // This must come before the catch-all route
 const staticPath = path.join(__dirname, '../client/build');
 console.log('Serving static files from:', staticPath);
-app.use(express.static(staticPath));
+
+// Enhanced static file serving with better error handling
+app.use('/static', express.static(path.join(staticPath, 'static'), {
+  maxAge: '1d',
+  etag: true,
+  setHeaders: (res, path) => {
+    console.log('Serving static file:', path);
+    // Ensure proper content types
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    }
+  }
+}));
+
+// Serve other static assets (root level files like favicon.ico, manifest.json, etc.)
+app.use(express.static(staticPath, {
+  maxAge: '1d',
+  etag: true
+}));
 
 // Catch all handler: send back React's index.html file for any non-API routes
 // This MUST be the last route to avoid interfering with API routes or static files
 app.get('*', (req, res) => {
+  console.log('Catch-all route hit for:', req.path);
+  
   // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
+    console.log('API route not found:', req.path);
     return res.status(404).send('API route not found');
   }
   
-  // Serve the React app for all other routes
+  // Don't serve index.html for static assets - they should be handled above
+  if (req.path.startsWith('/static/')) {
+    console.log('Static asset not found:', req.path);
+    return res.status(404).send('Static asset not found');
+  }
+  
+  // For all other routes, serve the React app
+  // This allows client-side routing to work properly
+  console.log('Serving index.html for route:', req.path);
   res.sendFile(path.join(staticPath, 'index.html'));
 });
 
