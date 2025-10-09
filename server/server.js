@@ -6743,9 +6743,9 @@ app.use('/api/chatbot', chatbotRouter);
 const staticPath = path.join(__dirname, '../client/build');
 console.log('Serving static files from:', staticPath);
 
-// Enhanced static file serving with better error handling
+// Enhanced static file serving with better error handling and cache control
 app.use('/static', express.static(path.join(staticPath, 'static'), {
-  maxAge: '1d',
+  maxAge: '1h', // Shorter cache time to avoid caching issues
   etag: true,
   setHeaders: (res, path) => {
     console.log('Serving static file:', path);
@@ -6755,14 +6755,30 @@ app.use('/static', express.static(path.join(staticPath, 'static'), {
     } else if (path.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css');
     }
+    // Add cache control headers to prevent aggressive caching
+    res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
   }
 }));
 
 // Serve other static assets (root level files like favicon.ico, manifest.json, etc.)
 app.use(express.static(staticPath, {
-  maxAge: '1d',
-  etag: true
+  maxAge: '1h', // Shorter cache time to avoid caching issues
+  etag: true,
+  setHeaders: (res, path) => {
+    // Add cache control headers to prevent aggressive caching
+    res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+  }
 }));
+
+// Add a specific route to handle static file requests with better logging
+app.get('/static/*', (req, res) => {
+  console.log('Static file request:', req.path);
+  // Let express.static handle the request
+  express.static(path.join(staticPath, 'static'))(req, res, () => {
+    console.log('Static file not found:', req.path);
+    res.status(404).send('File not found');
+  });
+});
 
 // Catch all handler: send back React's index.html file for any non-API routes
 // This MUST be the last route to avoid interfering with API routes or static files
@@ -6777,8 +6793,12 @@ app.get('*', (req, res) => {
   
   // Don't serve index.html for static assets - they should be handled above
   if (req.path.startsWith('/static/')) {
-    console.log('Static asset not found:', req.path);
-    return res.status(404).send('Static asset not found');
+    console.log('Static asset request (should be handled by middleware):', req.path);
+    // Let the static middleware handle it
+    return express.static(staticPath)(req, res, () => {
+      console.log('Static asset not found:', req.path);
+      res.status(404).send('Static asset not found');
+    });
   }
   
   // For all other routes, serve the React app
