@@ -29,6 +29,7 @@ import AccessDenied from './components/AccessDenied';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import DraftQuotationsPage from './components/DraftQuotationsPage';
 
 function App() {
   return (
@@ -145,6 +146,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['cha']}>
                     <CHADashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/draft-quotations" 
+                element={
+                  <ProtectedRoute allowedRoles={['buyer']}>
+                    <DraftQuotationsPage />
                   </ProtectedRoute>
                 } 
               />

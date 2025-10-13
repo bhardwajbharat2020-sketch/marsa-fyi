@@ -284,7 +284,19 @@ const BuyerDashboard = () => {
             borderColor: activeTab === 'rfqs' ? bhagwa : 'transparent'
           }}
         >
-          RFQs
+          My RFQs
+        </button>
+        <button 
+          className={`px-4 py-2 rounded-t-lg font-medium ${
+            activeTab === 'draft-quotations' ? 'border-b-2' : ''
+          }`}
+          onClick={() => setActiveTab('draft-quotations')}
+          style={{ 
+            color: activeTab === 'draft-quotations' ? bhagwa : darkText,
+            borderColor: activeTab === 'draft-quotations' ? bhagwa : 'transparent'
+          }}
+        >
+          Draft Quotations
         </button>
         <button 
           className={`px-4 py-2 rounded-t-lg font-medium ${
@@ -296,7 +308,7 @@ const BuyerDashboard = () => {
             borderColor: activeTab === 'orders' ? bhagwa : 'transparent'
           }}
         >
-          Orders
+          My Orders
         </button>
         <button 
           className={`px-4 py-2 rounded-t-lg font-medium relative ${
@@ -310,15 +322,7 @@ const BuyerDashboard = () => {
         >
           Notifications
           {unreadNotificationsCount > 0 && (
-            <span 
-              className="absolute -top-1 -right-1 flex items-center justify-center rounded-full text-xs font-bold"
-              style={{ 
-                backgroundColor: "#e74c3c", 
-                color: "#fff",
-                width: "20px",
-                height: "20px"
-              }}
-            >
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
               {unreadNotificationsCount}
             </span>
           )}
@@ -469,6 +473,32 @@ const BuyerDashboard = () => {
                   No RFQs found. Create your first RFQ to get started.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'draft-quotations' && (
+        <div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold" style={{ color: darkText }}>Draft Quotations</h2>
+            <button 
+              className="px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+              style={{ backgroundColor: bhagwa, color: "#fff" }}
+              onClick={() => navigate('/draft-quotations')}
+            >
+              <span>View All Draft Quotations</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Placeholder for draft quotations preview */}
+            <div className="col-span-full text-center py-10" style={{ color: darkText }}>
+              <p>You don't have any draft quotations yet.</p>
+              <p className="mt-2 text-sm" style={{ color: "#7a614a" }}>
+                When captains accept your RFQs, draft quotations will appear here.
+              </p>
             </div>
           </div>
         </div>

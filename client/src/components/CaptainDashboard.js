@@ -41,6 +41,14 @@ const CaptainDashboard = () => {
     message: ''
   });
 
+  // State for RFQ acceptance form
+  const [showAcceptRFQModal, setShowAcceptRFQModal] = useState(false);
+  const [selectedRFQForAccept, setSelectedRFQForAccept] = useState(null);
+  const [acceptRFQData, setAcceptRFQData] = useState({
+    finalPrice: '',
+    message: ''
+  });
+
   // State for RFQ details modal
   const [showRFQDetailsModal, setShowRFQDetailsModal] = useState(false);
   const [selectedRFQDetails, setSelectedRFQDetails] = useState(null);
@@ -772,6 +780,77 @@ const CaptainDashboard = () => {
     }
   };
 
+  // Handle input changes for accept RFQ form
+  const handleAcceptRFQChange = (e) => {
+    const { name, value } = e.target;
+    setAcceptRFQData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle RFQ acceptance submission
+  const handleAcceptRFQSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedRFQForAccept || !acceptRFQData.finalPrice) {
+      alert('Please provide the final quotation price');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/rfqs/${selectedRFQForAccept.id}/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          finalPrice: acceptRFQData.finalPrice,
+          message: acceptRFQData.message
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update RFQ status in the local state
+        setRfqs(prevRfqs => 
+          prevRfqs.map(rfq => 
+            rfq.id === selectedRFQForAccept.id 
+              ? { ...rfq, status: 'accepted' } 
+              : rfq
+          )
+        );
+        
+        // Close modal and reset state
+        setShowAcceptRFQModal(false);
+        setSelectedRFQForAccept(null);
+        setAcceptRFQData({
+          finalPrice: '',
+          message: ''
+        });
+        
+        alert('RFQ accepted and draft quotation created successfully!');
+      } else {
+        alert('Failed to accept RFQ: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error accepting RFQ:', err);
+      alert('Failed to accept RFQ. Please try again.');
+    }
+  };
+
+  // Function to open accept RFQ modal
+  const openAcceptRFQModal = (rfq) => {
+    setSelectedRFQForAccept(rfq);
+    setAcceptRFQData({
+      finalPrice: '',
+      message: ''
+    });
+    setShowAcceptRFQModal(true);
+  };
+
   // Function to fetch RFQ details
   const fetchRFQDetails = async (rfqId) => {
     try {
@@ -1051,6 +1130,15 @@ const CaptainDashboard = () => {
                                   >
                                     Respond
                                   </button>
+                                  {rfq.status?.toLowerCase() === 'negotiation_requested' && (
+                                    <button 
+                                      className="px-3 py-1 rounded text-sm"
+                                      style={{ backgroundColor: "#2ecc71", color: "#fff" }}
+                                      onClick={() => openAcceptRFQModal(rfq)}
+                                    >
+                                      Accept RFQ
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1108,8 +1196,9 @@ const CaptainDashboard = () => {
                                 <button 
                                   className="px-3 py-1 rounded text-sm"
                                   style={{ backgroundColor: "#2ecc71", color: "#fff" }}
+                                  onClick={() => openAcceptRFQModal(rfq)}
                                 >
-                                  Assign
+                                  Accept RFQ
                                 </button>
                               </div>
                             </td>
@@ -1724,6 +1813,106 @@ const CaptainDashboard = () => {
             </div>
           )}
 
+          {/* Accept RFQ Modal */}
+          {showAcceptRFQModal && selectedRFQForAccept && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-md"
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>
+                      Accept RFQ and Create Draft Quotation
+                    </h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={() => {
+                        setShowAcceptRFQModal(false);
+                        setSelectedRFQForAccept(null);
+                        setAcceptRFQData({
+                          finalPrice: '',
+                          message: ''
+                        });
+                      }}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  
+                  <p className="mb-4" style={{ color: darkText }}>
+                    Accept RFQ #{selectedRFQForAccept.id} for "{selectedRFQForAccept.title}"
+                  </p>
+                  
+                  <form onSubmit={handleAcceptRFQSubmit}>
+                    <div className="mb-4">
+                      <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Final Quotation Price *
+                      </label>
+                      <input
+                        type="number"
+                        name="finalPrice"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={acceptRFQData.finalPrice}
+                        onChange={handleAcceptRFQChange}
+                        placeholder="Enter final price"
+                        required
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label htmlFor="accept-rfq-message" className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Message to Buyer
+                      </label>
+                      <textarea
+                        id="accept-rfq-message"
+                        name="message"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        rows="4"
+                        value={acceptRFQData.message}
+                        onChange={handleAcceptRFQChange}
+                        placeholder="Enter your message to the buyer..."
+                      ></textarea>
+                    </div>
+                    
+                    <div className="flex justify-end gap-3">
+                      <button 
+                        type="button"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        onClick={() => {
+                          setShowAcceptRFQModal(false);
+                          setSelectedRFQForAccept(null);
+                          setAcceptRFQData({
+                            finalPrice: '',
+                            message: ''
+                          });
+                        }}
+                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      >
+                        Accept RFQ & Create Draft
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* RFQ Response Modal */}
           {showRFQResponseModal && selectedRFQ && (
             <div 
@@ -1735,7 +1924,26 @@ const CaptainDashboard = () => {
                 style={{ backgroundColor: "#fff" }}
               >
                 <div className="p-6">
-                  <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Respond to RFQ</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>
+                      Respond to RFQ
+                    </h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={() => {
+                        setShowRFQResponseModal(false);
+                        setSelectedRFQ(null);
+                        setRfqResponse({
+                          action: 'negotiate',
+                          message: ''
+                        });
+                      }}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  
                   <p className="mb-4" style={{ color: darkText }}>
                     Respond to RFQ #{selectedRFQ.id} for "{selectedRFQ.title}"
                   </p>
@@ -1758,47 +1966,67 @@ const CaptainDashboard = () => {
                       </select>
                     </div>
                     
-                    <div className="mb-4">
-                      <label htmlFor="rfq-response-message" className="block mb-2 font-medium" style={{ color: darkText }}>
-                        Response Message *
-                      </label>
-                      <textarea
-                        id="rfq-response-message"
-                        name="message"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        rows="4"
-                        value={rfqResponse.message}
-                        onChange={handleRFQResponseChange}
-                        placeholder="Enter your response..."
-                        required
-                      ></textarea>
-                    </div>
-                    
-                    <div className="flex justify-end gap-3">
-                      <button 
-                        type="button"
-                        className="px-4 py-2 rounded-lg font-medium"
-                        onClick={() => {
-                          setShowRFQResponseModal(false);
-                          setSelectedRFQ(null);
-                          setRfqResponse({
-                            action: 'negotiate',
-                            message: ''
-                          });
-                        }}
-                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        type="submit"
-                        className="px-4 py-2 rounded-lg font-medium"
-                        style={{ backgroundColor: bhagwa, color: "#fff" }}
-                      >
-                        Submit Response
-                      </button>
-                    </div>
+                    {/* Show accept button when action is 'accept' */}
+                    {rfqResponse.action === 'accept' ? (
+                      <div className="mb-4">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 rounded-lg font-medium"
+                          onClick={() => {
+                            // Close current modal and open accept RFQ modal
+                            setShowRFQResponseModal(false);
+                            openAcceptRFQModal(selectedRFQ);
+                          }}
+                          style={{ backgroundColor: bhagwa, color: "#fff" }}
+                        >
+                          Proceed to Accept RFQ
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mb-4">
+                          <label htmlFor="rfq-response-message" className="block mb-2 font-medium" style={{ color: darkText }}>
+                            Response Message *
+                          </label>
+                          <textarea
+                            id="rfq-response-message"
+                            name="message"
+                            className="w-full p-3 rounded-lg border"
+                            style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                            rows="4"
+                            value={rfqResponse.message}
+                            onChange={handleRFQResponseChange}
+                            placeholder="Enter your response..."
+                            required
+                          ></textarea>
+                        </div>
+                        
+                        <div className="flex justify-end gap-3">
+                          <button 
+                            type="button"
+                            className="px-4 py-2 rounded-lg font-medium"
+                            onClick={() => {
+                              setShowRFQResponseModal(false);
+                              setSelectedRFQ(null);
+                              setRfqResponse({
+                                action: 'negotiate',
+                                message: ''
+                              });
+                            }}
+                            style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            type="submit"
+                            className="px-4 py-2 rounded-lg font-medium"
+                            style={{ backgroundColor: bhagwa, color: "#fff" }}
+                          >
+                            Submit Response
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </form>
                 </div>
               </div>

@@ -45,7 +45,7 @@ const heroSlides = [
     id: 3,
     title: "End-to-End Trade Solutions",
     subtitle: "From RFQ to delivery, we've got you covered",
-    image: "main.avif",
+    image: "main.jpg",
     cta: "Learn More",
   },
 ];
