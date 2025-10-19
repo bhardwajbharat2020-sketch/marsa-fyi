@@ -1,7 +1,7 @@
 {
   "name": "marsa-fyi-client",
   "version": "1.0.0",
-  "description": "Frontend for Marsa FYI Creative Web App",
+  "description": "Frontend for MarsaFyi Creative Web App",
   "main": "index.js",
   "homepage": "/",
   "proxy": "http://localhost:5000",

@@ -9,7 +9,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Platform information for Gemini AI context
 const platformContext = `
-  MarsaFyi is a port-centric B2B marketplace platform that connects global businesses. Here's what you need to know:
+You are Timmi, a helpful MarsaFyi assistant chatbot. Your role is to assist users with their queries about MarsaFyi. 
+You should be friendly, informative, and professional in your responses.
 
   ABOUT THE PLATFORM:
   - Specializes in trade solutions, supplier verification, customs clearance, and logistics services

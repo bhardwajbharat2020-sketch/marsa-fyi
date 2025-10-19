@@ -13,6 +13,7 @@ const CaptainDashboard = () => {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [ports, setPorts] = useState([]); // New state for ports
 
   
   // State for role management
@@ -46,12 +47,33 @@ const CaptainDashboard = () => {
   const [selectedRFQForAccept, setSelectedRFQForAccept] = useState(null);
   const [acceptRFQData, setAcceptRFQData] = useState({
     finalPrice: '',
-    message: ''
+    message: '',
+    specifications: '',
+    deliveryPortId: '',
+    deliveryDate: '',
+    paymentTerms: 'EXW'
   });
 
   // State for RFQ details modal
   const [showRFQDetailsModal, setShowRFQDetailsModal] = useState(false);
   const [selectedRFQDetails, setSelectedRFQDetails] = useState(null);
+
+  // State for DPQ details modal
+  const [showDPQDetailsModal, setShowDPQDetailsModal] = useState(false);
+  const [selectedDPQDetails, setSelectedDPQDetails] = useState(null);
+  const [showUpdateDPQModal, setShowUpdateDPQModal] = useState(false);
+  const [selectedDPQForUpdate, setSelectedDPQForUpdate] = useState(null);
+  const [updateDPQData, setUpdateDPQData] = useState({
+    unitPrice: '',
+    specifications: '',
+    deliveryPortId: '',
+    deliveryDate: '',
+    paymentTerms: 'EXW'
+  });
+
+  // State for DPO details modal
+  const [showDPODetailsModal, setShowDPODetailsModal] = useState(false);
+  const [selectedDPODetails, setSelectedDPODetails] = useState(null);
   const [productDetails, setProductDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
@@ -106,6 +128,7 @@ const CaptainDashboard = () => {
   const darkText = "#5a4632";
 
   // Function to fetch all dashboard data
+  // Function to fetch all dashboard data
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -121,6 +144,8 @@ const CaptainDashboard = () => {
         const rolesData = await rolesResponse.json();
         
         if (rolesResponse.ok) {
+          // Debug: Log the roles data to see what we're getting
+          console.log('Fetched roles data:', rolesData);
           setRoles(rolesData);
         } else {
           console.error('Error fetching roles:', rolesData.error);
@@ -205,6 +230,20 @@ const CaptainDashboard = () => {
         }
       } catch (err) {
         console.error('Error fetching disputes:', err);
+      }
+      
+      // Fetch ports
+      try {
+        const portsResponse = await fetch('/api/ports');
+        const portsData = await portsResponse.json();
+        
+        if (portsResponse.ok) {
+          setPorts(portsData);
+        } else {
+          console.error('Error fetching ports:', portsData.error);
+        }
+      } catch (err) {
+        console.error('Error fetching ports:', err);
       }
     } catch (err) {
       console.error('Unexpected error in dashboard data fetching:', err);
@@ -457,6 +496,19 @@ const CaptainDashboard = () => {
 
   // Function to delete a role
   const deleteRole = async (roleId, roleName) => {
+    // Prevent deletion of the captain role
+    const roleToDelete = roles.find(role => role.id === roleId);
+    if (roleToDelete) {
+      const isCaptainByCode = roleToDelete.code && roleToDelete.code.toUpperCase() === 'CAPT';
+      const isCaptainByName = roleToDelete.name && roleToDelete.name.toLowerCase().includes('captain');
+      const isCaptain = isCaptainByCode || isCaptainByName;
+      
+      if (isCaptain) {
+        alert('The Captain role cannot be deleted.');
+        return;
+      }
+    }
+    
     if (!window.confirm(`Are you sure you want to delete the role "${roleName}"?`)) {
       return;
     }
@@ -474,13 +526,151 @@ const CaptainDashboard = () => {
       if (response.ok && result.success) {
         // Remove the role from the roles state
         setRoles(prevRoles => prevRoles.filter(role => role.id !== roleId));
-        alert('Role deleted successfully!');
       } else {
         alert('Failed to delete role: ' + result.error);
       }
     } catch (err) {
       console.error('Error deleting role:', err);
       alert('Failed to delete role. Please try again.');
+    }
+  };
+
+  // Function to update DPQ (Draft Product Quotation)
+  const updateDPQ = async (dpqId, updateData) => {
+    try {
+      const response = await fetch(`/api/captain/dpqs/${dpqId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(updateData),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the DPQ in the dpqs state
+        setDpqs(prevDpqs => 
+          prevDpqs.map(dpq => 
+            dpq.id === dpqId ? { ...dpq, ...result.dpq } : dpq
+          )
+        );
+        
+        return { success: true, message: result.message };
+      } else {
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      console.error('Error updating DPQ:', err);
+      return { success: false, error: 'Failed to update quotation. Please try again.' };
+    }
+  };
+
+  // Function to view DPQ details
+  const viewDPQDetails = (dpq) => {
+    setSelectedDPQDetails(dpq);
+    setShowDPQDetailsModal(true);
+  };
+
+  // Function to close DPQ details modal
+  const closeDPQDetailsModal = () => {
+    setShowDPQDetailsModal(false);
+    setSelectedDPQDetails(null);
+  };
+
+  // Function to open update DPQ modal
+  const openUpdateDPQModal = (dpq) => {
+    setSelectedDPQForUpdate(dpq);
+    setUpdateDPQData({
+      unitPrice: dpq.unitPrice || '',
+      specifications: dpq.specifications || '',
+      deliveryPortId: dpq.deliveryPortId || '',
+      deliveryDate: dpq.deliveryDate || '',
+      paymentTerms: dpq.paymentTerms || 'EXW'
+    });
+    setShowUpdateDPQModal(true);
+  };
+
+  // Function to close update DPQ modal
+  const closeUpdateDPQModal = () => {
+    setShowUpdateDPQModal(false);
+    setSelectedDPQForUpdate(null);
+    setUpdateDPQData({
+      unitPrice: '',
+      specifications: '',
+      deliveryPortId: '',
+      deliveryDate: '',
+      paymentTerms: 'EXW'
+    });
+  };
+
+  // Handle input changes for update DPQ form
+  const handleUpdateDPQChange = (e) => {
+    const { name, value } = e.target;
+    setUpdateDPQData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle DPQ update submission
+  const handleUpdateDPQSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedDPQForUpdate) {
+      alert('No quotation selected for update');
+      return;
+    }
+    
+    try {
+      const response = await updateDPQ(selectedDPQForUpdate.id, updateDPQData);
+      
+      if (response.success) {
+        // Close modal and reset state
+        closeUpdateDPQModal();
+        alert('Quotation updated successfully!');
+      } else {
+        alert('Failed to update quotation: ' + response.error);
+      }
+    } catch (err) {
+      console.error('Error updating quotation:', err);
+      alert('Failed to update quotation. Please try again.');
+    }
+  };
+
+  // Function to convert DPQ to DPO
+  const convertToDPO = async (dpqId) => {
+    if (!window.confirm('Are you sure you want to convert this quotation to a Detailed Product Order?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/dpqs/${dpqId}/convert-to-dpo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the DPQ status in the local state
+        setDpqs(prevDpqs => 
+          prevDpqs.map(dpq => 
+            dpq.id === dpqId ? { ...dpq, status: 'converted' } : dpq
+          )
+        );
+        
+        alert('Quotation converted to DPO successfully!');
+      } else {
+        alert('Failed to convert quotation to DPO: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error converting quotation to DPO:', err);
+      alert('Failed to convert quotation to DPO. Please try again.');
     }
   };
 
@@ -556,6 +746,89 @@ const CaptainDashboard = () => {
       [name]: value
     }));
   };
+
+  // Function to view DPO details
+  const viewDPODetails = (dpo) => {
+    setSelectedDPODetails(dpo);
+    setShowDPODetailsModal(true);
+  };
+
+  // Function to close DPO details modal
+  const closeDPODetailsModal = () => {
+    setShowDPODetailsModal(false);
+    setSelectedDPODetails(null);
+  };
+
+  // Function to confirm DPO
+  const confirmDPO = async (dpoId) => {
+    if (!window.confirm('Are you sure you want to confirm this order?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/dpos/${dpoId}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the DPO status in the local state
+        setDpos(prevDpos => 
+          prevDpos.map(dpo => 
+            dpo.id === dpoId ? { ...dpo, status: 'confirmed' } : dpo
+          )
+        );
+        
+        alert('Order confirmed successfully!');
+      } else {
+        alert('Failed to confirm order: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error confirming order:', err);
+      alert('Failed to confirm order. Please try again.');
+    }
+  };
+
+  // Function to process DPO
+  const processDPO = async (dpoId) => {
+    if (!window.confirm('Are you sure you want to process this order?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/captain/dpos/${dpoId}/process`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update the DPO status in the local state
+        setDpos(prevDpos => 
+          prevDpos.map(dpo => 
+            dpo.id === dpoId ? { ...dpo, status: 'processing' } : dpo
+          )
+        );
+        
+        alert('Order processing started successfully!');
+      } else {
+        alert('Failed to process order: ' + result.error);
+      }
+    } catch (err) {
+      console.error('Error processing order:', err);
+      alert('Failed to process order. Please try again.');
+    }
+  };
+
 
   // Handle role form submission for create
   const handleCreateRole = async (e) => {
@@ -682,6 +955,16 @@ const CaptainDashboard = () => {
 
   // Function to open edit role modal
   const openEditRoleModal = (role) => {
+    // Prevent editing the captain role
+    const isCaptainByCode = role.code && role.code.toUpperCase() === 'CAPT';
+    const isCaptainByName = role.name && role.name.toLowerCase().includes('captain');
+    const isCaptain = isCaptainByCode || isCaptainByName;
+    
+    if (isCaptain) {
+      alert('The Captain role cannot be edited.');
+      return;
+    }
+    
     console.log('Opening edit role modal for role:', role);
     setEditingRole(role);
     setRoleFormData({
@@ -807,7 +1090,11 @@ const CaptainDashboard = () => {
         },
         body: JSON.stringify({
           finalPrice: acceptRFQData.finalPrice,
-          message: acceptRFQData.message
+          message: acceptRFQData.message,
+          specifications: acceptRFQData.specifications,
+          deliveryPortId: acceptRFQData.deliveryPortId ? parseInt(acceptRFQData.deliveryPortId) : null,
+          deliveryDate: acceptRFQData.deliveryDate || null,
+          paymentTerms: acceptRFQData.paymentTerms
         }),
       });
       
@@ -828,7 +1115,11 @@ const CaptainDashboard = () => {
         setSelectedRFQForAccept(null);
         setAcceptRFQData({
           finalPrice: '',
-          message: ''
+          message: '',
+          specifications: '',
+          deliveryPortId: '',
+          deliveryDate: '',
+          paymentTerms: 'EXW'
         });
         
         alert('RFQ accepted and draft quotation created successfully!');
@@ -842,13 +1133,53 @@ const CaptainDashboard = () => {
   };
 
   // Function to open accept RFQ modal
-  const openAcceptRFQModal = (rfq) => {
-    setSelectedRFQForAccept(rfq);
-    setAcceptRFQData({
-      finalPrice: '',
-      message: ''
-    });
-    setShowAcceptRFQModal(true);
+  const openAcceptRFQModal = async (rfq) => {
+    try {
+      console.log('Opening Accept RFQ modal for RFQ:', rfq);
+      // Fetch detailed product information for the RFQ
+      // Note: The RFQ data uses camelCase field names, so we use rfq.productId instead of rfq.product_id
+      if (rfq.productId) {
+        console.log('Fetching product details for product ID:', rfq.productId);
+        // Fetch product details with all relevant information
+        const productResponse = await fetch(`/api/products/${rfq.productId}`);
+        const productData = await productResponse.json();
+        
+        console.log('Product response status:', productResponse.status);
+        console.log('Product response ok:', productResponse.ok);
+        console.log('Product data:', productData);
+        
+        if (productResponse.ok) {
+          console.log('Setting product details:', productData);
+          setProductDetails(productData);
+          // Set the initial price to the product's price
+          setAcceptRFQData(prev => ({
+            ...prev,
+            finalPrice: productData.price || ''
+          }));
+          
+          // Set the selected RFQ and show the modal after product details are set
+          setSelectedRFQForAccept(rfq);
+          setShowAcceptRFQModal(true);
+        } else {
+          console.error('Error fetching product details:', productData.error);
+          setProductDetails(null);
+          // Still show the modal even if product details couldn't be fetched
+          setSelectedRFQForAccept(rfq);
+          setShowAcceptRFQModal(true);
+        }
+      } else {
+        console.log('No productId in RFQ:', rfq);
+        // Show the modal even if there's no product ID
+        setSelectedRFQForAccept(rfq);
+        setShowAcceptRFQModal(true);
+      }
+    } catch (err) {
+      console.error('Error opening accept RFQ modal:', err);
+      alert('Failed to open accept RFQ modal. Please try again.');
+      // Still show the modal even if there was an error
+      setSelectedRFQForAccept(rfq);
+      setShowAcceptRFQModal(true);
+    }
   };
 
   // Function to fetch RFQ details
@@ -911,7 +1242,13 @@ const CaptainDashboard = () => {
       completed: { backgroundColor: '#d4edda', color: '#155724' },
       open: { backgroundColor: '#fff3cd', color: '#856404' },
       resolved: { backgroundColor: '#d4edda', color: '#155724' },
-      submitted: { backgroundColor: '#cce5ff', color: '#004085' }
+      submitted: { backgroundColor: '#cce5ff', color: '#004085' },
+      draft: { backgroundColor: '#fff3cd', color: '#856404' },
+      negotiated: { backgroundColor: '#cce5ff', color: '#004085' },
+      accepted: { backgroundColor: '#d4edda', color: '#155724' },
+      converted: { backgroundColor: '#d1ecf1', color: '#0c5460' },
+      confirmed: { backgroundColor: '#d4edda', color: '#155724' },
+      processing: { backgroundColor: '#cce5ff', color: '#004085' }
     };
     
     const style = statusStyles[status.toLowerCase()] || statusStyles.pending;
@@ -1037,38 +1374,47 @@ const CaptainDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {roles.length > 0 ? roles.map(role => (
-                        <tr key={role.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
-                          <td className="p-3" style={{ color: darkText }}>{role.name}</td>
-                          <td className="p-3" style={{ color: darkText }}>{role.code}</td>
-                          <td className="p-3" style={{ color: darkText }}>{role.description}</td>
-                          <td className="p-3" style={{ color: darkText }}>{role.userCount}</td>
-                          <td className="p-3">
-                            <div className="flex flex-wrap gap-2">
-                              <button 
-                                className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
-                                onClick={() => openEditRoleModal(role)}
-                              >
-                                Edit
-                              </button>
-                              <button 
-                                className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: "#e74c3c", color: "#fff" }}
-                                onClick={() => deleteRole(role.id, role.name)}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan="5" className="text-center py-10" style={{ color: darkText }}>
-                            No roles found.
-                          </td>
-                        </tr>
-                      )}
+                      {(() => {
+                        const filteredRoles = roles.filter(role => {
+                          // Check both code and name for captain references
+                          const isCaptainByCode = role.code && role.code.toUpperCase() === 'CAPT';
+                          const isCaptainByName = role.name && role.name.toLowerCase().includes('captain');
+                          const isCaptain = isCaptainByCode || isCaptainByName;
+                          return !isCaptain;
+                        });
+                        return filteredRoles.length > 0 ? filteredRoles.map(role => (
+                          <tr key={role.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
+                            <td className="p-3" style={{ color: darkText }}>{role.name}</td>
+                            <td className="p-3" style={{ color: darkText }}>{role.code}</td>
+                            <td className="p-3" style={{ color: darkText }}>{role.description}</td>
+                            <td className="p-3" style={{ color: darkText }}>{role.userCount}</td>
+                            <td className="p-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                  onClick={() => openEditRoleModal(role)}
+                                >
+                                  Edit
+                                </button>
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                                  onClick={() => deleteRole(role.id, role.name)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan="5" className="text-center py-10" style={{ color: darkText }}>
+                              No roles found.
+                            </td>
+                          </tr>
+                        );
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -1134,7 +1480,10 @@ const CaptainDashboard = () => {
                                     <button 
                                       className="px-3 py-1 rounded text-sm"
                                       style={{ backgroundColor: "#2ecc71", color: "#fff" }}
-                                      onClick={() => openAcceptRFQModal(rfq)}
+                                      onClick={async () => {
+                                        console.log('Accept RFQ button clicked, RFQ data:', rfq);
+                                        await openAcceptRFQModal(rfq);
+                                      }}
                                     >
                                       Accept RFQ
                                     </button>
@@ -1196,7 +1545,10 @@ const CaptainDashboard = () => {
                                 <button 
                                   className="px-3 py-1 rounded text-sm"
                                   style={{ backgroundColor: "#2ecc71", color: "#fff" }}
-                                  onClick={() => openAcceptRFQModal(rfq)}
+                                  onClick={async () => {
+                                    console.log('Accept RFQ button clicked, RFQ data:', rfq);
+                                    await openAcceptRFQModal(rfq);
+                                  }}
                                 >
                                   Accept RFQ
                                 </button>
@@ -1232,8 +1584,11 @@ const CaptainDashboard = () => {
                     <thead>
                       <tr style={{ backgroundColor: creamCard }}>
                         <th className="text-left p-3" style={{ color: darkText }}>DPQ ID</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>RFQ ID</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Product</th>
-                        <th className="text-left p-3" style={{ color: darkText }}>Supplier</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Buyer</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Quantity</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Unit Price</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Status</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
                       </tr>
@@ -1242,8 +1597,11 @@ const CaptainDashboard = () => {
                       {dpqs.length > 0 ? dpqs.map(dpq => (
                         <tr key={dpq.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
                           <td className="p-3" style={{ color: darkText }}>{dpq.id}</td>
+                          <td className="p-3" style={{ color: darkText }}>{dpq.rfqId}</td>
                           <td className="p-3" style={{ color: darkText }}>{dpq.product}</td>
-                          <td className="p-3" style={{ color: darkText }}>{dpq.supplier}</td>
+                          <td className="p-3" style={{ color: darkText }}>{dpq.buyer}</td>
+                          <td className="p-3" style={{ color: darkText }}>{dpq.quantity}</td>
+                          <td className="p-3" style={{ color: darkText }}>${dpq.unitPrice} {dpq.currency}</td>
                           <td className="p-3">
                             <StatusBadge status={dpq.status} />
                           </td>
@@ -1252,21 +1610,34 @@ const CaptainDashboard = () => {
                               <button 
                                 className="px-3 py-1 rounded text-sm"
                                 style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                onClick={() => viewDPQDetails(dpq)}
                               >
                                 View
                               </button>
-                              <button 
-                                className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: bhagwa, color: "#fff" }}
-                              >
-                                Process
-                              </button>
+                              {dpq.status === 'negotiated' && (
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#3498db", color: "#fff" }}
+                                  onClick={() => openUpdateDPQModal(dpq)}
+                                >
+                                  Update Quotation
+                                </button>
+                              )}
+                              {dpq.status === 'draft' && (
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#2ecc71", color: "#fff" }}
+                                  onClick={() => convertToDPO(dpq.id)}
+                                >
+                                  Convert to DPO
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="5" className="text-center py-10" style={{ color: darkText }}>
+                          <td colSpan="8" className="text-center py-10" style={{ color: darkText }}>
                             No DPQs found.
                           </td>
                         </tr>
@@ -1293,8 +1664,11 @@ const CaptainDashboard = () => {
                     <thead>
                       <tr style={{ backgroundColor: creamCard }}>
                         <th className="text-left p-3" style={{ color: darkText }}>DPO ID</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>DPQ ID</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Product</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Buyer</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Quantity</th>
+                        <th className="text-left p-3" style={{ color: darkText }}>Unit Price</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Status</th>
                         <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
                       </tr>
@@ -1303,8 +1677,11 @@ const CaptainDashboard = () => {
                       {dpos.length > 0 ? dpos.map(dpo => (
                         <tr key={dpo.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
                           <td className="p-3" style={{ color: darkText }}>{dpo.id}</td>
+                          <td className="p-3" style={{ color: darkText }}>{dpo.dpqId}</td>
                           <td className="p-3" style={{ color: darkText }}>{dpo.product}</td>
                           <td className="p-3" style={{ color: darkText }}>{dpo.buyer}</td>
+                          <td className="p-3" style={{ color: darkText }}>{dpo.quantity}</td>
+                          <td className="p-3" style={{ color: darkText }}>${dpo.unitPrice} {dpo.currency}</td>
                           <td className="p-3">
                             <StatusBadge status={dpo.status} />
                           </td>
@@ -1313,21 +1690,34 @@ const CaptainDashboard = () => {
                               <button 
                                 className="px-3 py-1 rounded text-sm"
                                 style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                                onClick={() => viewDPODetails(dpo)}
                               >
                                 View
                               </button>
-                              <button 
-                                className="px-3 py-1 rounded text-sm"
-                                style={{ backgroundColor: "#2ecc71", color: "#fff" }}
-                              >
-                                Confirm
-                              </button>
+                              {dpo.status === 'pending' && (
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#2ecc71", color: "#fff" }}
+                                  onClick={() => confirmDPO(dpo.id)}
+                                >
+                                  Confirm
+                                </button>
+                              )}
+                              {dpo.status === 'confirmed' && (
+                                <button 
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: "#3498db", color: "#fff" }}
+                                  onClick={() => processDPO(dpo.id)}
+                                >
+                                  Process
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="5" className="text-center py-10" style={{ color: darkText }}>
+                          <td colSpan="8" className="text-center py-10" style={{ color: darkText }}>
                             No DPOs found.
                           </td>
                         </tr>
@@ -1493,7 +1883,7 @@ const CaptainDashboard = () => {
           )}
 
           {/* Edit Role Modal */}
-          {showEditRoleModal && editingRole && (
+          {showEditRoleModal && editingRole && editingRole.code !== 'CAPT' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
                 <div className="p-6">
@@ -1678,17 +2068,28 @@ const CaptainDashboard = () => {
                           style={{ borderColor: "#d9cfc1" }}
                         >
                           <option value="">Choose a user</option>
-                          {users.length > 0 ? (
-                            users.map(user => (
-                              <option key={user.id} value={user.id}>
-                                {user.first_name} {user.last_name} ({user.vendor_code})
+                          {(() => {
+                            // Filter out users who already have the captain role
+                            const filteredUsers = users.filter(user => {
+                              // Check if user's current role is captain
+                              const isCaptain = user.current_role && 
+                                (user.current_role.toLowerCase() === 'captain' || 
+                                 user.current_role.toLowerCase().includes('captain'));
+                              console.log(`User: ${user.first_name} ${user.last_name} (${user.vendor_code}) - Current Role: ${user.current_role} - Is Captain: ${isCaptain}`);
+                              return !isCaptain;
+                            });
+                            return filteredUsers.length > 0 ? (
+                              filteredUsers.map(user => (
+                                <option key={user.id} value={user.id}>
+                                  {user.first_name} {user.last_name} ({user.vendor_code})
+                                </option>
+                              ))
+                            ) : (
+                              <option value="" disabled>
+                                No users available
                               </option>
-                            ))
-                          ) : (
-                            <option value="" disabled>
-                              No users available
-                            </option>
-                          )}
+                            );
+                          })()}
                         </select>
                         {console.log('Rendering users dropdown, users count:', users.length)}
                       </div>
@@ -1733,19 +2134,34 @@ const CaptainDashboard = () => {
                         <label className="block text-sm font-medium mb-1" style={{ color: darkText }}>
                           Select Role *
                         </label>
-                        <select
-                          value={selectedRole}
-                          onChange={(e) => setSelectedRole(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg"
-                          style={{ borderColor: "#d9cfc1" }}
-                        >
-                          <option value="">Choose a role</option>
-                          {roles.map(role => (
-                            <option key={role.id} value={role.id}>
-                              {role.name}
-                            </option>
-                          ))}
-                        </select>
+                        {(() => {
+                          // Debug: Log roles before filtering
+                          console.log('All roles:', roles);
+                          const filteredRoles = roles.filter(role => {
+                            // Check both code and name for captain references
+                            const isCaptainByCode = role.code && role.code.toUpperCase() === 'CAPT';
+                            const isCaptainByName = role.name && role.name.toLowerCase().includes('captain');
+                            const isCaptain = isCaptainByCode || isCaptainByName;
+                            console.log(`Role: ${role.name} (Code: ${role.code}) - Is Captain: ${isCaptain}`);
+                            return !isCaptain;
+                          });
+                          console.log('Filtered roles (excluding Captain):', filteredRoles);
+                          return (
+                            <select
+                              value={selectedRole}
+                              onChange={(e) => setSelectedRole(e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg"
+                              style={{ borderColor: "#d9cfc1" }}
+                            >
+                              <option value="">Choose a role</option>
+                              {filteredRoles.map(role => (
+                                <option key={role.id} value={role.id}>
+                                  {role.name} (Code: {role.code})
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </div>
                       
                       {/* Role Details */}
@@ -1826,16 +2242,21 @@ const CaptainDashboard = () => {
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold" style={{ color: darkText }}>
-                      Accept RFQ and Create Draft Quotation
+                      Accept RFQ #{selectedRFQForAccept.id} for "{selectedRFQForAccept.title}"
                     </h3>
                     <button 
                       className="p-2 rounded-full"
                       onClick={() => {
                         setShowAcceptRFQModal(false);
                         setSelectedRFQForAccept(null);
+                        setProductDetails(null);
                         setAcceptRFQData({
                           finalPrice: '',
-                          message: ''
+                          message: '',
+                          specifications: '',
+                          deliveryPortId: '',
+                          deliveryDate: '',
+                          paymentTerms: 'EXW'
                         });
                       }}
                       style={{ backgroundColor: creamCard }}
@@ -1849,6 +2270,83 @@ const CaptainDashboard = () => {
                   </p>
                   
                   <form onSubmit={handleAcceptRFQSubmit}>
+                    {/* Product Details Section - Catalog-like view */}
+                    {console.log('Rendering modal, productDetails:', productDetails) || (productDetails ? (
+                      <div className="mb-6 p-4 rounded-lg border" style={{ borderColor: "#d9cfc1", backgroundColor: "#f9f9f9" }}>
+                        <h4 className="text-lg font-bold mb-3" style={{ color: darkText }}>Product Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Product Name</p>
+                            <p style={{ color: darkText }}>{productDetails.name || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Category</p>
+                            <p style={{ color: darkText }}>{productDetails.category || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Original Price</p>
+                            <p style={{ color: darkText }}>${productDetails.price || 'N/A'} {productDetails.currency || ''}</p>
+                          </div>
+                          {(productDetails.moq !== undefined || productDetails.moqUom !== undefined) && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>MOQ</p>
+                              <p style={{ color: darkText }}>
+                                {productDetails.moq || 'N/A'} {productDetails.moqUom || ''}
+                              </p>
+                            </div>
+                          )}
+                          {(productDetails.availableQuantity !== undefined || productDetails.quantityUom !== undefined) && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Available Quantity</p>
+                              <p style={{ color: darkText }}>
+                                {productDetails.availableQuantity || 'N/A'} {productDetails.quantityUom || ''}
+                              </p>
+                            </div>
+                          )}
+                          {productDetails.price_type !== undefined && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Price Type</p>
+                              <p style={{ color: darkText }}>{productDetails.price_type || 'N/A'}</p>
+                            </div>
+                          )}
+                          {productDetails.isRelabelingAllowed !== undefined && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Relabeling Allowed</p>
+                              <p style={{ color: darkText }}>
+                                {productDetails.isRelabelingAllowed ? 'Yes' : 'No'}
+                              </p>
+                            </div>
+                          )}
+                          {/* Display relabeling price if relabeling is allowed */}
+                          {productDetails.isRelabelingAllowed && productDetails.relabelingPrice !== undefined && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Re-labeling Price</p>
+                              <p style={{ color: darkText }}>${productDetails.relabelingPrice || 'N/A'} {productDetails.currency || ''}</p>
+                            </div>
+                          )}
+                          {productDetails.offerValidityDate && (
+                            <div>
+                              <p className="text-sm" style={{ color: "#7a614a" }}>Offer Validity</p>
+                              <p style={{ color: darkText }}>
+                                {new Date(productDetails.offerValidityDate).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {productDetails.description && (
+                          <div className="mt-4">
+                            <p className="text-sm" style={{ color: "#7a614a" }}>Description</p>
+                            <p style={{ color: darkText }}>{productDetails.description}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mb-6 p-4 rounded-lg border" style={{ borderColor: "#d9cfc1", backgroundColor: "#f9f9f9" }}>
+                        <p style={{ color: darkText }}>Loading product details...</p>
+                      </div>
+                    ))}
+                    
                     <div className="mb-4">
                       <label className="block mb-2 font-medium" style={{ color: darkText }}>
                         Final Quotation Price *
@@ -1867,22 +2365,6 @@ const CaptainDashboard = () => {
                       />
                     </div>
                     
-                    <div className="mb-4">
-                      <label htmlFor="accept-rfq-message" className="block mb-2 font-medium" style={{ color: darkText }}>
-                        Message to Buyer
-                      </label>
-                      <textarea
-                        id="accept-rfq-message"
-                        name="message"
-                        className="w-full p-3 rounded-lg border"
-                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                        rows="4"
-                        value={acceptRFQData.message}
-                        onChange={handleAcceptRFQChange}
-                        placeholder="Enter your message to the buyer..."
-                      ></textarea>
-                    </div>
-                    
                     <div className="flex justify-end gap-3">
                       <button 
                         type="button"
@@ -1890,9 +2372,14 @@ const CaptainDashboard = () => {
                         onClick={() => {
                           setShowAcceptRFQModal(false);
                           setSelectedRFQForAccept(null);
+                          setProductDetails(null);
                           setAcceptRFQData({
                             finalPrice: '',
-                            message: ''
+                            message: '',
+                            specifications: '',
+                            deliveryPortId: '',
+                            deliveryDate: '',
+                            paymentTerms: 'EXW'
                           });
                         }}
                         style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
@@ -1972,10 +2459,10 @@ const CaptainDashboard = () => {
                         <button
                           type="button"
                           className="w-full px-4 py-2 rounded-lg font-medium"
-                          onClick={() => {
+                          onClick={async () => {
                             // Close current modal and open accept RFQ modal
                             setShowRFQResponseModal(false);
-                            openAcceptRFQModal(selectedRFQ);
+                            await openAcceptRFQModal(selectedRFQ);
                           }}
                           style={{ backgroundColor: bhagwa, color: "#fff" }}
                         >
@@ -2226,6 +2713,344 @@ const CaptainDashboard = () => {
                       No details available
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* DPQ Details Modal */}
+          {showDPQDetailsModal && selectedDPQDetails && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" 
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>
+                      Quotation Details
+                    </h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={closeDPQDetailsModal}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>DPQ ID</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>RFQ ID</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.rfqId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Product</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.product}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Buyer</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.buyer}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Quantity</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.quantity}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Unit Price</p>
+                      <p style={{ color: darkText }}>${selectedDPQDetails.unitPrice} {selectedDPQDetails.currency}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Status</p>
+                      <p style={{ color: darkText }}>
+                        <StatusBadge status={selectedDPQDetails.status} />
+                      </p>
+                    </div>
+                    {selectedDPQDetails.deliveryDate && (
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Delivery Date</p>
+                        <p style={{ color: darkText }}>
+                          {new Date(selectedDPQDetails.deliveryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    {selectedDPQDetails.deliveryPort && (
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Delivery Port</p>
+                        <p style={{ color: darkText }}>{selectedDPQDetails.deliveryPort}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Payment Terms</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.paymentTerms}</p>
+                    </div>
+                  </div>
+                  
+                  {selectedDPQDetails.specifications && (
+                    <div className="mb-6">
+                      <p className="text-sm font-medium mb-2" style={{ color: "#7a614a" }}>Specifications</p>
+                      <p style={{ color: darkText }}>{selectedDPQDetails.specifications}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      className="px-4 py-2 rounded-lg font-medium"
+                      onClick={closeDPQDetailsModal}
+                      style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Update DPQ Modal */}
+          {showUpdateDPQModal && selectedDPQForUpdate && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-md"
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>
+                      Update Quotation
+                    </h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={closeUpdateDPQModal}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  
+                  <p className="mb-4" style={{ color: darkText }}>
+                    Update Quotation #{selectedDPQForUpdate.id} for "{selectedDPQForUpdate.product}"
+                  </p>
+                  
+                  <form onSubmit={handleUpdateDPQSubmit}>
+                    <div className="mb-4">
+                      <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Unit Price *
+                      </label>
+                      <input
+                        type="number"
+                        name="unitPrice"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={updateDPQData.unitPrice}
+                        onChange={handleUpdateDPQChange}
+                        placeholder="Enter unit price"
+                        required
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Specifications
+                      </label>
+                      <textarea
+                        name="specifications"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        rows="3"
+                        value={updateDPQData.specifications}
+                        onChange={handleUpdateDPQChange}
+                        placeholder="Enter product specifications..."
+                      ></textarea>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Delivery Port
+                        </label>
+                        <select
+                          name="deliveryPortId"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={updateDPQData.deliveryPortId}
+                          onChange={handleUpdateDPQChange}
+                        >
+                          <option value="">Select Delivery Port</option>
+                          {ports.map(port => (
+                            <option key={port.id} value={port.id}>
+                              {port.name} ({port.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                          Delivery Date
+                        </label>
+                        <input
+                          type="date"
+                          name="deliveryDate"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={updateDPQData.deliveryDate}
+                          onChange={handleUpdateDPQChange}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Payment Terms
+                      </label>
+                      <select
+                        name="paymentTerms"
+                        className="w-full p-3 rounded-lg border"
+                        style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                        value={updateDPQData.paymentTerms}
+                        onChange={handleUpdateDPQChange}
+                      >
+                        <option value="EXW">EXW (Ex Works)</option>
+                        <option value="FCA">FCA (Free Carrier)</option>
+                        <option value="CPT">CPT (Carriage Paid To)</option>
+                        <option value="CIP">CIP (Carriage and Insurance Paid To)</option>
+                        <option value="DAP">DAP (Delivered At Place)</option>
+                        <option value="DPU">DPU (Delivered at Place Unloaded)</option>
+                        <option value="DDP">DDP (Delivered Duty Paid)</option>
+                        <option value="FAS">FAS (Free Alongside Ship)</option>
+                        <option value="FOB">FOB (Free On Board)</option>
+                        <option value="CFR">CFR (Cost and Freight)</option>
+                        <option value="CIF">CIF (Cost, Insurance and Freight)</option>
+                      </select>
+                    </div>
+                    
+                    <div className="flex justify-end gap-3">
+                      <button 
+                        type="button"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        onClick={closeUpdateDPQModal}
+                        style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        className="px-4 py-2 rounded-lg font-medium"
+                        style={{ backgroundColor: bhagwa, color: "#fff" }}
+                      >
+                        Update Quotation
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DPO Details Modal */}
+          {showDPODetailsModal && selectedDPODetails && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div 
+                className="rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" 
+                style={{ backgroundColor: "#fff" }}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold" style={{ color: darkText }}>
+                      Order Details
+                    </h3>
+                    <button 
+                      className="p-2 rounded-full"
+                      onClick={closeDPODetailsModal}
+                      style={{ backgroundColor: creamCard }}
+                    >
+                      <span style={{ color: darkText, fontSize: '20px' }}>&times;</span>
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>DPO ID</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>DPQ ID</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.dpqId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Product</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.product}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Buyer</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.buyer}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Quantity</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.quantity}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Unit Price</p>
+                      <p style={{ color: darkText }}>${selectedDPODetails.unitPrice} {selectedDPODetails.currency}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Status</p>
+                      <p style={{ color: darkText }}>
+                        <StatusBadge status={selectedDPODetails.status} />
+                      </p>
+                    </div>
+                    {selectedDPODetails.deliveryDate && (
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Delivery Date</p>
+                        <p style={{ color: darkText }}>
+                          {new Date(selectedDPODetails.deliveryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    {selectedDPODetails.deliveryPort && (
+                      <div>
+                        <p className="text-sm" style={{ color: "#7a614a" }}>Delivery Port</p>
+                        <p style={{ color: darkText }}>{selectedDPODetails.deliveryPort}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm" style={{ color: "#7a614a" }}>Payment Terms</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.paymentTerms}</p>
+                    </div>
+                  </div>
+                  
+                  {selectedDPODetails.specifications && (
+                    <div className="mb-6">
+                      <p className="text-sm font-medium mb-2" style={{ color: "#7a614a" }}>Specifications</p>
+                      <p style={{ color: darkText }}>{selectedDPODetails.specifications}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      className="px-4 py-2 rounded-lg font-medium"
+                      onClick={closeDPODetailsModal}
+                      style={{ backgroundColor: "#fff", color: darkText, border: "1px solid #d9cfc1" }}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

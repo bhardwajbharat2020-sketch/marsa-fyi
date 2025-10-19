@@ -32,6 +32,7 @@ const SellerDashboard = () => {
     currency: 'USD',
     priceType: 'EXW',
     reLabeling: 'no',
+    relabelingPrice: '', // New field for relabeling price
     validityDate: '',
     validityTime: '',
     surveyTermsAccepted: false,
@@ -55,6 +56,7 @@ const SellerDashboard = () => {
     currency: 'USD',
     priceType: 'EXW',
     reLabeling: 'no',
+    relabelingPrice: '', // New field for relabeling price
     validityDate: '',
     validityTime: '',
     surveyTermsAccepted: false,
@@ -71,7 +73,7 @@ const SellerDashboard = () => {
 
   // Define categories list (from ShopPage)
   const categories = [
-    'All Categories',
+    'Land, house flat plot category', // Added missing category
     'Industrial Plants, Machinery & Equipment',
     'Consumer Electronics & Household Appliances',
     'Industrial & Engineering Products, Spares and Supplies',
@@ -374,28 +376,11 @@ const SellerDashboard = () => {
     e.preventDefault();
     
     try {
-      // Debug logging
-      console.log('=== PRODUCT SUBMISSION DEBUG INFO ===');
-      console.log('newProduct state:', newProduct);
-      
-      // Check if required fields are present and valid
+      // Validate required fields
       const requiredFields = ['name', 'category', 'price', 'description'];
       for (const field of requiredFields) {
-        if (!(field in newProduct)) {
-          alert(`Required field '${field}' is missing from form data`);
-          return;
-        }
-        
-        const value = newProduct[field];
-        console.log(`Field '${field}':`, value, '| Type:', typeof value, '| Length:', value ? value.length : 'N/A');
-        
-        if (value === null || value === undefined) {
-          alert(`Field '${field}' is null or undefined`);
-          return;
-        }
-        
-        if (typeof value === 'string' && value.trim() === '') {
-          alert(`Field '${field}' cannot be empty or whitespace only`);
+        if (!newProduct[field] || newProduct[field].toString().trim() === '') {
+          alert(`Field '${field}' cannot be empty`);
           return;
         }
       }
@@ -405,6 +390,16 @@ const SellerDashboard = () => {
       if (isNaN(priceValue) || priceValue <= 0) {
         alert(`Price must be a valid positive number (received: ${newProduct.price})`);
         return;
+      }
+      
+      // Validate relabeling price if relabeling is enabled
+      let relabelingPriceValue = null;
+      if (newProduct.reLabeling === 'yes') {
+        relabelingPriceValue = parseFloat(newProduct.relabelingPrice);
+        if (isNaN(relabelingPriceValue) || relabelingPriceValue <= 0) {
+          alert(`Re-labeling price must be a valid positive number (received: ${newProduct.relabelingPrice})`);
+          return;
+        }
       }
       
       // Prepare form data with correct field names
@@ -421,6 +416,9 @@ const SellerDashboard = () => {
       formData.append('currency', newProduct.currency || 'USD');
       formData.append('priceType', newProduct.priceType || 'EXW');
       formData.append('reLabeling', newProduct.reLabeling || 'no');
+      if (relabelingPriceValue !== null) {
+        formData.append('relabelingPrice', relabelingPriceValue);
+      }
       formData.append('validityDate', newProduct.validityDate || '');
       formData.append('validityTime', newProduct.validityTime || '');
       
@@ -481,6 +479,7 @@ const SellerDashboard = () => {
           currency: 'USD',
           priceType: 'EXW',
           reLabeling: 'no',
+          relabelingPrice: '',
           validityDate: '',
           validityTime: '',
           surveyTermsAccepted: false,
@@ -522,6 +521,16 @@ const SellerDashboard = () => {
         return;
       }
       
+      // Validate relabeling price if relabeling is enabled
+      let relabelingPriceValue = null;
+      if (editProductData.reLabeling === 'yes') {
+        relabelingPriceValue = parseFloat(editProductData.relabelingPrice);
+        if (isNaN(relabelingPriceValue) || relabelingPriceValue <= 0) {
+          alert(`Re-labeling price must be a valid positive number (received: ${editProductData.relabelingPrice})`);
+          return;
+        }
+      }
+      
       // Prepare form data
       const formData = new FormData();
       formData.append('name', editProductData.name.trim());
@@ -536,6 +545,9 @@ const SellerDashboard = () => {
       formData.append('currency', editProductData.currency || 'USD');
       formData.append('priceType', editProductData.priceType || 'EXW');
       formData.append('reLabeling', editProductData.reLabeling || 'no');
+      if (relabelingPriceValue !== null) {
+        formData.append('relabelingPrice', relabelingPriceValue);
+      }
       formData.append('validityDate', editProductData.validityDate || '');
       formData.append('validityTime', editProductData.validityTime || '');
       
@@ -553,11 +565,11 @@ const SellerDashboard = () => {
         // Update the product in all relevant lists
         const updateProductInList = (list) => 
           list.map(p => p.id === editingProduct.id ? result.product : p);
-        
+      
         setApprovedProducts(prev => updateProductInList(prev));
         setSubmittedProducts(prev => updateProductInList(prev));
         setIneffectiveProducts(prev => updateProductInList(prev));
-        
+      
         // Reset form and close modal
         setEditingProduct(null);
         setEditProductData({
@@ -573,6 +585,7 @@ const SellerDashboard = () => {
           currency: 'USD',
           priceType: 'EXW',
           reLabeling: 'no',
+          relabelingPrice: '',
           validityDate: '',
           validityTime: '',
           surveyTermsAccepted: false,
@@ -580,7 +593,7 @@ const SellerDashboard = () => {
           relabelingTermsAccepted: false
         });
         setShowEditProductModal(false);
-        
+      
         alert('Product updated successfully!');
       } else {
         throw new Error(result.error || 'Failed to update product');
@@ -699,7 +712,7 @@ const SellerDashboard = () => {
             borderColor: activeTab === 'rfqs' ? bhagwa : 'transparent'
           }}
         >
-          RFQs
+          Awaited Surveys
         </button>
         <button 
           className={`px-4 py-2 rounded-t-lg font-medium relative ${
@@ -867,16 +880,15 @@ const SellerDashboard = () => {
             style={{ backgroundColor: "#fff" }}
           >
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold" style={{ color: darkText }}>RFQs</h2>
+              <h2 className="text-2xl font-bold" style={{ color: darkText }}>Awaited Surveys</h2>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr style={{ backgroundColor: creamCard }}>
-                    <th className="text-left p-3" style={{ color: darkText }}>RFQ ID</th>
+                    <th className="text-left p-3" style={{ color: darkText }}>Survey ID</th>
                     <th className="text-left p-3" style={{ color: darkText }}>Product</th>
-                    <th className="text-left p-3" style={{ color: darkText }}>Quantity</th>
                     <th className="text-left p-3" style={{ color: darkText }}>Status</th>
                     <th className="text-left p-3" style={{ color: darkText }}>Actions</th>
                   </tr>
@@ -886,7 +898,6 @@ const SellerDashboard = () => {
                     <tr key={rfq.id} className="border-b" style={{ borderColor: "#d9cfc1" }}>
                       <td className="p-3" style={{ color: darkText }}>{rfq.id}</td>
                       <td className="p-3" style={{ color: darkText }}>{rfq.product}</td>
-                      <td className="p-3" style={{ color: darkText }}>{rfq.quantity}</td>
                       <td className="p-3">
                         <StatusBadge status={rfq.status} />
                       </td>
@@ -902,7 +913,7 @@ const SellerDashboard = () => {
                             className="px-3 py-1 rounded text-sm"
                             style={{ backgroundColor: bhagwa, color: "#fff" }}
                           >
-                            Respond
+                            Complete Survey
                           </button>
                         </div>
                       </td>
@@ -913,7 +924,7 @@ const SellerDashboard = () => {
               
               {rfqs.length === 0 && !loading && (
                 <div className="text-center py-10" style={{ color: darkText }}>
-                  No RFQs found.
+                  No awaited surveys found.
                 </div>
               )}
             </div>
@@ -1231,7 +1242,42 @@ const SellerDashboard = () => {
                       </label>
                     </div>
                   </div>
-                  
+
+                  {/* Re-labeling Price - Only show when re-labeling is enabled */}
+                  {newProduct.reLabeling === 'yes' && (
+                    <div>
+                      <label htmlFor="relabelingPrice" className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Re-labeling Price
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          id="relabelingPrice"
+                          name="relabelingPrice"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={newProduct.relabelingPrice}
+                          onChange={handleProductInputChange}
+                          min="0"
+                          step="0.01"
+                          placeholder="Enter re-labeling price"
+                        />
+                        <select
+                          name="currency"
+                          className="p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={newProduct.currency}
+                          onChange={handleProductInputChange}
+                        >
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                          <option value="INR">INR</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Offer Validity */}
                   <div>
                     <label className="block mb-2 font-medium" style={{ color: darkText }}>
@@ -1587,6 +1633,41 @@ const SellerDashboard = () => {
                     </div>
                   </div>
                   
+                  {/* Re-labeling Price - Only show when re-labeling is enabled */}
+                  {editProductData.reLabeling === 'yes' && (
+                    <div>
+                      <label htmlFor="edit-relabelingPrice" className="block mb-2 font-medium" style={{ color: darkText }}>
+                        Re-labeling Price
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          id="edit-relabelingPrice"
+                          name="relabelingPrice"
+                          className="w-full p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={editProductData.relabelingPrice}
+                          onChange={handleEditProductInputChange}
+                          min="0"
+                          step="0.01"
+                          placeholder="Enter re-labeling price"
+                        />
+                        <select
+                          name="currency"
+                          className="p-3 rounded-lg border"
+                          style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
+                          value={editProductData.currency}
+                          onChange={handleEditProductInputChange}
+                        >
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                          <option value="INR">INR</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Offer Validity */}
                   <div>
                     <label className="block mb-2 font-medium" style={{ color: darkText }}>

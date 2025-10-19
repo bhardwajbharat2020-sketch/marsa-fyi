@@ -122,41 +122,118 @@ const Register = () => {
     }));
   };
 
-  const sendEmailOtp = () => {
-    // In a real app, this would send an OTP to the email
+  const sendEmailOtp = async () => {
     if (!formData.email) {
       setError('Please enter your email first');
       return;
     }
-    alert(`OTP sent to ${formData.email}: 123456`);
+    
+    setLoading(true);
     setError('');
-  };
-
-  const verifyEmailOtp = () => {
-    if (emailOtp === '123456') {
-      setEmailVerified(true);
-      setError('');
-    } else {
-      setError('Invalid OTP. Please try again.');
+    
+    try {
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        setError('OTP sent to your email. Please check your inbox.');
+      } else {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error sending OTP:', err);
+      setError('An error occurred while sending OTP. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const sendWhatsappOtp = () => {
-    // In a real app, this would send an OTP to WhatsApp
+  const verifyEmailOtp = async () => {
+    if (!formData.email || !emailOtp) {
+      setError('Please enter both email and OTP');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/api/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email, otp: emailOtp }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        setEmailVerified(true);
+        setError('');
+      } else {
+        setError(result.error || 'Invalid OTP. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error verifying OTP:', err);
+      setError('An error occurred while verifying OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendWhatsappOtp = async () => {
     if (!formData.whatsapp) {
       setError('Please enter your WhatsApp number first');
       return;
     }
-    alert(`OTP sent to WhatsApp ${formData.whatsapp}: 654321`);
+    
+    setLoading(true);
     setError('');
+    
+    try {
+      // For now, we'll simulate WhatsApp OTP sending with an alert
+      // In a real implementation, you would integrate with a WhatsApp API
+      alert(`OTP sent to WhatsApp ${formData.whatsapp}. In a real implementation, this would be sent via WhatsApp API.`);
+      setError('OTP sent to your WhatsApp. Please check your messages.');
+    } catch (err) {
+      console.error('Error sending WhatsApp OTP:', err);
+      setError('An error occurred while sending WhatsApp OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const verifyWhatsappOtp = () => {
-    if (whatsappOtp === '654321') {
-      setWhatsappVerified(true);
-      setError('');
-    } else {
-      setError('Invalid OTP. Please try again.');
+  const verifyWhatsappOtp = async () => {
+    if (!formData.whatsapp || !whatsappOtp) {
+      setError('Please enter both WhatsApp number and OTP');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      // For demo purposes, we'll accept any 6-digit OTP
+      // In a real implementation, you would verify with your WhatsApp API
+      if (/^\d{6}$/.test(whatsappOtp)) {
+        setWhatsappVerified(true);
+        setError('');
+      } else {
+        setError('Invalid OTP format. Please enter a 6-digit code.');
+      }
+    } catch (err) {
+      console.error('Error verifying WhatsApp OTP:', err);
+      setError('An error occurred while verifying WhatsApp OTP. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -524,6 +601,7 @@ const Register = () => {
                           type="text"
                           id="name"
                           name="name"
+                          placeholder="Enter your name or company name"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={formData.name}
                           onChange={handleInputChange}
@@ -531,7 +609,7 @@ const Register = () => {
                           style={{ backgroundColor: "#fff", color: darkText }}
                         />
                       </div>
-                      
+
                       <div className="md:col-span-2">
                         <label htmlFor="email" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="email" /></label>
                         <div className="flex gap-2">
@@ -539,6 +617,7 @@ const Register = () => {
                             type="email"
                             id="email"
                             name="email"
+                            placeholder="Enter your email address"
                             className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={formData.email}
                             onChange={handleInputChange}
@@ -560,7 +639,7 @@ const Register = () => {
                           <div className="flex gap-2 mt-3">
                             <input
                               type="text"
-                              placeholder={t('enterOtp')}
+                              placeholder="Enter 6-digit OTP"
                               className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value={emailOtp}
                               onChange={(e) => setEmailOtp(e.target.value)}
@@ -578,13 +657,14 @@ const Register = () => {
                         )}
                         {emailVerified && <div className="text-green-600 mt-2 font-semibold">✓ <Translate text="emailVerified" /></div>}
                       </div>
-                      
+
                       <div>
                         <label htmlFor="password" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="password" /></label>
                         <input
                           type="password"
                           id="password"
                           name="password"
+                          placeholder="Create new password"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={formData.password}
                           onChange={handleInputChange}
@@ -593,7 +673,7 @@ const Register = () => {
                           style={{ backgroundColor: "#fff", color: darkText }}
                         />
                       </div>
-                      
+
                       <div>
                         <label htmlFor="whatsapp" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="whatsappNumber" /></label>
                         <div className="flex gap-2">
@@ -601,6 +681,7 @@ const Register = () => {
                             type="tel"
                             id="whatsapp"
                             name="whatsapp"
+                            placeholder="Enter your WhatsApp number"
                             className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={formData.whatsapp}
                             onChange={handleInputChange}
@@ -621,7 +702,7 @@ const Register = () => {
                           <div className="flex gap-2 mt-3">
                             <input
                               type="text"
-                              placeholder={t('enterOtp')}
+                              placeholder="Enter 6-digit OTP"
                               className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               value={whatsappOtp}
                               onChange={(e) => setWhatsappOtp(e.target.value)}
@@ -639,12 +720,13 @@ const Register = () => {
                         )}
                         {whatsappVerified && <div className="text-green-600 mt-2 font-semibold">✓ <Translate text="whatsappVerified" /></div>}
                       </div>
-                      
+
                       <div className="md:col-span-2">
                         <label htmlFor="address" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="address" /></label>
                         <textarea
                           id="address"
                           name="address"
+                          placeholder="Enter your full address"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={formData.address}
                           onChange={handleInputChange}
@@ -653,20 +735,21 @@ const Register = () => {
                           style={{ backgroundColor: "#fff", color: darkText }}
                         ></textarea>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="zipCode" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="pincode" /></label>
                         <input
                           type="text"
                           id="zipCode"
                           name="zipCode"
+                          placeholder="Enter your pincode/zip code"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={formData.zipCode}
                           onChange={handleInputChange}
                           style={{ backgroundColor: "#fff", color: darkText }}
                         />
                       </div>
-                      
+
                       <div>
                         <label htmlFor="port" className="block text-lg font-semibold mb-2" style={{ color: darkText }}><Translate text="nearestPort" /></label>
                         <select
@@ -678,7 +761,7 @@ const Register = () => {
                           required
                           style={{ backgroundColor: "#fff", color: darkText }}
                         >
-                          <option value=""><Translate text="selectPort" /></option>
+                          <option value="">Select your nearest port</option>
                           {ports.map(port => (
                             <option key={port} value={port}>{port}</option>
                           ))}

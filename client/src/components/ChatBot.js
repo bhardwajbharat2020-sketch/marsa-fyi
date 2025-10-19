@@ -5,7 +5,7 @@ const ChatBot = () => {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hello! I'm your MarsaFyi assistant. How can I help you today?",
+      text: "Hello! I'm Timmi, your MarsaFyi assistant. How can I help you today?",
       sender: 'bot',
       timestamp: new Date()
     }
@@ -147,9 +147,27 @@ const ChatBot = () => {
 
   return (
     <div className="fixed bottom-6 left-6 z-50">
+      {/* Text above chatbot button */}
+      {!isOpen && (
+        <div 
+          className="text-center mb-2 px-3 py-2 rounded-lg shadow-md"
+          style={{ 
+            backgroundColor: '#fff',
+            color: '#5a4632',
+            fontWeight: '600',
+            fontSize: '14px',
+            border: '1px solid #f6efe6',
+            maxWidth: '180px',
+            margin: '0 auto 8px'
+          }}
+        >
+          Ask Timmi, your MarsaFyi AI assistant
+        </div>
+      )}
+
       {/* Chatbot button */}
       <div 
-        className="w-14 h-14 rounded-full shadow-lg cursor-pointer flex items-center justify-center mb-3"
+        className="w-14 h-14 rounded-full shadow-lg cursor-pointer flex items-center justify-center"
         onClick={toggleChat}
         style={{ 
           backgroundColor: '#f77f00',
@@ -181,32 +199,9 @@ const ChatBot = () => {
           }}
         >
           {/* Chat header */}
-          <div 
-            className="p-4 rounded-t-xl flex justify-between items-center"
-            style={{ backgroundColor: '#f77f00' }}
-          >
-            <div className="flex items-center">
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="white"
-                className="mr-2"
-              >
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-              </svg>
-              <h3 className="font-bold text-white">MarsaFyi Assistant</h3>
-            </div>
-            <button 
-              onClick={toggleChat}
-              className="text-white hover:text-gray-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
+          <div className="chat-header">
+            <h3>Timmi - Your MarsaFyi Assistant</h3>
+            <button className="close-btn" onClick={toggleChat}>×</button>
           </div>
 
           {/* Chat messages */}

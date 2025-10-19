@@ -444,9 +444,11 @@ const AboutPage = () => {
             </div>
             <div className="leader-card p-6 rounded-xl text-center" style={{ backgroundColor: "#fff" }}>
               <div className="leader-image mb-4">
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-32 h-32 mx-auto flex items-center justify-center">
-                  <span className="text-gray-500">Leader Photo</span>
-                </div>
+                <img 
+                  src="/img3.jpg" 
+                  alt="Sarah Williams" 
+                  className="w-32 h-32 rounded-xl mx-auto object-cover"
+                />
               </div>
               <h3 className="text-xl font-bold" style={{ color: darkText }}>Sarah Williams</h3>
               <p className="leader-title text-[#f77f00] font-semibold my-2"><Translate text="cto" /></p>

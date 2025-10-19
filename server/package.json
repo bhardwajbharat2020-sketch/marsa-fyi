@@ -1,7 +1,7 @@
 {
   "name": "marsa-fyi-server",
   "version": "1.0.0",
-  "description": "Backend for Marsa FYI Creative Web App",
+  "description": "Backend for MarsaFyi Creative Web App",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

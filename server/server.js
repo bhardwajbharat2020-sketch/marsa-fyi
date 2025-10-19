@@ -497,6 +497,137 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Store OTPs in memory (in production, use a database or Redis)
+const otpStore = new Map();
+
+// Generate a random 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Send OTP endpoint
+app.post('/api/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email is required' 
+      });
+    }
+    
+    // Generate OTP
+    const otp = generateOTP();
+    
+    // Store OTP with expiration (5 minutes)
+    const expirationTime = Date.now() + 5 * 60 * 1000; // 5 minutes
+    otpStore.set(email, { otp, expirationTime });
+    
+    // Send OTP via email
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: 'MarsaFyi - Email Verification OTP',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #f77f00;">Email Verification</h2>
+            <p>Hello,</p>
+            <p>Your OTP (One-Time Password) for email verification is:</p>
+            <div style="background-color: #f8f8f8; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+              <h3 style="margin: 0; font-size: 32px; letter-spacing: 5px; color: #f77f00;">${otp}</h3>
+            </div>
+            <p>This OTP will expire in 5 minutes.</p>
+            <p>If you didn't request this verification, please ignore this email.</p>
+            <hr style="margin: 30px 0;">
+            <p style="color: #999; font-size: 12px;">
+              This email was sent by MarsaFyi. If you're having trouble with the button above, copy and paste the following link into your web browser:
+            </p>
+          </div>
+        `,
+      });
+      
+      console.log('OTP sent to:', email);
+      res.json({ 
+        success: true, 
+        message: 'OTP sent successfully to your email'
+      });
+    } catch (emailError) {
+      console.error('Error sending OTP email:', emailError.message);
+      // Remove the OTP from store if email fails
+      otpStore.delete(email);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to send OTP email. Please try again.' 
+      });
+    }
+  } catch (error) {
+    console.error('Unexpected error sending OTP:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error while sending OTP' 
+    });
+  }
+});
+
+// Verify OTP endpoint
+app.post('/api/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email and OTP are required' 
+      });
+    }
+    
+    // Check if OTP exists for this email
+    const storedOtpData = otpStore.get(email);
+    
+    if (!storedOtpData) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'OTP not found or expired. Please request a new OTP.' 
+      });
+    }
+    
+    const { otp: storedOtp, expirationTime } = storedOtpData;
+    
+    // Check if OTP is expired
+    if (Date.now() > expirationTime) {
+      otpStore.delete(email); // Remove expired OTP
+      return res.status(400).json({ 
+        success: false, 
+        error: 'OTP has expired. Please request a new OTP.' 
+      });
+    }
+    
+    // Check if OTP matches
+    if (storedOtp !== otp) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid OTP. Please try again.' 
+      });
+    }
+    
+    // OTP is valid, remove it from store
+    otpStore.delete(email);
+    
+    res.json({ 
+      success: true, 
+      message: 'Email verified successfully'
+    });
+  } catch (error) {
+    console.error('Unexpected error verifying OTP:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Server error while verifying OTP' 
+    });
+  }
+});
+
 // Catalogs endpoint - fetch featured products
 app.get('/api/catalogs', async (req, res) => {
   try {
@@ -778,7 +909,16 @@ app.get('/api/products/:id', async (req, res) => {
         currency_id,
         is_verified,
         is_active,
+        status,
+        moq,
+        moq_uom,
+        available_quantity,
+        quantity_uom,
+        price_type,
+        is_relabeling_allowed,
+        offer_validity_date,
         categories (name),
+        currencies (code),
         users (first_name, last_name, vendor_code)
       `)
       .eq('id', productId)
@@ -816,7 +956,15 @@ app.get('/api/products/:id', async (req, res) => {
       category_name: product.categories?.name || 'Uncategorized',
       is_verified: product.is_verified,
       price: product.price,
-      currency: 'USD' // In a real app, this would come from the currencies table
+      currency: product.currencies?.code || 'USD',
+      category: product.categories?.name || 'Uncategorized',
+      moq: product.moq,
+      moqUom: product.moq_uom,
+      availableQuantity: product.available_quantity,
+      quantityUom: product.quantity_uom,
+      price_type: product.price_type,
+      isRelabelingAllowed: product.is_relabeling_allowed,
+      offerValidityDate: product.offer_validity_date
     };
 
     console.log(`Successfully transformed product ${productId}`);
@@ -1737,11 +1885,11 @@ app.get('/api/admin/logs', async (req, res) => {
     // Format logs data
     const formattedLogs = logs.map(log => ({
       id: log.id,
-      userId: log.user_id,
+      user_id: log.user_id,
       action: log.action,
       details: log.details,
       reason: log.reason,
-      createdAt: log.created_at
+      created_at: log.created_at
     }));
 
     console.log(`Successfully fetched ${formattedLogs.length} audit logs from Supabase`);
@@ -1751,6 +1899,82 @@ app.get('/api/admin/logs', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Server error fetching audit logs: ' + error.message 
+    });
+  }
+});
+
+// Ports endpoint - fetch all ports
+app.get('/api/ports', async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch ports from Supabase
+    const { data: ports, error } = await supabase
+      .from('ports')
+      .select('id, name, country, code')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching ports from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching ports: ' + error.message 
+      });
+    }
+
+    console.log(`Successfully fetched ${ports.length} ports from Supabase`);
+    res.json(ports || []);
+  } catch (error) {
+    console.error('Error in ports endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching ports: ' + error.message 
+    });
+  }
+});
+
+// Ports endpoint - fetch all ports
+app.get('/api/ports', async (req, res) => {
+  try {
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+
+    // Fetch ports from Supabase
+    const { data: ports, error } = await supabase
+      .from('ports')
+      .select('id, name, country, code')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching ports from Supabase:', error.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching ports: ' + error.message 
+      });
+    }
+
+    console.log(`Successfully fetched ${ports.length} ports from Supabase`);
+    res.json(ports || []);
+  } catch (error) {
+    console.error('Error in ports endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error fetching ports: ' + error.message 
     });
   }
 });
@@ -5529,155 +5753,6 @@ app.get('/api/captain/rfqs', authenticateToken, async (req, res) => {
   }
 });
 
-// Captain accept RFQ and create draft quotation endpoint
-app.post('/api/captain/rfqs/:id/accept', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { finalPrice, message } = req.body;
-    const captainId = req.user.id;
-    
-    // Validate required fields
-    if (!id || !finalPrice) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'RFQ ID and final price are required' 
-      });
-    }
-    
-    // Always use Supabase - no mock data fallback
-    if (!supabase) {
-      console.error('Supabase not initialized');
-      return res.status(500).json({ 
-        success: false,
-        error: 'Database not available' 
-      });
-    }
-    
-    // Fetch the RFQ to get buyer information and product details
-    const { data: rfq, error: rfqError } = await supabase
-      .from('rfqs')
-      .select(`
-        id,
-        buyer_id,
-        product_id,
-        title,
-        quantity,
-        status,
-        products (
-          name,
-          price,
-          currency_id,
-          currencies (code)
-        )
-      `)
-      .eq('id', id)
-      .single();
-    
-    if (rfqError) {
-      console.error('Error fetching RFQ:', rfqError.message);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error fetching RFQ: ' + rfqError.message 
-      });
-    }
-    
-    if (!rfq) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'RFQ not found' 
-      });
-    }
-    
-    // Create draft quotation (DPQ) in the database
-    const { data: dpq, error: dpqError } = await supabase
-      .from('dpqs')
-      .insert({
-        rfq_id: rfq.id,
-        seller_id: captainId, // The captain is acting as the seller in this context
-        product_id: rfq.product_id,
-        quantity: rfq.quantity,
-        unit_price: parseFloat(finalPrice),
-        currency_id: rfq.products?.currency_id || 1,
-        status: 'draft', // Draft quotation
-        created_at: new Date(),
-        updated_at: new Date()
-      })
-      .select()
-      .single();
-    
-    if (dpqError) {
-      console.error('Error creating draft quotation:', dpqError.message);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error creating draft quotation: ' + dpqError.message 
-      });
-    }
-    
-    // Update RFQ status to "accepted"
-    const { error: updateError } = await supabase
-      .from('rfqs')
-      .update({ 
-        status: 'accepted',
-        updated_at: new Date()
-      })
-      .eq('id', id);
-    
-    if (updateError) {
-      console.error('Error updating RFQ status:', updateError.message);
-      // Rollback the DPQ creation if RFQ update fails
-      await supabase
-        .from('dpqs')
-        .delete()
-        .eq('id', dpq.id);
-      
-      return res.status(500).json({ 
-        success: false,
-        error: 'Server error updating RFQ status: ' + updateError.message 
-      });
-    }
-    
-    // Create notification for the buyer about the draft quotation
-    const notificationTitle = 'Draft Quotation Received';
-    const notificationMessage = message 
-      ? `Captain has accepted your RFQ "${rfq.title}" and provided a draft quotation with price $${finalPrice}. Message: ${message}`
-      : `Captain has accepted your RFQ "${rfq.title}" and provided a draft quotation with price $${finalPrice}.`;
-    
-    const { data: notification, error: notificationError } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: rfq.buyer_id,
-        title: notificationTitle,
-        message: notificationMessage,
-        related_entity_type: 'dpq',
-        related_entity_id: dpq.id
-      })
-      .select()
-      .single();
-    
-    if (notificationError) {
-      console.error('Error creating notification:', notificationError.message);
-      // Note: We won't rollback here as the main operations succeeded
-    }
-    
-    console.log('Successfully created draft quotation for RFQ');
-    res.json({ 
-      success: true, 
-      message: 'RFQ accepted and draft quotation created successfully',
-      dpq,
-      rfq: {
-        id: id,
-        status: 'accepted'
-      }
-    });
-  } catch (error) {
-    console.error('Error in captain accept RFQ endpoint:', error.message);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error accepting RFQ: ' + error.message 
-    });
-  }
-});
-
 // Chatbot endpoint
 const chatbotRouter = require('./chatbot');
 app.use('/api/chatbot', chatbotRouter);
@@ -5833,7 +5908,7 @@ app.post('/api/captain/rfqs/:id/respond', authenticateToken, async (req, res) =>
 app.post('/api/captain/rfqs/:id/accept', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { finalPrice, message } = req.body;
+    const { finalPrice, message, specifications, deliveryPortId, deliveryDate, paymentTerms } = req.body;
     const captainId = req.user.id;
     
     // Validate required fields
@@ -5888,7 +5963,7 @@ app.post('/api/captain/rfqs/:id/accept', authenticateToken, async (req, res) => 
       });
     }
     
-    // Create draft quotation (DPQ) in the database
+    // Create draft quotation (DPQ) in the database with detailed information
     const { data: dpq, error: dpqError } = await supabase
       .from('dpqs')
       .insert({
@@ -5898,6 +5973,10 @@ app.post('/api/captain/rfqs/:id/accept', authenticateToken, async (req, res) => 
         quantity: rfq.quantity,
         unit_price: parseFloat(finalPrice),
         currency_id: rfq.products?.currency_id || 1,
+        specifications: specifications || '',
+        delivery_port_id: deliveryPortId || null,
+        delivery_date: deliveryDate || null,
+        payment_terms: paymentTerms || 'EXW',
         status: 'draft', // Draft quotation
         created_at: new Date(),
         updated_at: new Date()
@@ -6112,6 +6191,126 @@ app.get('/api/buyer/dpqs', authenticateToken, async (req, res) => {
   }
 });
 
+// Buyer request negotiation for DPQ endpoint
+app.post('/api/buyer/dpqs/:id/negotiate', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const buyerId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the DPQ to verify ownership and get related data
+    const { data: dpq, error: dpqError } = await supabase
+      .from('dpqs')
+      .select(`
+        id, 
+        rfq_id, 
+        seller_id,
+        status,
+        rfqs (buyer_id, title)
+      `)
+      .eq('id', id)
+      .eq('rfqs.buyer_id', buyerId)
+      .single();
+    
+    if (dpqError) {
+      console.error('Error fetching DPQ:', dpqError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching quotation: ' + dpqError.message 
+      });
+    }
+    
+    if (!dpq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Quotation not found or you do not have permission to access it' 
+      });
+    }
+    
+    // Check if DPQ is in a state that allows negotiation (draft)
+    if (dpq.status !== 'draft') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Quotation cannot be negotiated in its current state' 
+      });
+    }
+    
+    // Update DPQ status to "negotiated"
+    const { error: updateError } = await supabase
+      .from('dpqs')
+      .update({ 
+        status: 'negotiated',
+        updated_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Error updating DPQ status:', updateError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating quotation status: ' + updateError.message 
+      });
+    }
+    
+    // Update related RFQ status to "negotiation_requested"
+    const { error: rfqUpdateError } = await supabase
+      .from('rfqs')
+      .update({ 
+        status: 'negotiation_requested',
+        updated_at: new Date()
+      })
+      .eq('id', dpq.rfq_id);
+    
+    if (rfqUpdateError) {
+      console.error('Error updating RFQ status:', rfqUpdateError.message);
+      // Note: We won't rollback here as the main operation succeeded
+    }
+    
+    // Create notification for the captain (seller)
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: dpq.seller_id,
+        title: 'Quotation Negotiation Requested',
+        message: message 
+          ? `Buyer has requested negotiation for quotation #${dpq.id} (RFQ: "${dpq.rfqs?.title}"): ${message}`
+          : `Buyer has requested negotiation for quotation #${dpq.id} (RFQ: "${dpq.rfqs?.title}")`,
+        related_entity_type: 'dpq',
+        related_entity_id: dpq.id
+      });
+    
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError.message);
+      // Note: We won't rollback here as the main operation succeeded
+    }
+    
+    console.log('Successfully requested negotiation for quotation');
+    res.json({ 
+      success: true, 
+      message: 'Negotiation request sent successfully',
+      dpq: {
+        id: id,
+        status: 'negotiated'
+      }
+    });
+  } catch (error) {
+    console.error('Error in buyer negotiate DPQ endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error requesting negotiation: ' + error.message 
+    });
+  }
+});
+
 // Buyer accept DPQ endpoint
 app.post('/api/buyer/dpqs/:id/accept', authenticateToken, async (req, res) => {
   try {
@@ -6289,6 +6488,198 @@ app.post('/api/buyer/dpqs/:id/reject', authenticateToken, async (req, res) => {
       // Note: We won't rollback here as the main operation succeeded
     }
     
+    // Create notification for the captain (seller)
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: null, // This would be the captain's ID in a real implementation
+        title: 'Quotation Rejected',
+        message: `Buyer has rejected the draft quotation #${dpq.id}.`,
+        related_entity_type: 'dpq',
+        related_entity_id: dpq.id
+      });
+    
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError.message);
+      // Note: We won't rollback here as the main operation succeeded
+    }
+    
+    console.log('Successfully rejected quotation');
+    res.json({ 
+      success: true, 
+      message: 'Quotation rejected successfully',
+      dpq: {
+        id: id,
+        status: 'rejected'
+      }
+    });
+  } catch (error) {
+    console.error('Error in buyer reject DPQ endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error rejecting quotation: ' + error.message 
+    });
+  }
+});
+
+// Captain update DPQ endpoint
+app.put('/api/captain/dpqs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { unitPrice, specifications, deliveryPortId, deliveryDate, paymentTerms } = req.body;
+    const captainId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the DPQ to verify ownership
+    const { data: dpq, error: dpqError } = await supabase
+      .from('dpqs')
+      .select('id, seller_id, status')
+      .eq('id', id)
+      .eq('seller_id', captainId)
+      .single();
+    
+    if (dpqError) {
+      console.error('Error fetching DPQ:', dpqError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching quotation: ' + dpqError.message 
+      });
+    }
+    
+    if (!dpq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Quotation not found or you do not have permission to access it' 
+      });
+    }
+    
+    // Check if DPQ is in a state that allows updates (draft or negotiated)
+    if (dpq.status !== 'draft' && dpq.status !== 'negotiated') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Quotation cannot be modified in its current state' 
+      });
+    }
+    
+    // Update the DPQ
+    const updateData = {
+      updated_at: new Date()
+    };
+    
+    // Only update fields that are provided
+    if (unitPrice !== undefined) updateData.unit_price = parseFloat(unitPrice);
+    if (specifications !== undefined) updateData.specifications = specifications;
+    if (deliveryPortId !== undefined) updateData.delivery_port_id = deliveryPortId ? parseInt(deliveryPortId) : null;
+    if (deliveryDate !== undefined) updateData.delivery_date = deliveryDate || null;
+    if (paymentTerms !== undefined) updateData.payment_terms = paymentTerms;
+    
+    const { data: updatedDpq, error: updateError } = await supabase
+      .from('dpqs')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error('Error updating DPQ:', updateError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating quotation: ' + updateError.message 
+      });
+    }
+    
+    console.log('Successfully updated DPQ');
+    res.json({ 
+      success: true, 
+      message: 'Quotation updated successfully',
+      dpq: updatedDpq
+    });
+  } catch (error) {
+    console.error('Error in captain update DPQ endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error updating quotation: ' + error.message 
+    });
+  }
+});
+
+// Buyer reject DPQ endpoint
+app.post('/api/buyer/dpqs/:id/reject', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const buyerId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the DPQ to verify ownership
+    const { data: dpq, error: dpqError } = await supabase
+      .from('dpqs')
+      .select('id, rfq_id, buyer_id, status')
+      .eq('id', id)
+      .eq('buyer_id', buyerId)
+      .single();
+    
+    if (dpqError) {
+      console.error('Error fetching DPQ:', dpqError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching quotation: ' + dpqError.message 
+      });
+    }
+    
+    if (!dpq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Quotation not found or you do not have permission to access it' 
+      });
+    }
+    
+    // Update DPQ status to "rejected"
+    const { error: updateError } = await supabase
+      .from('dpqs')
+      .update({ 
+        status: 'rejected',
+        updated_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Error updating DPQ status:', updateError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating quotation status: ' + updateError.message 
+      });
+    }
+    
+    // Update related RFQ status to "quotation_rejected"
+    const { error: rfqUpdateError } = await supabase
+      .from('rfqs')
+      .update({ 
+        status: 'quotation_rejected',
+        updated_at: new Date()
+      })
+      .eq('id', dpq.rfq_id);
+    
+    if (rfqUpdateError) {
+      console.error('Error updating RFQ status:', rfqUpdateError.message);
+      // Note: We won't rollback here as the main operation succeeded
+    }
+    
     // Create notification for the captain
     const { error: notificationError } = await supabase
       .from('notifications')
@@ -6319,6 +6710,152 @@ app.post('/api/buyer/dpqs/:id/reject', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Server error rejecting quotation: ' + error.message 
+    });
+  }
+});
+
+// Captain convert DPQ to DPO endpoint
+app.post('/api/captain/dpqs/:id/convert-to-dpo', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const captainId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the DPQ with related data
+    const { data: dpq, error: dpqError } = await supabase
+      .from('dpqs')
+      .select(`
+        id,
+        rfq_id,
+        seller_id,
+        product_id,
+        quantity,
+        unit_price,
+        currency_id,
+        specifications,
+        delivery_port_id,
+        delivery_date,
+        payment_terms,
+        status,
+        rfqs (
+          buyer_id
+        )
+      `)
+      .eq('id', id)
+      .eq('seller_id', captainId)
+      .single();
+    
+    if (dpqError) {
+      console.error('Error fetching DPQ:', dpqError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching quotation: ' + dpqError.message 
+      });
+    }
+    
+    if (!dpq) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Quotation not found or you do not have permission to access it' 
+      });
+    }
+    
+    // Check if DPQ is in a state that allows conversion (draft or accepted)
+    if (dpq.status !== 'draft' && dpq.status !== 'accepted') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Quotation cannot be converted to DPO in its current state' 
+      });
+    }
+    
+    // Create DPO (Detailed Product Order) from DPQ
+    const { data: dpo, error: dpoError } = await supabase
+      .from('dpos')
+      .insert({
+        dpq_id: dpq.id,
+        seller_id: dpq.seller_id,
+        buyer_id: dpq.rfqs?.buyer_id,
+        product_id: dpq.product_id,
+        quantity: dpq.quantity,
+        unit_price: dpq.unit_price,
+        currency_id: dpq.currency_id,
+        specifications: dpq.specifications,
+        delivery_port_id: dpq.delivery_port_id,
+        delivery_date: dpq.delivery_date,
+        payment_terms: dpq.payment_terms,
+        status: 'pending',
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+      .select()
+      .single();
+    
+    if (dpoError) {
+      console.error('Error creating DPO:', dpoError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error creating order: ' + dpoError.message 
+      });
+    }
+    
+    // Update DPQ status to "converted"
+    const { error: updateError } = await supabase
+      .from('dpqs')
+      .update({ 
+        status: 'converted',
+        updated_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Error updating DPQ status:', updateError.message);
+      // Rollback the DPO creation if DPQ update fails
+      await supabase
+        .from('dpos')
+        .delete()
+        .eq('id', dpo.id);
+      
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating quotation status: ' + updateError.message 
+      });
+    }
+    
+    // Create notification for the buyer
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: dpq.rfqs?.buyer_id,
+        title: 'Detailed Product Order Created',
+        message: `A Detailed Product Order has been created from your quotation #${dpq.id}.`,
+        related_entity_type: 'dpo',
+        related_entity_id: dpo.id
+      });
+    
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError.message);
+      // Note: We won't rollback here as the main operations succeeded
+    }
+    
+    console.log('Successfully converted DPQ to DPO');
+    res.json({ 
+      success: true, 
+      message: 'Quotation converted to order successfully',
+      dpo: dpo
+    });
+  } catch (error) {
+    console.error('Error in captain convert DPQ to DPO endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error converting quotation to order: ' + error.message 
     });
   }
 });
@@ -7423,6 +7960,200 @@ app.use(express.static(staticPath, {
     }
   }
 }));
+
+// Captain confirm DPO endpoint
+app.post('/api/captain/dpos/:id/confirm', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const captainId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the DPO to verify ownership
+    const { data: dpo, error: dpoError } = await supabase
+      .from('dpos')
+      .select('id, seller_id, status')
+      .eq('id', id)
+      .eq('seller_id', captainId)
+      .single();
+    
+    if (dpoError) {
+      console.error('Error fetching DPO:', dpoError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching order: ' + dpoError.message 
+      });
+    }
+    
+    if (!dpo) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Order not found or you do not have permission to access it' 
+      });
+    }
+    
+    // Check if DPO is in a state that allows confirmation (pending)
+    if (dpo.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Order cannot be confirmed in its current state' 
+      });
+    }
+    
+    // Update DPO status to "confirmed"
+    const { error: updateError } = await supabase
+      .from('dpos')
+      .update({ 
+        status: 'confirmed',
+        updated_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Error updating DPO status:', updateError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating order status: ' + updateError.message 
+      });
+    }
+    
+    // Create notification for the buyer
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: null, // This would be the buyer's ID in a real implementation
+        title: 'Order Confirmed',
+        message: `Your order #${dpo.id} has been confirmed by the seller.`,
+        related_entity_type: 'dpo',
+        related_entity_id: dpo.id
+      });
+    
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError.message);
+      // Note: We won't rollback here as the main operation succeeded
+    }
+    
+    console.log('Successfully confirmed DPO');
+    res.json({ 
+      success: true, 
+      message: 'Order confirmed successfully',
+      dpo: {
+        id: id,
+        status: 'confirmed'
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain confirm DPO endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error confirming order: ' + error.message 
+    });
+  }
+});
+
+// Captain process DPO endpoint
+app.post('/api/captain/dpos/:id/process', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const captainId = req.user.id;
+    
+    // Always use Supabase - no mock data fallback
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not available' 
+      });
+    }
+    
+    // Fetch the DPO to verify ownership
+    const { data: dpo, error: dpoError } = await supabase
+      .from('dpos')
+      .select('id, seller_id, status')
+      .eq('id', id)
+      .eq('seller_id', captainId)
+      .single();
+    
+    if (dpoError) {
+      console.error('Error fetching DPO:', dpoError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error fetching order: ' + dpoError.message 
+      });
+    }
+    
+    if (!dpo) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Order not found or you do not have permission to access it' 
+      });
+    }
+    
+    // Check if DPO is in a state that allows processing (confirmed)
+    if (dpo.status !== 'confirmed') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Order cannot be processed in its current state' 
+      });
+    }
+    
+    // Update DPO status to "processing"
+    const { error: updateError } = await supabase
+      .from('dpos')
+      .update({ 
+        status: 'processing',
+        updated_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (updateError) {
+      console.error('Error updating DPO status:', updateError.message);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error updating order status: ' + updateError.message 
+      });
+    }
+    
+    // Create notification for the buyer
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: null, // This would be the buyer's ID in a real implementation
+        title: 'Order Processing',
+        message: `Your order #${dpo.id} is now being processed.`,
+        related_entity_type: 'dpo',
+        related_entity_id: dpo.id
+      });
+    
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError.message);
+      // Note: We won't rollback here as the main operation succeeded
+    }
+    
+    console.log('Successfully started processing DPO');
+    res.json({ 
+      success: true, 
+      message: 'Order processing started successfully',
+      dpo: {
+        id: id,
+        status: 'processing'
+      }
+    });
+  } catch (error) {
+    console.error('Error in captain process DPO endpoint:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error processing order: ' + error.message 
+    });
+  }
+});
 
 // Add a specific route to handle static file requests with better logging
 app.get('/static/*', (req, res) => {

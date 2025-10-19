@@ -1263,16 +1263,27 @@ const AdminDashboard = () => {
             <div className="p-6">
               <h3 className="text-xl font-bold mb-4" style={{ color: darkText }}>Reject Product</h3>
               <p className="mb-4" style={{ color: darkText }}>
-                Please provide a reason for rejecting the product "{productToReject.name}":
+                Please select a reason for rejecting the product "{productToReject.name}":
               </p>
-              <textarea
+              <select
                 className="w-full p-3 rounded-lg border mb-4"
                 style={{ borderColor: "#d9cfc1", backgroundColor: "#fff", color: darkText }}
-                rows="4"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter rejection reason..."
-              ></textarea>
+              >
+                <option value="">Select a rejection reason</option>
+                <option value="Wrong product details">Wrong product details</option>
+                <option value="Wrong product name">Wrong product name</option>
+                <option value="Contact details in description">Contact details in description</option>
+                <option value="Contact details in image">Contact details in image</option>
+                <option value="Incomplete product information">Incomplete product information</option>
+                <option value="Invalid category selection">Invalid category selection</option>
+                <option value="Missing product images">Missing product images</option>
+                <option value="Inappropriate content">Inappropriate content</option>
+                <option value="Duplicate product listing">Duplicate product listing</option>
+                <option value="Pricing policy violation">Pricing policy violation</option>
+                <option value="Other">Other</option>
+              </select>
               <div className="flex justify-end gap-3">
                 <button 
                   className="px-4 py-2 rounded-lg font-medium"
@@ -1288,6 +1299,7 @@ const AdminDashboard = () => {
                   className="px-4 py-2 rounded-lg font-medium"
                   onClick={rejectProduct}
                   style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                  disabled={!rejectionReason}
                 >
                   Reject Product
                 </button>

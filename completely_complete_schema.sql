@@ -175,6 +175,7 @@ CREATE TABLE products (
     quantity_uom VARCHAR(10),
     price_type VARCHAR(10) DEFAULT 'EXW',
     is_relabeling_allowed BOOLEAN DEFAULT FALSE,
+    relabeling_price DECIMAL(10, 2), -- New field for relabeling price
     offer_validity_date TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) DEFAULT 'pending', -- pending, approved, rejected
     image_url TEXT,
